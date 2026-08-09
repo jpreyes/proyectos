@@ -26,3 +26,6 @@ dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# credenciales del despliegue en el VPS
+vps/credentials.env

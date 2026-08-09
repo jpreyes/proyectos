@@ -1,0 +1,31 @@
+# Overlay para el VPS srv1134838, donde cloudflared ya corre como servicio
+# systemd con un solo túnel para todos los sitios del box. En vez del
+# contenedor cloudflared del repo (perfil `tunnel`), aquí un nginx hace el
+# mismo reparto de rutas y publica un único puerto local que el túnel enruta.
+#
+#   cloudflared (systemd) ──> 127.0.0.1:8093 ──> nginx ──┬── /api/*, /_/* ──> pocketbase:8090
+#                                                        └── /*           ──> web:3000
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+#
+# Público en https://tda.jpreyes.cl
+
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    volumes:
+      - ./vps/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8093:80"
+    depends_on:
+      - web
+      - pocketbase
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s

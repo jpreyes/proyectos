@@ -1,0 +1,7 @@
+# pnpm 10+ ya no lee la clave `pnpm` de package.json: los ajustes viven acá.
+#
+# sharp trae script de build (binarios nativos para la optimización de imágenes
+# de Next). Sin aprobarlo, `pnpm install` termina en ERR_PNPM_IGNORED_BUILDS y
+# el build de Docker se cae.
+onlyBuiltDependencies:
+  - sharp

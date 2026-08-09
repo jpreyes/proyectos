@@ -42,7 +42,31 @@ Abre `http://localhost:3000/_/` — PocketBase te pide crear el superusuario en 
 arranque. Luego, en el admin, ve a **Collections → users → New record** y crea tu usuario
 de la app (correo + contraseña). Ese es el que usas en `http://localhost:3000/login`.
 
-## Despliegue en el VPS
+## Despliegue
+
+### VPS srv1134838 — `https://tda.jpreyes.cl`
+
+Ahí cloudflared ya corre como servicio systemd, con **un solo túnel** para todos los
+sitios del box y configuración remota (dashboard de Zero Trust; no hay `config.yml` en
+disco). El contenedor `cloudflared` del repo no se usa: queda bajo el perfil `tunnel` y
+en su lugar un nginx hace el mismo reparto de rutas, publicando un único puerto local
+que el túnel enruta.
+
+```
+cloudflared (systemd) → 127.0.0.1:8093 → nginx ─┬── /api/*, /_/* → pocketbase:8090
+                                                └── /*           → web:3000
+```
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+```
+
+En el dashboard, el túnel del box lleva un public hostname `tda.jpreyes.cl` → HTTP →
+`localhost:8093`. Las cuentas (superusuario del panel y usuario de la app) se crean con
+`pocketbase superuser upsert` y un POST a `users`; quedan en `vps/credentials.env`,
+gitignored.
+
+### Host sin cloudflared — túnel propio
 
 ```bash
 cloudflared tunnel login
@@ -59,10 +83,10 @@ cp cloudflared/config.example.yml cloudflared/config.yml
 Ajusta `credentials-file` al nombre real del JSON y levanta todo:
 
 ```bash
-docker compose up -d --build
+docker compose --profile tunnel up -d --build
 ```
 
-La primera visita a `https://proyectos.jpreyes.cl/_/` crea el superusuario.
+La primera visita a `https://<tu-dominio>/_/` crea el superusuario.
 
 ## Respaldo
 

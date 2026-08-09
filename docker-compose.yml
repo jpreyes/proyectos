@@ -47,7 +47,13 @@ services:
     expose:
       - "3000"
 
+  # Túnel propio del proyecto, bajo perfil: en un host que ya corre cloudflared
+  # y multiplexa varios sitios en un solo túnel (el VPS srv1134838) no se usa.
+  # Ver docker-compose.vps.yml.
+  #
+  #   docker compose --profile tunnel up -d
   cloudflared:
+    profiles: ["tunnel"]
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run

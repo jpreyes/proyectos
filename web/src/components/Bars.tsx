@@ -1,0 +1,62 @@
+import { monthLabel } from "@/lib/dates";
+import { formatCLPShort } from "@/lib/money";
+
+/**
+ * Monthly cash flow. Deliberately a plain pair of bars — no library, no
+ * animation, no tooltips to hunt for. The shape should be readable in the first
+ * second of looking at it.
+ */
+export function Bars({
+  months,
+  income,
+  expense,
+}: {
+  months: string[];
+  income: Record<string, number>;
+  expense: Record<string, number>;
+}) {
+  const max = Math.max(
+    1,
+    ...months.map((m) => Math.max(income[m] || 0, expense[m] || 0))
+  );
+
+  return (
+    <div>
+      <div className="flex items-end gap-1.5" style={{ height: 132 }}>
+        {months.map((m) => {
+          const inc = income[m] || 0;
+          const exp = expense[m] || 0;
+          return (
+            <div key={m} className="flex min-w-0 flex-1 flex-col justify-end gap-1">
+              <div className="flex items-end justify-center gap-0.5" style={{ height: 116 }}>
+                <div
+                  className="w-1/2 rounded-t-sm bg-ok/70"
+                  style={{ height: `${(inc / max) * 100}%` }}
+                  title={`Ingresos ${monthLabel(m)}: ${formatCLPShort(inc)}`}
+                />
+                <div
+                  className="w-1/2 rounded-t-sm bg-line2"
+                  style={{ height: `${(exp / max) * 100}%` }}
+                  title={`Egresos ${monthLabel(m)}: ${formatCLPShort(exp)}`}
+                />
+              </div>
+              <span className="truncate text-center text-[10px] text-faint">
+                {monthLabel(m)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex items-center gap-4 border-t border-line pt-2 text-[11px] text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-sm bg-ok/70" /> Ingresos
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-sm bg-line2" /> Egresos
+        </span>
+        <span className="ml-auto text-faint">Máximo: {formatCLPShort(max)}</span>
+      </div>
+    </div>
+  );
+}

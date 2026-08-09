@@ -1,0 +1,28 @@
+# PocketBase data — lives on the VPS volume, never in the repo (and never in Dropbox:
+# SQLite + file sync is a corruption recipe).
+pb/pb_data/
+pb/pocketbase
+pb/pocketbase.exe
+*.db
+*.db-shm
+*.db-wal
+
+# cloudflared secrets
+cloudflared/config.yml
+cloudflared/*.json
+!cloudflared/config.example.yml
+
+# node / next
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+Thumbs.db
+*.log

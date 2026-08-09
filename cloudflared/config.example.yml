@@ -1,0 +1,26 @@
+# Copy to cloudflared/config.yml and drop the tunnel credentials JSON next to it.
+# Both are gitignored.
+#
+#   cloudflared tunnel login
+#   cloudflared tunnel create proyectos
+#   cloudflared tunnel route dns proyectos proyectos.jpreyes.cl
+#
+# The create step writes <TUNNEL_ID>.json — put it in this folder.
+
+tunnel: proyectos
+credentials-file: /etc/cloudflared/proyectos.json
+
+ingress:
+  # PocketBase owns /api/* (REST) and /_/* (admin UI).
+  # This does NOT capture Next.js assets under /_next/ — the regex requires the
+  # underscore segment to end right there.
+  - hostname: proyectos.jpreyes.cl
+    path: ^/(api|_)(/|$)
+    service: http://pocketbase:8090
+    originRequest:
+      noTLSVerify: true
+
+  - hostname: proyectos.jpreyes.cl
+    service: http://web:3000
+
+  - service: http_status:404

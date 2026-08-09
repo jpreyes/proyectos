@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pocketbase",
+      "runtimeExecutable": "pb/pocketbase.exe",
+      "runtimeArgs": [
+        "serve",
+        "--http=127.0.0.1:8090",
+        "--dir=pb/pb_data",
+        "--migrationsDir=pb/pb_migrations",
+        "--hooksDir=pb/pb_hooks"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "web", "dev"],
+      "port": 3000
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+# proyectos.jpreyes.cl
+#
+# Single origin: cloudflared routes /api and /_ to PocketBase and everything
+# else to Next.js. No CORS, no second subdomain, cookies just work.
+#
+#   cloudflared ──┬── /api/*, /_/*  ──> pocketbase:8090
+#                 └── /*            ──> web:3000
+
+services:
+  pocketbase:
+    build:
+      context: ./pb
+      args:
+        PB_VERSION: ${PB_VERSION:-0.39.10}
+    restart: unless-stopped
+    environment:
+      # Daily digest recipient; falls back to the first user record.
+      DIGEST_TO: ${DIGEST_TO:-}
+      TZ: America/Santiago
+    volumes:
+      - pb_data:/pb/pb_data
+      - ./pb/pb_migrations:/pb/pb_migrations:ro
+      - ./pb/pb_hooks:/pb/pb_hooks:ro
+    expose:
+      - "8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    environment:
+      # server-side calls stay inside the compose network
+      PB_URL_INTERNAL: http://pocketbase:8090
+      # browser-side calls are same-origin through the tunnel
+      NEXT_PUBLIC_PB_URL: ""
+      NODE_ENV: production
+      TZ: America/Santiago
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - web
+      - pocketbase
+
+volumes:
+  pb_data:

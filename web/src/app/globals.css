@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* Dark, dense, information-first. This is a tool you open 20 times a day,
+   not a landing page. */
+@theme {
+  --color-bg: #0b0d10;
+  --color-panel: #13161b;
+  --color-panel2: #191d24;
+  --color-line: #262c35;
+  --color-line2: #343c48;
+  --color-ink: #e7eaee;
+  --color-muted: #8a929f;
+  --color-faint: #5c6674;
+  --color-accent: #5b9dff;
+  --color-ok: #46b978;
+  --color-warn: #e0a33a;
+  --color-bad: #e26a6a;
+
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+/* Scrollbars that don't shout */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line2);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Rich-text coming out of the `editor` fields */
+.prose-log :is(h1, h2, h3) {
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+.prose-log p {
+  margin: 0.4em 0;
+}
+.prose-log ul {
+  list-style: disc;
+  padding-left: 1.2em;
+  margin: 0.4em 0;
+}
+.prose-log ol {
+  list-style: decimal;
+  padding-left: 1.2em;
+  margin: 0.4em 0;
+}
+.prose-log a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.prose-log code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-panel2);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

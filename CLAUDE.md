@@ -89,6 +89,17 @@ docker compose up -d --build
   medianoche UTC; renderizarlos en `America/Santiago` los correría un día hacia atrás.
 - `pb_data/` **nunca** entra al repo ni a Dropbox. SQLite + sincronización de archivos
   corrompe la base.
+- **La captura escribe primero en IndexedDB, siempre.** No hay rama por conectividad: un
+  cuadro de captura que a veces falla deja de ser confiable, y entonces vuelves a
+  sostener las cosas en la cabeza. `lib/offline.ts` (página) y `public/sw.js` (worker)
+  duplican el acceso a IndexedDB a propósito — un service worker no puede importar
+  módulos de la app sin un paso de bundling.
+- **El service worker precachea `/offline` y sus chunks.** Cachear solo el HTML hace que
+  la página renderice sin hidratar: se ve bien y no guarda nada. Es el peor fallo posible
+  justo en la pantalla que tiene que funcionar.
+- `.next/` y `node_modules/` están marcados con `com.dropbox.ignored`. Si Dropbox los
+  sincroniza, el build falla con `EBUSY` al borrar carpetas. Next recrea `.next`, así que
+  el atributo se pierde: si vuelve a fallar, borra `.next` y recompila.
 
 ## Convenciones de código
 

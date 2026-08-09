@@ -94,6 +94,29 @@ Siete colecciones. `projects` es la raíz y todo cuelga de ella.
 - **`routines`, `routine_log`** — rutinas y sus repeticiones.
 - **`daily`** — ventana de sueño y energía por franja.
 
+## PWA e instalación
+
+Instalable en escritorio y en el celular. El manifest y los iconos se generan
+(`app/manifest.ts` y `app/icons/[size]`), así que no hay binarios en el repo ni
+dependencias de imagen. En escritorio aparece un botón **Instalar** en la barra de
+captura cuando el navegador lo permite.
+
+**Qué funciona sin conexión**, y qué no:
+
+- **Sí:** capturar. Todo lo que escribes en la barra va primero a IndexedDB y después al
+  servidor — el mismo camino con o sin red. Si navegas sin conexión, el service worker
+  sirve `/offline`, que es una página estática con su propio cuadro de captura.
+- **No:** el resto. La app es server-rendered; sin servidor no hay workspaces, finanzas ni
+  bitácora. Hacerlo funcionaría, pero implica reescribir el frontend a local-first.
+
+La cola se vacía sola al volver la conexión, al volver a la pestaña, y vía Background Sync
+(donde el navegador lo soporte, es decir Chrome y Edge; en Safari y Firefox se vacía cuando
+la pestaña está viva). Si una escritura se rechaza, queda en la cola con su error en vez de
+desaparecer en silencio.
+
+> El service worker precachea `/offline` **y sus chunks de JavaScript**. Sin eso la página
+> se ve bien pero nunca hidrata: el cuadro de captura parece funcionar y no guarda nada.
+
 ## Resumen diario por correo
 
 `pb/pb_hooks/daily_digest.pb.js` corre dentro de PocketBase (su propio cron y su propio

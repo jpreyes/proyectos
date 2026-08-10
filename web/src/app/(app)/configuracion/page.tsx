@@ -184,8 +184,8 @@ export default async function SettingsPage() {
         </form>
 
         <p className="mt-3 border-t border-line pt-3 text-[11px] text-faint">
-          La hora del digest la lee PocketBase al arrancar: si la cambias, reinicia el
-          contenedor para que tome el nuevo horario.
+          La hora es tuya y aplica de inmediato. El servidor revisa cada 15 minutos, así
+          que el correo puede llegar hasta un cuarto de hora después de la hora elegida.
         </p>
       </Card>
 

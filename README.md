@@ -182,6 +182,22 @@ no recibe correo.
 
 Para activarlo basta configurar SMTP en `/_/` → **Settings → Mail settings**.
 
+**El horario es por cuenta.** El job corre cada 15 minutos y en cada pasada decide a
+quién le toca, según su hora en Configuración y si ya se le mandó hoy
+(`settings.digest_last_sent`). Cambiar la hora aplica sin reiniciar, y si el contenedor
+estaba caído a esa hora exacta el correo sale en cuanto vuelve, en vez de perderse el
+día. El precio es la granularidad: puede llegar hasta 15 minutos tarde.
+
+Se descartó un cron por cuenta —más exacto al minuto— porque obliga a mantener vivo el
+registro de jobs ante altas, bajas y cambios de configuración, y un cron que no dispara
+no se recupera.
+
+> **Sin zona horaria por cuenta.** Todo se calcula en la hora local del proceso
+> (`America/Santiago`). goja no trae `Intl`, y `toLocaleString` acepta la opción
+> `timeZone` pero **la ignora en silencio**: le pidas Madrid o Tokio, devuelve la hora
+> local igual. Soportar husos distintos exigiría guardar un desfase en minutos por
+> cuenta y mantenerlo a mano en cada cambio de horario de verano.
+
 > `DIGEST_TO` redirige **todos** los resúmenes a una sola dirección. Es un escape para
 > depurar: con más de una cuenta, quien reciba verá los datos de las demás.
 

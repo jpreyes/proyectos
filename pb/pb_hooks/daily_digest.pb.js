@@ -9,7 +9,14 @@
 // que no hay un servicio extra que mantener vivo.
 //
 // Requiere SMTP configurado en Settings → Mail settings.
-// Destinatario: variable DIGEST_TO, si no el primer registro de `users`.
+//
+// El horario es **por cuenta**: el job corre cada 15 minutos y en cada pasada
+// decide a quién le toca según su `settings` (hora, minuto, activado) y si ya
+// se le mandó hoy. Un cron por cuenta habría sido más exacto al minuto, pero
+// obliga a mantener vivo el registro de jobs ante altas, bajas y cambios de
+// configuración, y se salta el envío del día si el proceso estaba caído a esa
+// hora exacta. Acá cambiar la hora aplica sin reiniciar y un reinicio tardío
+// manda igual. La lógica está en lib/digest.js (dueTo / run).
 //
 // Este archivo es deliberadamente una cáscara. Dos reglas del JSVM de
 // PocketBase que no son obvias y que rompen el hook en silencio:
@@ -20,32 +27,9 @@
 //   2. Tocar la base al cargar los hooks (nivel superior del archivo) provoca
 //      un panic de Go, "invalid memory address or nil pointer dereference",
 //      que el try/catch de JS no atrapa: se cae la carga entera y el cron nunca
-//      se registra. Cualquier consulta va en onBootstrap, después de e.next().
+//      se registra. Por eso el tick es una expresión fija y toda consulta pasa
+//      dentro del handler.
 
-const DEFAULT_CRON = "30 7 * * *"; // 07:30 America/Santiago (TZ del contenedor)
-
-// Registro con la hora por defecto: no toca la base, es seguro al cargar.
-cronAdd("dailyDigest", DEFAULT_CRON, function () {
+cronAdd("dailyDigest", "*/15 * * * *", function () {
   require(`${__hooks}/lib/digest.js`).run();
-});
-
-// Con la app ya inicializada se relee la hora configurada en `settings`.
-// cronAdd con el mismo nombre reemplaza el job anterior.
-//
-// Nota: DEFAULT_CRON se saca del módulo, no de la constante de arriba — dentro
-// del handler el ámbito del archivo no existe (regla 1 del comentario inicial).
-onBootstrap(function (e) {
-  e.next();
-  try {
-    const digest = require(`${__hooks}/lib/digest.js`);
-    const cron = digest.schedule();
-    if (cron !== digest.DEFAULT_CRON) {
-      cronAdd("dailyDigest", cron, function () {
-        require(`${__hooks}/lib/digest.js`).run();
-      });
-      console.log("digest: schedule set to " + cron);
-    }
-  } catch (err) {
-    console.log("digest: could not apply configured schedule: " + err);
-  }
 });

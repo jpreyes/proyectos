@@ -12,31 +12,38 @@
 // handler. Este archivo no termina en .pb.js, así que PocketBase no lo carga
 // como hook; solo se importa.
 
-const DEFAULT_CRON = "30 7 * * *"; // 07:30 America/Santiago (TZ del contenedor)
+// El horario es por cuenta: el job corre cada 15 minutos y en cada tick decide
+// a quién le toca. Antes era un cron único para toda la instancia, con la hora
+// de la cuenta más antigua leída una sola vez al arrancar — cambiarla exigía
+// reiniciar y las demás cuentas no tenían horario propio.
+const TICK_CRON = "*/15 * * * *";
 
-// La hora sale de la fila `settings`. Solo se puede leer con la app ya
-// inicializada: hacerlo al cargar los hooks provoca un panic de Go
-// ("invalid memory address or nil pointer dereference") que el try/catch de JS
-// no atrapa y que tumba la carga del archivo completo.
-// `settings` es por dueño desde 1770001400, pero el cron es uno solo para toda
-// la instancia. La hora sale de la cuenta más antigua; el resto ajusta si
-// recibe o no (digest_enabled), no a qué hora corre el job.
-function schedule() {
-  try {
-    const rows = $app.findRecordsByFilter("settings", "id != ''", "created", 1, 0);
-    if (rows.length) {
-      const h = Number(rows[0].get("digest_hour"));
-      const m = Number(rows[0].get("digest_minute"));
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return m + " " + h + " * * *";
-    }
-  } catch (err) {
-    console.log("digest: could not read settings, using default schedule");
-  }
-  return DEFAULT_CRON;
+const DEFAULT_HOUR = 7;
+const DEFAULT_MINUTE = 30;
+
+// Todo se calcula en la hora local del proceso, que el contenedor fija en
+// America/Santiago (TZ en docker-compose.yml).
+//
+// No hay zona horaria por cuenta, y no es un olvido: goja no trae `Intl`, y
+// `toLocaleString` acepta la opción `timeZone` pero **la ignora en silencio**
+// — le pidas Madrid o Tokio, devuelve la hora local igual. Soportar husos
+// distintos exigiría guardar un desfase en minutos por cuenta y mantenerlo a
+// mano en cada cambio de horario de verano, no un nombre de zona.
+function localNow() {
+  const d = new Date();
+  return {
+    day:
+      d.getFullYear() +
+      "-" +
+      String(d.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(d.getDate()).padStart(2, "0"),
+    minutes: d.getHours() * 60 + d.getMinutes(),
+  };
 }
 
-/** Preferencia de cada cuenta. Sin fila de settings, se asume que sí. */
-function digestEnabled(ownerId) {
+/** Fila de settings de una cuenta, o null si todavía no tiene. */
+function settingsOf(ownerId) {
   try {
     const rows = $app.findRecordsByFilter(
       "settings",
@@ -45,9 +52,41 @@ function digestEnabled(ownerId) {
       1,
       0
     );
-    if (rows.length) return !!rows[0].get("digest_enabled");
-  } catch (_) {}
-  return true;
+    return rows.length ? rows[0] : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * ¿Le toca a esta cuenta en este tick?
+ *
+ * Sí cuando ya pasó su hora local y todavía no se le mandó nada hoy. La marca
+ * `digest_last_sent` es lo que evita que los ticks siguientes repitan el envío,
+ * y de paso hace que un contenedor que estaba caído a la hora exacta mande en
+ * cuanto vuelve, en vez de saltarse el día — cosa que un cron a las 07:30 no
+ * hace.
+ */
+function dueTo(row, now) {
+  if (row && !row.get("digest_enabled")) return false;
+  if (row && row.get("digest_last_sent") === now.day) return false;
+
+  const h = row ? Number(row.get("digest_hour")) : DEFAULT_HOUR;
+  const m = row ? Number(row.get("digest_minute")) : DEFAULT_MINUTE;
+  const hour = h >= 0 && h <= 23 ? h : DEFAULT_HOUR;
+  const minute = m >= 0 && m <= 59 ? m : DEFAULT_MINUTE;
+
+  return now.minutes >= hour * 60 + minute;
+}
+
+function markSent(row, day) {
+  if (!row) return; // sin fila de settings no hay dónde anotar
+  row.set("digest_last_sent", day);
+  try {
+    $app.save(row);
+  } catch (err) {
+    console.log("digest: could not mark last_sent: " + err);
+  }
 }
 
 function isoDay(offsetDays) {
@@ -262,24 +301,27 @@ function send(to, html) {
  */
 function run() {
   const override = $os.getenv("DIGEST_TO");
+  const now = localNow();
   const users = allUsers();
 
-  if (!users.length) {
-    console.log("digest: no users, skipping");
-    return;
-  }
+  if (!users.length) return;
 
   for (let i = 0; i < users.length; i++) {
-    if (!digestEnabled(users[i].id)) continue; // esta cuenta lo tiene apagado
+    const user = users[i];
+    const row = settingsOf(user.id);
 
-    const html = build(users[i].id);
-    if (!html) continue; // a esta cuenta no le pasa nada hoy
+    if (!dueTo(row, now)) continue;
 
-    const to = override || users[i].get("email");
+    const to = override || user.get("email");
     if (!to) continue;
 
-    send(to, html);
+    const html = build(user.id);
+
+    // Se marca aunque no haya nada que contar: el día ya se procesó y no hay
+    // por qué volver a evaluarlo en cada tick hasta medianoche.
+    if (html) send(to, html);
+    markSent(row, now.day);
   }
 }
 
-module.exports = { DEFAULT_CRON, schedule, run, build, allUsers, digestEnabled };
+module.exports = { TICK_CRON, run, build, allUsers, dueTo, localNow, settingsOf };

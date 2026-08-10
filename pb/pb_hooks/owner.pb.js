@@ -33,5 +33,11 @@ onRecordCreateRequest(
   "inbox",
   "routines",
   "routine_log",
-  "daily"
+  "daily",
+  // Catálogo, también por dueño desde 1770001400. Cada cuenta tiene su copia,
+  // sembrada por seed_user.pb.js.
+  "accounts",
+  "categories",
+  "taxonomy",
+  "settings"
 );

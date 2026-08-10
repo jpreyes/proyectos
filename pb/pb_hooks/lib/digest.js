@@ -18,9 +18,12 @@ const DEFAULT_CRON = "30 7 * * *"; // 07:30 America/Santiago (TZ del contenedor)
 // inicializada: hacerlo al cargar los hooks provoca un panic de Go
 // ("invalid memory address or nil pointer dereference") que el try/catch de JS
 // no atrapa y que tumba la carga del archivo completo.
+// `settings` es por dueño desde 1770001400, pero el cron es uno solo para toda
+// la instancia. La hora sale de la cuenta más antigua; el resto ajusta si
+// recibe o no (digest_enabled), no a qué hora corre el job.
 function schedule() {
   try {
-    const rows = $app.findRecordsByFilter("settings", "id != ''", "", 1, 0);
+    const rows = $app.findRecordsByFilter("settings", "id != ''", "created", 1, 0);
     if (rows.length) {
       const h = Number(rows[0].get("digest_hour"));
       const m = Number(rows[0].get("digest_minute"));
@@ -32,9 +35,16 @@ function schedule() {
   return DEFAULT_CRON;
 }
 
-function digestEnabled() {
+/** Preferencia de cada cuenta. Sin fila de settings, se asume que sí. */
+function digestEnabled(ownerId) {
   try {
-    const rows = $app.findRecordsByFilter("settings", "id != ''", "", 1, 0);
+    const rows = $app.findRecordsByFilter(
+      "settings",
+      'owner = "' + ownerId + '"',
+      "",
+      1,
+      0
+    );
     if (rows.length) return !!rows[0].get("digest_enabled");
   } catch (_) {}
   return true;
@@ -251,8 +261,6 @@ function send(to, html) {
  * probando.
  */
 function run() {
-  if (!digestEnabled()) return;
-
   const override = $os.getenv("DIGEST_TO");
   const users = allUsers();
 
@@ -262,6 +270,8 @@ function run() {
   }
 
   for (let i = 0; i < users.length; i++) {
+    if (!digestEnabled(users[i].id)) continue; // esta cuenta lo tiene apagado
+
     const html = build(users[i].id);
     if (!html) continue; // a esta cuenta no le pasa nada hoy
 

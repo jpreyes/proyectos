@@ -104,13 +104,30 @@ PocketBase también trae respaldo programado en **Settings → Backups** desde e
 
 ## Cuentas y aislamiento
 
-Cada cuenta ve **solo lo suyo**. Las colecciones de datos personales llevan `owner` y
-sus reglas son `owner = @request.auth.id`; el campo lo escribe el hook `owner.pb.js` en
-cada creación, así que el cliente no lo elige y no puede falsearlo.
+Cada cuenta ve **solo lo suyo**, catálogo incluido. Todas las colecciones llevan `owner`
+con reglas `owner = @request.auth.id`; el campo lo escribe el hook `owner.pb.js` en cada
+creación, así que el cliente no lo elige y no puede falsearlo.
 
-La taxonomía compartida — `accounts`, `categories`, `taxonomy`, `settings` — queda común
-a todas las cuentas: son catálogos, y scopearlos dejaría a cada cuenta nueva con un
-ledger sin dónde imputar.
+**Cada cuenta nueva se siembra sola** (`pb_hooks/seed_user.pb.js`): recibe su propia
+copia del catálogo — taxonomía, categorías, cuentas y `settings` — más cinco tareas de
+bienvenida que explican por dónde empezar. Sin eso, con el catálogo scopeado la app
+abriría en blanco y el ledger no tendría dónde imputar.
+
+El catálogo no está hardcodeado: se copia de la cuenta más antigua, que es la que quedó
+con las filas de las migraciones originales. Una sola fuente de verdad — si curas tu
+vocabulario, las cuentas nuevas heredan el curado y no una lista congelada en el código.
+En una instalación nueva no hay de quién copiar, así que la primera cuenta **adopta** las
+filas sin dueño que dejaron las migraciones.
+
+La siembra es idempotente y por colección: corre también en cada arranque y solo llena lo
+que falte, así que una siembra a medias se repara sola. Las tareas de bienvenida son la
+excepción — van solo cuando la cuenta es nueva de verdad, para que no reaparezcan cada
+vez que termines de borrarlas.
+
+> Los índices únicos tienen que incluir a `owner` (`1770001500`). `taxonomy(group,value)`
+> y `accounts(name)` eran únicos a nivel de tabla: con catálogo por cuenta, eso impide que
+> la segunda cuenta tenga su propia "Cuenta corriente". Se manifiesta como una siembra a
+> medias con "Value must be unique" en el log.
 
 No hay registro público: las cuentas las crea un superusuario desde `/_/`
 (`users.createRule` es `null`).

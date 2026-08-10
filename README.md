@@ -1,6 +1,7 @@
 # proyectos
 
-Gestor personal de proyectos. Un solo usuario, un solo dominio: `tda.jpreyes.cl`.
+Gestor personal de proyectos, un dominio: `tda.jpreyes.cl`. Admite varias cuentas, y
+cada una ve solo lo suyo (ver [Cuentas y aislamiento](#cuentas-y-aislamiento)).
 
 El trabajo real vive afuera — en carpetas, repos, planillas, Overleaf. Esta app no
 intenta absorberlo: es el **índice y el punto de reentrada**. Abres un workspace y en una
@@ -101,6 +102,19 @@ PocketBase también trae respaldo programado en **Settings → Backups** desde e
 > **No pongas `pb_data/` en Dropbox.** SQLite con sincronización de archivos se corrompe.
 > El repo puede vivir en Dropbox; la base de datos no.
 
+## Cuentas y aislamiento
+
+Cada cuenta ve **solo lo suyo**. Las colecciones de datos personales llevan `owner` y
+sus reglas son `owner = @request.auth.id`; el campo lo escribe el hook `owner.pb.js` en
+cada creación, así que el cliente no lo elige y no puede falsearlo.
+
+La taxonomía compartida — `accounts`, `categories`, `taxonomy`, `settings` — queda común
+a todas las cuentas: son catálogos, y scopearlos dejaría a cada cuenta nueva con un
+ledger sin dónde imputar.
+
+No hay registro público: las cuentas las crea un superusuario desde `/_/`
+(`users.createRule` es `null`).
+
 ## Modelo
 
 Siete colecciones. `projects` es la raíz y todo cuelga de ella.
@@ -145,11 +159,19 @@ desaparecer en silencio.
 
 `pb/pb_hooks/daily_digest.pb.js` corre dentro de PocketBase (su propio cron y su propio
 mailer, sin servicios extra) y envía a las 07:30 lo vencido, lo de esta semana, los plazos
-de proyecto, lo por cobrar, la bandeja sin procesar y los activos sin siguiente paso. Si no
-hay nada que decir, no manda correo.
+de proyecto, lo por cobrar, la bandeja sin procesar y los activos sin siguiente paso. Un
+correo por cuenta, cada uno con sus propios datos. Si a alguien no le pasa nada ese día,
+no recibe correo.
 
-Para activarlo: configura SMTP en `/_/` → **Settings → Mail settings**, y opcionalmente
-define `DIGEST_TO` en el entorno (si no, usa el correo de tu usuario).
+Para activarlo basta configurar SMTP en `/_/` → **Settings → Mail settings**.
+
+> `DIGEST_TO` redirige **todos** los resúmenes a una sola dirección. Es un escape para
+> depurar: con más de una cuenta, quien reciba verá los datos de las demás.
+
+La lógica vive en `pb_hooks/lib/digest.js` y el hook es una cáscara que hace `require()`
+dentro de cada handler. No es estilo: los handlers del JSVM corren en una VM aislada que
+no ve el ámbito del archivo, y tocar la base al cargar los hooks tumba el archivo entero
+con un panic de Go que el `try/catch` no atrapa. Los comentarios del hook lo explican.
 
 ## Por qué la interfaz es así
 

@@ -90,8 +90,15 @@ function section(title, items) {
   );
 }
 
-/** Arma el HTML del resumen. Devuelve "" si no hay nada que contar. */
-function build() {
+/**
+ * Arma el HTML del resumen de UN usuario. Devuelve "" si no hay nada que contar.
+ *
+ * El scope por dueño se aplica acá a mano y no basta con las reglas de las
+ * colecciones: esto corre con $app, que las ignora por completo. Sin el filtro,
+ * el resumen de cada quien traería los datos de todos.
+ */
+function build(ownerId) {
+  const own = 'owner = "' + ownerId + '" && ';
   const today = isoDay(0);
   const in7 = isoDay(7);
   const in14 = isoDay(14);
@@ -99,13 +106,13 @@ function build() {
   // --- tareas: vencidas y de la semana ------------------------------------
   const overdueTasks = find(
     "tasks",
-    'status != "done" && due_date != "" && due_date < "' + bound(today, false) + '"',
+    own + 'status != "done" && due_date != "" && due_date < "' + bound(today, false) + '"',
     "due_date",
     30
   );
   const soonTasks = find(
     "tasks",
-    'status != "done" && due_date >= "' +
+    own + 'status != "done" && due_date >= "' +
       bound(today, false) +
       '" && due_date <= "' +
       bound(in7, true) +
@@ -117,7 +124,7 @@ function build() {
   // --- plazos de proyecto --------------------------------------------------
   const deadlines = find(
     "projects",
-    '(status = "active" || status = "waiting") && due_date != "" && due_date <= "' +
+    own + '(status = "active" || status = "waiting") && due_date != "" && due_date <= "' +
       bound(in14, true) +
       '"',
     "due_date",
@@ -127,7 +134,7 @@ function build() {
   // --- por cobrar ----------------------------------------------------------
   const receivables = find(
     "entries",
-    'direction = "income" && (status = "invoiced" || status = "committed")',
+    own + 'direction = "income" && (status = "invoiced" || status = "committed")',
     "due_date",
     50
   );
@@ -137,8 +144,8 @@ function build() {
   }
 
   // --- bucles abiertos -----------------------------------------------------
-  const inbox = find("inbox", 'status = "open"', "created", 50);
-  const noPlan = find("projects", 'status = "active" && next_step = ""', "name", 30);
+  const inbox = find("inbox", own + 'status = "open"', "created", 50);
+  const noPlan = find("projects", own + 'status = "active" && next_step = ""', "name", 30);
 
   const nothing =
     !overdueTasks.length &&
@@ -205,35 +212,18 @@ function build() {
   return html;
 }
 
-/** Destinatario: DIGEST_TO, si no el primer usuario. */
-function recipient() {
-  const env = $os.getenv("DIGEST_TO");
-  if (env) return env;
+/** Todas las cuentas. `users` no tiene columna `deleted`: no pasa por find(). */
+function allUsers() {
   try {
-    // `users` no tiene columna `deleted`, así que no puede pasar por find().
-    const users = $app.findRecordsByFilter("users", "id != ''", "created", 1, 0);
-    if (users.length) return users[0].get("email");
+    return $app.findRecordsByFilter("users", "id != ''", "created", 100, 0);
   } catch (err) {
-    console.log("digest: could not resolve recipient: " + err);
+    console.log("digest: could not list users: " + err);
+    return [];
   }
-  return "";
 }
 
-/** Punto de entrada del cron. */
-function run() {
-  if (!digestEnabled()) return;
-
-  const html = build();
-  if (!html) return;
-
-  const to = recipient();
-  if (!to) {
-    console.log("digest: no recipient configured, skipping");
-    return;
-  }
-
+function send(to, html) {
   const settings = $app.settings();
-
   try {
     $app.newMailClient().send(
       new MailerMessage({
@@ -248,8 +238,38 @@ function run() {
     );
     console.log("digest: sent to " + to);
   } catch (err) {
-    console.log("digest: send failed: " + err);
+    console.log("digest: send failed for " + to + ": " + err);
   }
 }
 
-module.exports = { DEFAULT_CRON, schedule, run, build, recipient, digestEnabled };
+/**
+ * Punto de entrada del cron: un resumen por cuenta, con sus propios datos.
+ *
+ * DIGEST_TO redirige TODOS los resúmenes a esa dirección — es un escape para
+ * depurar, no el modo normal. Con más de una cuenta significa que quien reciba
+ * verá los datos de las demás, así que déjalo sin definir salvo que lo estés
+ * probando.
+ */
+function run() {
+  if (!digestEnabled()) return;
+
+  const override = $os.getenv("DIGEST_TO");
+  const users = allUsers();
+
+  if (!users.length) {
+    console.log("digest: no users, skipping");
+    return;
+  }
+
+  for (let i = 0; i < users.length; i++) {
+    const html = build(users[i].id);
+    if (!html) continue; // a esta cuenta no le pasa nada hoy
+
+    const to = override || users[i].get("email");
+    if (!to) continue;
+
+    send(to, html);
+  }
+}
+
+module.exports = { DEFAULT_CRON, schedule, run, build, allUsers, digestEnabled };

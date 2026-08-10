@@ -1,6 +1,6 @@
 # proyectos
 
-Gestor personal de proyectos. Un solo usuario, un solo dominio: `proyectos.jpreyes.cl`.
+Gestor personal de proyectos. Un solo usuario, un solo dominio: `tda.jpreyes.cl`.
 
 El trabajo real vive afuera — en carpetas, repos, planillas, Overleaf. Esta app no
 intenta absorberlo: es el **índice y el punto de reentrada**. Abres un workspace y en una

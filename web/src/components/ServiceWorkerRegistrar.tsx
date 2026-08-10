@@ -18,11 +18,22 @@ export function ServiceWorkerRegistrar() {
       await syncToken();
 
       if ("serviceWorker" in navigator) {
-        try {
-          await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        } catch {
-          // registration blocked (private mode, insecure origin) — the app
-          // still works, it just loses the offline path
+        if (process.env.NODE_ENV === "production") {
+          try {
+            await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          } catch {
+            // registration blocked (private mode, insecure origin) — the app
+            // still works, it just loses the offline path
+          }
+        } else {
+          // Dev builds do not content-hash their chunk names, so a cache-first
+          // worker happily serves yesterday's JavaScript against today's HTML
+          // and the app dies on hydration. Tear it down instead.
+          // To exercise the offline path, run `pnpm build && pnpm start`.
+          for (const reg of await navigator.serviceWorker.getRegistrations()) {
+            await reg.unregister();
+          }
+          for (const key of await caches.keys()) await caches.delete(key);
         }
       }
       if (!cancelled) await flush();

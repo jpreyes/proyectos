@@ -12,15 +12,18 @@ import { btn, cx, inputClass } from "./ui";
  * The write goes to IndexedDB first and to the server afterwards — the same
  * path online and offline. Anything else would make capture fail exactly when
  * it matters most, and a capture box you cannot trust is worse than none.
+ *
+ * `compact` is the phone variant: it drops its own sticky wrapper and the inbox
+ * link, because on mobile it lives inside the header, which supplies both.
  */
-export function CaptureBar({ open }: { open: number }) {
+export function CaptureBar({ open, compact = false }: { open: number; compact?: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [queued, setQueued] = useState(0);
   const [online, setOnline] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
-  const promptRef = useRef<Event & { prompt?: () => Promise<void> }>(null);
+  const promptRef = useRef<(Event & { prompt?: () => Promise<void> }) | null>(null);
 
   const refreshQueued = useCallback(async () => {
     setQueued((await pending()).length);
@@ -80,48 +83,52 @@ export function CaptureBar({ open }: { open: number }) {
 
   const total = open + queued;
 
-  return (
-    <div className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
-      <form
-        onSubmit={onSubmit}
-        className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 md:px-8"
-      >
-        <input
-          ref={inputRef}
-          name="text"
-          autoComplete="off"
-          placeholder="Anota lo que no quieres perder…"
-          className={cx(inputClass, "flex-1")}
-        />
+  const form = (
+    <form
+      onSubmit={onSubmit}
+      className={cx(
+        "flex flex-wrap items-center gap-2",
+        compact ? "min-w-0 flex-1" : "mx-auto max-w-6xl px-4 py-2 md:px-8"
+      )}
+    >
+      <input
+        ref={inputRef}
+        name="text"
+        autoComplete="off"
+        enterKeyHint="done"
+        placeholder={compact ? "Anota algo…" : "Anota lo que no quieres perder…"}
+        className={cx(inputClass, "min-w-0 flex-1")}
+      />
 
-        <button type="submit" className={btn(justSaved ? "subtle" : "primary", "sm")}>
-          {justSaved ? "guardado" : "Capturar"}
+      <button type="submit" className={btn(justSaved ? "subtle" : "primary", "sm")}>
+        {justSaved ? "✓" : "Capturar"}
+      </button>
+
+      {canInstall && (
+        <button type="button" onClick={install} className={btn("ghost", "sm")}>
+          Instalar
         </button>
+      )}
 
-        {canInstall && (
-          <button type="button" onClick={install} className={btn("ghost", "sm")}>
-            Instalar
-          </button>
-        )}
+      {!online && (
+        <span
+          className="shrink-0 rounded-md border border-warn/40 bg-warn/10 px-2 py-1 text-xs text-warn"
+          title="Lo que captures se guarda y se sube al reconectar"
+        >
+          sin conexión
+        </span>
+      )}
 
-        {!online && (
-          <span
-            className="shrink-0 rounded-md border border-warn/40 bg-warn/10 px-2 py-1 text-xs text-warn"
-            title="Lo que captures se guarda y se sube al reconectar"
-          >
-            sin conexión
-          </span>
-        )}
+      {queued > 0 && (
+        <span
+          className="shrink-0 rounded-md border border-line2 bg-panel2 px-2 py-1 text-xs text-muted"
+          title="Capturas esperando subir"
+        >
+          {queued} por subir
+        </span>
+      )}
 
-        {queued > 0 && (
-          <span
-            className="shrink-0 rounded-md border border-line2 bg-panel2 px-2 py-1 text-xs text-muted"
-            title="Capturas esperando subir"
-          >
-            {queued} por subir
-          </span>
-        )}
-
+      {!compact && (
         <Link
           href="/inbox"
           className={cx(
@@ -134,7 +141,15 @@ export function CaptureBar({ open }: { open: number }) {
         >
           Bandeja {total > 0 ? total : ""}
         </Link>
-      </form>
+      )}
+    </form>
+  );
+
+  if (compact) return form;
+
+  return (
+    <div className="sticky top-0 z-20 hidden border-b border-line bg-bg/85 backdrop-blur md:block">
+      {form}
     </div>
   );
 }

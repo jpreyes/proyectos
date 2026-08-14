@@ -17,7 +17,9 @@ export type TaxGroup =
   | "direction"
   | "doc_type"
   | "currency"
-  | "task_status";
+  | "task_status"
+  | "quote_status"
+  | "commitment_status";
 
 export interface TaxRow {
   id: string;
@@ -44,6 +46,25 @@ export interface Settings {
   digest_hour: number;
   digest_minute: number;
   digest_enabled: boolean;
+
+  /** Encabezado del presupuesto: quién lo emite. */
+  issuer_name: string;
+  issuer_role: string;
+  issuer_tax_id: string;
+  issuer_email: string;
+  issuer_phone: string;
+  issuer_address: string;
+  issuer_web: string;
+
+  /** Techo semanal contra el que se mide la carga del calendario. */
+  capacity_hours_week: number;
+  /** Hasta dónde mira el buscador de huecos antes de rendirse. */
+  capacity_horizon_weeks: number;
+
+  quote_overhead_pct: number;
+  quote_profit_pct: number;
+  quote_validity_days: number;
+  quote_prefix: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -59,6 +80,22 @@ const DEFAULT_SETTINGS: Settings = {
   digest_hour: 7,
   digest_minute: 30,
   digest_enabled: true,
+
+  issuer_name: "",
+  issuer_role: "",
+  issuer_tax_id: "",
+  issuer_email: "",
+  issuer_phone: "",
+  issuer_address: "",
+  issuer_web: "",
+
+  capacity_hours_week: 40,
+  capacity_horizon_weeks: 78,
+
+  quote_overhead_pct: 0.15,
+  quote_profit_pct: 0.1,
+  quote_validity_days: 30,
+  quote_prefix: "P",
 };
 
 /** Hardcoded maps, used only if the taxonomy collection is unreachable. */
@@ -76,6 +113,8 @@ const FALLBACK_LABELS: Record<TaxGroup, Record<string, string>> = {
   doc_type: FALLBACK.DOC_TYPE,
   currency: { CLP: "CLP", UF: "UF", USD: "USD", EUR: "EUR" },
   task_status: FALLBACK.TASK_STATUS,
+  quote_status: FALLBACK.QUOTE_STATUS,
+  commitment_status: FALLBACK.COMMITMENT_STATUS,
 };
 
 export interface Config {

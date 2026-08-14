@@ -56,6 +56,31 @@ const STARTER_TASKS = [
   },
 ];
 
+/**
+ * Grupos de taxonomía que llegaron DESPUÉS de la siembra original.
+ *
+ * `seedUser` copia el catálogo entero solo cuando la cuenta no tiene ninguna
+ * fila, así que una cuenta ya sembrada nunca vería un grupo nuevo: se quedaría
+ * sin etiquetas para los estados de presupuesto y de compromiso. Y en una
+ * instalación nueva la migración que los agrega corre antes de que exista
+ * ninguna cuenta, así que tampoco puede sembrarlos ella.
+ *
+ * Por eso van acá, fila por fila, y se revisan en cada arranque.
+ *
+ * [group, value, label, color]
+ */
+const REQUIRED_GROUPS = [
+  ["quote_status", "draft", "Borrador", "neutral"],
+  ["quote_status", "pending", "Pendiente", "warn"],
+  ["quote_status", "approved", "Aprobado", "ok"],
+  ["quote_status", "rejected", "Rechazado", "bad"],
+
+  ["commitment_status", "tentative", "Tentativo", "warn"],
+  ["commitment_status", "confirmed", "Confirmado", "accent"],
+  ["commitment_status", "done", "Cumplido", "ok"],
+  ["commitment_status", "cancelled", "Anulado", "neutral"],
+];
+
 /** ¿Cuántas filas de esta colección tiene ya la cuenta? */
 function ownedCount(collection, userId) {
   try {
@@ -130,6 +155,62 @@ function copyRows(collection, fromOwner, toUserId) {
   return n;
 }
 
+/**
+ * Completa los grupos de REQUIRED_GROUPS que le falten a la cuenta.
+ *
+ * Idempotente y barato: una consulta por fila faltante, cero escrituras cuando
+ * ya está todo. Son filas bloqueadas (`locked`), así que la etiqueta y el color
+ * se pueden editar después sin que esto las pise — solo se crea lo ausente.
+ */
+function ensureGroups(userId) {
+  let created = 0;
+  const col = $app.findCollectionByNameOrId("taxonomy");
+  let position = 0;
+  let lastGroup = "";
+
+  for (const row of REQUIRED_GROUPS) {
+    const group = row[0];
+    const value = row[1];
+    if (group !== lastGroup) {
+      position = 0;
+      lastGroup = group;
+    }
+    const pos = position++;
+
+    let existing = [];
+    try {
+      existing = $app.findRecordsByFilter(
+        "taxonomy",
+        'owner = "' + userId + '" && group = "' + group + '" && value = "' + value + '"',
+        "",
+        1,
+        0
+      );
+    } catch (_) {
+      continue;
+    }
+    if (existing.length) continue;
+
+    const r = new Record(col);
+    r.set("group", group);
+    r.set("value", value);
+    r.set("label", row[2]);
+    r.set("color", row[3]);
+    r.set("position", pos);
+    r.set("active", true);
+    r.set("locked", true);
+    r.set("owner", userId);
+    try {
+      $app.save(r);
+      created++;
+    } catch (err) {
+      console.log("seed: no se pudo crear " + group + "/" + value + ": " + err);
+    }
+  }
+
+  return created;
+}
+
 function seedTasks(userId) {
   const col = $app.findCollectionByNameOrId("tasks");
   let n = 0;
@@ -194,6 +275,11 @@ function seedUser(userId) {
     }
   }
 
+  // Aparte del catálogo: esto corre siempre, incluso en cuentas que ya lo
+  // tienen todo, porque es justamente el caso que el bucle de arriba se salta.
+  const groups = ensureGroups(userId);
+  if (groups) summary.push("taxonomy:" + groups + " (grupos nuevos)");
+
   if (isNew) summary.push("tasks:" + seedTasks(userId));
 
   if (!summary.length) return false; // no hacía falta nada
@@ -213,4 +299,4 @@ function seedMissing() {
   for (const u of users) seedUser(u.id);
 }
 
-module.exports = { seedUser, seedMissing, STARTER_TASKS };
+module.exports = { seedUser, seedMissing, ensureGroups, STARTER_TASKS };

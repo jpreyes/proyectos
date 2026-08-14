@@ -29,6 +29,8 @@ const LOCKED_GROUPS: { group: TaxGroup; title: string }[] = [
   { group: "task_status", title: "Estados de tarea" },
   { group: "resource_state", title: "Estados de ubicación" },
   { group: "direction", title: "Ingreso / Egreso" },
+  { group: "quote_status", title: "Estados de presupuesto" },
+  { group: "commitment_status", title: "Estados de compromiso" },
 ];
 
 function Row({
@@ -164,6 +166,45 @@ export default async function SettingsPage() {
             />
           </Field>
 
+          <Field label="Capacidad semanal" hint="horas de trabajo, el techo del calendario">
+            <input
+              name="capacity_hours_week"
+              defaultValue={s.capacity_hours_week}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Horizonte del calendario" hint="semanas que mira el buscador de huecos">
+            <input
+              name="capacity_horizon_weeks"
+              defaultValue={s.capacity_horizon_weeks}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Gastos generales" hint="0.15 = 15% del costo directo">
+            <input
+              name="quote_overhead_pct"
+              defaultValue={s.quote_overhead_pct}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Utilidades" hint="0.10 = 10% del costo directo">
+            <input
+              name="quote_profit_pct"
+              defaultValue={s.quote_profit_pct}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Validez del presupuesto" hint="días">
+            <input
+              name="quote_validity_days"
+              defaultValue={s.quote_validity_days}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Prefijo de numeración" hint="P → P-2026-001">
+            <input name="quote_prefix" defaultValue={s.quote_prefix} className={inputClass} />
+          </Field>
+
           <Field label="Digest: hora">
             <input name="digest_hour" defaultValue={s.digest_hour} className={inputClass} />
           </Field>
@@ -176,6 +217,46 @@ export default async function SettingsPage() {
               Enviar resumen diario
             </label>
           </div>
+          {/* Va dentro del MISMO formulario a propósito: saveSettings escribe la
+              fila entera, así que un segundo formulario aparte borraría todo lo
+              que no llevara puesto. */}
+          <div className="col-span-full mt-2 border-t border-line pt-4">
+            <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+              Tus credenciales
+            </h3>
+            <p className="mb-3 text-[11px] text-faint">
+              El encabezado de cada presupuesto. Se escribe una vez.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Nombre">
+                <input name="issuer_name" defaultValue={s.issuer_name} className={inputClass} />
+              </Field>
+              <Field label="Título / cargo" hint="lo que va bajo tu nombre">
+                <input name="issuer_role" defaultValue={s.issuer_role} className={inputClass} />
+              </Field>
+              <Field label="RUT">
+                <input name="issuer_tax_id" defaultValue={s.issuer_tax_id} className={inputClass} />
+              </Field>
+              <Field label="Correo">
+                <input name="issuer_email" defaultValue={s.issuer_email} className={inputClass} />
+              </Field>
+              <Field label="Teléfono">
+                <input name="issuer_phone" defaultValue={s.issuer_phone} className={inputClass} />
+              </Field>
+              <Field label="Dirección" className="sm:col-span-2">
+                <input
+                  name="issuer_address"
+                  defaultValue={s.issuer_address}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Sitio web">
+                <input name="issuer_web" defaultValue={s.issuer_web} className={inputClass} />
+              </Field>
+            </div>
+          </div>
+
           <div className="flex items-end">
             <button type="submit" className={`${btn("primary")} w-full`}>
               Guardar

@@ -34,6 +34,13 @@ onRecordCreateRequest(
   "routines",
   "routine_log",
   "daily",
+  // Presupuestos y calendario de capacidad (1770001700 / 1770001800).
+  "quotes",
+  "quote_items",
+  "deliverables",
+  "commitments",
+  "calendar_feeds",
+  "calendar_events",
   // Catálogo, también por dueño desde 1770001400. Cada cuenta tiene su copia,
   // sembrada por seed_user.pb.js.
   "accounts",

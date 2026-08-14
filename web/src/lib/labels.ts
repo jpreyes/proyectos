@@ -1,6 +1,7 @@
 // Spanish UI strings for every enum in the schema, in one place.
 
 import type {
+  CommitmentStatus,
   Direction,
   DocType,
   EntityKind,
@@ -10,6 +11,7 @@ import type {
   Priority,
   ProjectKind,
   ProjectStatus,
+  QuoteStatus,
   ResourceKind,
   ResourceState,
   TaskStatus,
@@ -135,6 +137,20 @@ export const LOG_KIND_ICON: Record<LogKind, string> = {
   decision: "✓",
 };
 
+export const QUOTE_STATUS: Record<QuoteStatus, string> = {
+  draft: "Borrador",
+  pending: "Pendiente",
+  approved: "Aprobado",
+  rejected: "Rechazado",
+};
+
+export const COMMITMENT_STATUS: Record<CommitmentStatus, string> = {
+  tentative: "Tentativo",
+  confirmed: "Confirmado",
+  done: "Cumplido",
+  cancelled: "Anulado",
+};
+
 /** Tone used by the Badge component. */
 export type Tone = "neutral" | "accent" | "ok" | "warn" | "bad";
 
@@ -158,6 +174,20 @@ export const ENTRY_STATUS_TONE: Record<EntryStatus, Tone> = {
   committed: "accent",
   invoiced: "warn",
   paid: "ok",
+  cancelled: "neutral",
+};
+
+export const QUOTE_STATUS_TONE: Record<QuoteStatus, Tone> = {
+  draft: "neutral",
+  pending: "warn",
+  approved: "ok",
+  rejected: "bad",
+};
+
+export const COMMITMENT_STATUS_TONE: Record<CommitmentStatus, Tone> = {
+  tentative: "warn",
+  confirmed: "accent",
+  done: "ok",
   cancelled: "neutral",
 };
 

@@ -22,6 +22,8 @@ export type ResourceState = "active" | "reference" | "archived" | "deprecated";
 export type Direction = "income" | "expense";
 export type EntryStatus = "planned" | "committed" | "invoiced" | "paid" | "cancelled";
 export type TaskStatus = "todo" | "doing" | "blocked" | "done";
+export type QuoteStatus = "draft" | "pending" | "approved" | "rejected";
+export type CommitmentStatus = "tentative" | "confirmed" | "done" | "cancelled";
 
 export interface Base {
   id: string;
@@ -121,6 +123,8 @@ export interface Entry extends Base {
   files: string[];
   friction_cost: boolean;
   recurring: boolean;
+  /** Presupuesto del que salió, cuando lo creó una aprobación. */
+  quote: string;
   expand?: {
     project?: Project;
     entity?: Entity;
@@ -175,6 +179,108 @@ export interface Task extends Base {
   effort_h: number;
   notes: string;
   expand?: { project?: Project };
+}
+
+/* ------------------------------------------------------- presupuestos ---- */
+
+export interface Quote extends Base {
+  number: string;
+  title: string;
+  client: string;
+  /** Se llena al aprobar, nunca antes. */
+  project: string;
+  kind: ProjectKind | "";
+  description: string;
+  status: QuoteStatus;
+  date: string;
+  valid_until: string;
+  decided_date: string;
+  currency: Currency;
+  fx_rate: number;
+  /** Fracciones: 0.15 = 15%. */
+  overhead_pct: number;
+  profit_pct: number;
+  /** Congelados al escribir — ver 1770001700_quotes.js. */
+  direct_total: number;
+  overhead_amount: number;
+  profit_amount: number;
+  net_total: number;
+  net_total_clp: number;
+  work_hours: number;
+  max_hours_week: number;
+  earliest_start: string;
+  plan_start: string;
+  plan_end: string;
+  plan_hours_week: number;
+  terms: string;
+  notes: string;
+  expand?: {
+    client?: Entity;
+    project?: Project;
+  };
+}
+
+export interface QuoteItem extends Base {
+  quote: string;
+  position: number;
+  description: string;
+  unit: string;
+  qty: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface Deliverable extends Base {
+  quote: string;
+  position: number;
+  name: string;
+  detail: string;
+  /** Días corridos desde el inicio del trabajo, no una fecha. */
+  lead_days: number;
+}
+
+/* ---------------------------------------------------------- calendario ---- */
+
+export interface Commitment extends Base {
+  title: string;
+  kind: ProjectKind | "";
+  project: string;
+  quote: string;
+  entity: string;
+  start_date: string;
+  end_date: string;
+  hours_per_week: number;
+  status: CommitmentStatus;
+  source: "manual" | "quote" | "";
+  notes: string;
+  expand?: {
+    project?: Project;
+    quote?: Quote;
+    entity?: Entity;
+  };
+}
+
+export interface CalendarFeed extends Base {
+  label: string;
+  url: string;
+  active: boolean;
+  /** Horas que se le imputan a un evento de día completo. */
+  default_hours: number;
+  last_sync: string;
+  last_error: string;
+  event_count: number;
+}
+
+export interface CalendarEvent extends Base {
+  feed: string;
+  uid: string;
+  title: string;
+  start: string;
+  end: string;
+  all_day: boolean;
+  hours: number;
+  location: string;
+  expand?: { feed?: CalendarFeed };
 }
 
 export interface LogEntry extends Base {

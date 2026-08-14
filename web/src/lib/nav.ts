@@ -3,6 +3,8 @@ export const NAV_LINKS = [
   { href: "/", label: "Hoy", icon: "◉" },
   { href: "/inbox", label: "Bandeja", icon: "⌸" },
   { href: "/w", label: "Workspaces", icon: "▤" },
+  { href: "/calendario", label: "Calendario", icon: "▦" },
+  { href: "/presupuestos", label: "Presupuestos", icon: "▧" },
   { href: "/rutinas", label: "Rutinas", icon: "∿" },
   { href: "/ritmo", label: "Ritmo", icon: "☾" },
   { href: "/finanzas", label: "Finanzas", icon: "▲" },

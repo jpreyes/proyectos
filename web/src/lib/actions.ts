@@ -2,8 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type PocketBase from "pocketbase";
 import { requirePB } from "./pb.server";
 import { splitIVA } from "./money";
+import { getConfig } from "./config";
+import { ALIVE } from "./filters";
+import { syncFeed } from "./ics";
+import { proposeSlotForQuote, storedSlot } from "./schedule";
+import type { CalendarFeed, Commitment, Quote, QuoteItem } from "./types";
 
 /* ------------------------------------------------------------- helpers ---- */
 
@@ -536,6 +542,22 @@ export async function saveSettings(fd: FormData) {
     digest_hour: num(fd, "digest_hour"),
     digest_minute: num(fd, "digest_minute"),
     digest_enabled: bool(fd, "digest_enabled"),
+
+    issuer_name: str(fd, "issuer_name"),
+    issuer_role: str(fd, "issuer_role"),
+    issuer_tax_id: str(fd, "issuer_tax_id"),
+    issuer_email: str(fd, "issuer_email"),
+    issuer_phone: str(fd, "issuer_phone"),
+    issuer_address: str(fd, "issuer_address"),
+    issuer_web: str(fd, "issuer_web"),
+
+    capacity_hours_week: num(fd, "capacity_hours_week"),
+    capacity_horizon_weeks: num(fd, "capacity_horizon_weeks"),
+
+    quote_overhead_pct: num(fd, "quote_overhead_pct"),
+    quote_profit_pct: num(fd, "quote_profit_pct"),
+    quote_validity_days: num(fd, "quote_validity_days"),
+    quote_prefix: str(fd, "quote_prefix"),
   };
 
   const id = str(fd, "id");
@@ -569,6 +591,487 @@ export async function saveDaily(fd: FormData) {
   else await pb.collection("daily").create(payload);
 
   revalidatePath("/ritmo");
+}
+
+/* -------------------------------------------------------- presupuestos ---- */
+
+/**
+ * Recalcula y congela los totales de la cabecera.
+ *
+ * Se llama en cada escritura de ítems y de porcentajes, y no al leer, porque un
+ * presupuesto enviado es una promesa hecha en una fecha: el papel que el
+ * cliente tiene en la mano no puede cambiar solo porque hoy ajustaste tu
+ * porcentaje de utilidades por defecto. Mismo criterio que `entries.amount_clp`.
+ *
+ * Gastos generales y utilidades van **ambos sobre el costo directo**, no en
+ * cascada. Es la forma más común en un presupuesto de consultoría acá y la más
+ * fácil de defender frente a un mandante: los dos porcentajes se leen contra el
+ * mismo número, que está a la vista en el documento.
+ */
+async function recalcQuote(pb: PocketBase, quoteId: string): Promise<void> {
+  const quote = await pb.collection("quotes").getOne<Quote>(quoteId);
+  const items = await pb
+    .collection("quote_items")
+    .getFullList<QuoteItem>({ filter: pb.filter("quote = {:q}", { q: quoteId }) });
+
+  const direct = items.reduce((sum, it) => sum + (it.total || 0), 0);
+  const overhead = direct * (quote.overhead_pct || 0);
+  const profit = direct * (quote.profit_pct || 0);
+  const net = direct + overhead + profit;
+  const fx = quote.currency === "CLP" ? 1 : quote.fx_rate || 0;
+
+  await pb.collection("quotes").update(quoteId, {
+    direct_total: direct,
+    overhead_amount: overhead,
+    profit_amount: profit,
+    net_total: net,
+    net_total_clp: Math.round(net * fx),
+  });
+}
+
+function revalidateQuote(id: string) {
+  revalidatePath("/presupuestos");
+  revalidatePath(`/presupuestos/${id}`);
+}
+
+/** "P-2026-004": prefijo de settings, año en curso, correlativo por cuenta. */
+async function nextQuoteNumber(pb: PocketBase, prefix: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const stem = `${prefix || "P"}-${year}-`;
+
+  const rows = await pb
+    .collection("quotes")
+    .getFullList<Quote>({ filter: pb.filter("number ~ {:s}", { s: stem }), fields: "number" });
+
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(String(r.number).slice(stem.length));
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `${stem}${String(max + 1).padStart(3, "0")}`;
+}
+
+export async function createQuote(fd: FormData) {
+  const pb = await requirePB();
+  const cfg = await getConfig();
+  const s = cfg.settings;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const validity = s.quote_validity_days || 30;
+  const validUntil = new Date(Date.now() + validity * 86_400_000).toISOString().slice(0, 10);
+
+  const rec = await pb.collection("quotes").create({
+    number: str(fd, "number") || (await nextQuoteNumber(pb, s.quote_prefix)),
+    title: str(fd, "title"),
+    client: str(fd, "client"),
+    kind: str(fd, "kind"),
+    description: str(fd, "description"),
+    status: "draft",
+    date: today,
+    valid_until: validUntil,
+    currency: str(fd, "currency") || s.default_currency || "CLP",
+    fx_rate: money(fd, "fx_rate") || 1,
+    overhead_pct: s.quote_overhead_pct || 0,
+    profit_pct: s.quote_profit_pct || 0,
+    work_hours: num(fd, "work_hours"),
+    max_hours_week: num(fd, "max_hours_week"),
+  });
+
+  revalidatePath("/presupuestos");
+  redirect(`/presupuestos/${rec.id}`);
+}
+
+export async function updateQuote(fd: FormData) {
+  const pb = await requirePB();
+  const id = str(fd, "id");
+
+  const currency = str(fd, "currency") || "CLP";
+
+  await pb.collection("quotes").update(id, {
+    number: str(fd, "number"),
+    title: str(fd, "title"),
+    client: str(fd, "client"),
+    kind: str(fd, "kind"),
+    description: str(fd, "description"),
+    date: str(fd, "date"),
+    valid_until: str(fd, "valid_until"),
+    currency,
+    fx_rate: currency === "CLP" ? 1 : money(fd, "fx_rate"),
+    // La UI pide porcentajes ("15"), la base guarda fracciones (0.15).
+    overhead_pct: num(fd, "overhead_pct") / 100,
+    profit_pct: num(fd, "profit_pct") / 100,
+    work_hours: num(fd, "work_hours"),
+    max_hours_week: num(fd, "max_hours_week"),
+    earliest_start: str(fd, "earliest_start"),
+    terms: str(fd, "terms"),
+    notes: str(fd, "notes"),
+  });
+
+  await recalcQuote(pb, id);
+  revalidateQuote(id);
+}
+
+export async function deleteQuote(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("quotes").update(str(fd, "id"), { deleted: true });
+  revalidatePath("/presupuestos");
+  redirect("/presupuestos");
+}
+
+/* ------------------------------------------------------ ítems y entregables */
+
+function itemPayload(fd: FormData) {
+  const qty = num(fd, "qty");
+  const price = money(fd, "unit_price");
+  return {
+    description: str(fd, "description"),
+    unit: str(fd, "unit"),
+    qty,
+    unit_price: price,
+    total: qty * price,
+    position: num(fd, "position"),
+  };
+}
+
+export async function addQuoteItem(fd: FormData) {
+  const pb = await requirePB();
+  const quote = str(fd, "quote");
+  if (!str(fd, "description")) return;
+
+  const siblings = await pb
+    .collection("quote_items")
+    .getList(1, 1, { filter: pb.filter("quote = {:q}", { q: quote }), sort: "-position" });
+  const position = siblings.items.length ? Number(siblings.items[0].position || 0) + 1 : 0;
+
+  await pb.collection("quote_items").create({ ...itemPayload(fd), quote, position });
+  await recalcQuote(pb, quote);
+  revalidateQuote(quote);
+}
+
+export async function updateQuoteItem(fd: FormData) {
+  const pb = await requirePB();
+  const quote = str(fd, "quote");
+  await pb.collection("quote_items").update(str(fd, "id"), itemPayload(fd));
+  await recalcQuote(pb, quote);
+  revalidateQuote(quote);
+}
+
+/**
+ * Borrado en duro. El borrado suave de esta app existe para que un cliente
+ * offline se entere de que algo desapareció, y los ítems no están en la ruta
+ * offline: son subfilas de un formulario que solo se edita en línea.
+ */
+export async function deleteQuoteItem(fd: FormData) {
+  const pb = await requirePB();
+  const quote = str(fd, "quote");
+  await pb.collection("quote_items").delete(str(fd, "id"));
+  await recalcQuote(pb, quote);
+  revalidateQuote(quote);
+}
+
+function deliverablePayload(fd: FormData) {
+  return {
+    name: str(fd, "name"),
+    detail: str(fd, "detail"),
+    lead_days: num(fd, "lead_days"),
+    position: num(fd, "position"),
+  };
+}
+
+export async function addDeliverable(fd: FormData) {
+  const pb = await requirePB();
+  const quote = str(fd, "quote");
+  if (!str(fd, "name")) return;
+
+  const siblings = await pb
+    .collection("deliverables")
+    .getList(1, 1, { filter: pb.filter("quote = {:q}", { q: quote }), sort: "-position" });
+  const position = siblings.items.length ? Number(siblings.items[0].position || 0) + 1 : 0;
+
+  await pb.collection("deliverables").create({ ...deliverablePayload(fd), quote, position });
+  revalidateQuote(quote);
+}
+
+export async function updateDeliverable(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("deliverables").update(str(fd, "id"), deliverablePayload(fd));
+  revalidateQuote(str(fd, "quote"));
+}
+
+export async function deleteDeliverable(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("deliverables").delete(str(fd, "id"));
+  revalidateQuote(str(fd, "quote"));
+}
+
+/* -------------------------------------------------- calce en el calendario */
+
+/** Fija el calce propuesto por el buscador de huecos. */
+export async function setQuotePlan(fd: FormData) {
+  const pb = await requirePB();
+  const id = str(fd, "id");
+  await pb.collection("quotes").update(id, {
+    plan_start: str(fd, "plan_start"),
+    plan_end: str(fd, "plan_end"),
+    plan_hours_week: num(fd, "plan_hours_week"),
+  });
+  revalidateQuote(id);
+}
+
+export async function clearQuotePlan(fd: FormData) {
+  const pb = await requirePB();
+  const id = str(fd, "id");
+  await pb.collection("quotes").update(id, { plan_start: "", plan_end: "", plan_hours_week: 0 });
+  revalidateQuote(id);
+}
+
+/* ------------------------------------------------------ estado y aprobación */
+
+/**
+ * Aprobar es la única acción de esta app que escribe en cuatro colecciones a la
+ * vez, y es a propósito: el momento en que el cliente dice que sí es el único
+ * en que tienes toda la información junta y ganas de anotarla. Si el proyecto,
+ * la reserva de tiempo y el ingreso proyectado quedan para después, "después"
+ * termina siendo el día en que ya no cabía.
+ *
+ * Usa el calce fijado si lo hay; si no, lo busca en el momento contra el
+ * calendario de hoy. Cuando no cabe en el horizonte, reserva igual pero deja el
+ * compromiso como `tentative` — negarse a agendar un encargo que ya aceptaste
+ * no lo hace desaparecer, solo lo deja invisible.
+ */
+export async function approveQuote(fd: FormData) {
+  const pb = await requirePB();
+  const cfg = await getConfig();
+  const id = str(fd, "id");
+  const quote = await pb.collection("quotes").getOne<Quote>(id);
+
+  const stored = storedSlot(quote);
+  const slot = stored ?? (await proposeSlotForQuote(pb, cfg.settings, quote)).slot;
+  const today = new Date().toISOString().slice(0, 10);
+
+  /* 1. el proyecto */
+  let projectId = quote.project;
+  if (!projectId) {
+    const project = await pb.collection("projects").create({
+      name: quote.title,
+      kind: quote.kind,
+      status: "active",
+      priority: "normal",
+      health: "ok",
+      client: quote.client,
+      start_date: slot?.start || today,
+      due_date: slot?.end || "",
+      budget: quote.net_total,
+      budget_currency: quote.currency,
+      summary: quote.description,
+      next_cue: "Cuando parta el trabajo",
+      next_step: "Revisar el alcance comprometido en el presupuesto",
+    });
+    projectId = project.id;
+  }
+
+  /* 2. la reserva de tiempo */
+  if (slot) {
+    const existing = await pb
+      .collection("commitments")
+      .getFullList<Commitment>({ filter: [ALIVE, pb.filter("quote = {:q}", { q: id })].join(" && ") });
+
+    const payload = {
+      title: quote.title,
+      kind: quote.kind,
+      project: projectId,
+      quote: id,
+      entity: quote.client,
+      start_date: slot.start,
+      end_date: slot.end,
+      hours_per_week: slot.hoursPerWeek,
+      status: slot.fits ? "confirmed" : "tentative",
+      source: "quote",
+      notes: slot.fits
+        ? ""
+        : "No cabía en el horizonte sin pasar la capacidad semanal. Ubicado lo antes posible.",
+    };
+
+    if (existing.length) await pb.collection("commitments").update(existing[0].id, payload);
+    else await pb.collection("commitments").create(payload);
+  }
+
+  /* 3. el ingreso proyectado */
+  const already = await pb
+    .collection("entries")
+    .getFullList({ filter: [ALIVE, pb.filter("quote = {:q}", { q: id })].join(" && ") });
+
+  if (!already.length && quote.net_total > 0) {
+    const fx = quote.currency === "CLP" ? 1 : quote.fx_rate || 0;
+    const cobro = slot?.end || today;
+    await pb.collection("entries").create({
+      date: cobro,
+      direction: "income",
+      description: `${quote.number || "Presupuesto"} · ${quote.title}`,
+      amount: quote.net_total,
+      currency: quote.currency,
+      fx_rate: fx,
+      amount_clp: Math.round(quote.net_total * fx),
+      status: "planned",
+      due_date: cobro,
+      project: projectId,
+      entity: quote.client,
+      quote: id,
+      notes: "Creado al aprobar el presupuesto. Ajusta la fecha si cobras por hitos.",
+    });
+  }
+
+  /* 4. el presupuesto queda cerrado */
+  await pb.collection("quotes").update(id, {
+    status: "approved",
+    decided_date: today,
+    project: projectId,
+    plan_start: slot?.start || "",
+    plan_end: slot?.end || "",
+    plan_hours_week: slot?.hoursPerWeek || 0,
+  });
+
+  await pb.collection("log").create({
+    project: projectId,
+    date: today,
+    kind: "milestone",
+    title: `Presupuesto aprobado · ${quote.number || ""}`.trim(),
+    body: quote.description,
+  });
+
+  revalidateQuote(id);
+  revalidatePath("/calendario");
+  revalidatePath("/finanzas");
+  revalidatePath("/w");
+  revalidatePath(`/w/${projectId}`);
+  revalidatePath("/");
+}
+
+/**
+ * Cambia el estado sin aprobar.
+ *
+ * Salir de "aprobado" no borra nada: anula la reserva de tiempo y el ingreso
+ * proyectado, que es lo que hay que hacer para que la semana vuelva a estar
+ * libre y la caja deje de contar plata que no va a llegar. El proyecto queda —
+ * si alcanzaste a trabajar en él, esa historia no se tira.
+ */
+export async function setQuoteStatus(fd: FormData) {
+  const pb = await requirePB();
+  const id = str(fd, "id");
+  const status = str(fd, "status");
+  const previous = str(fd, "previous");
+
+  await pb.collection("quotes").update(id, {
+    status,
+    decided_date: status === "rejected" ? new Date().toISOString().slice(0, 10) : "",
+  });
+
+  if (previous === "approved" && status !== "approved") {
+    const commitments = await pb
+      .collection("commitments")
+      .getFullList<Commitment>({ filter: [ALIVE, pb.filter("quote = {:q}", { q: id })].join(" && ") });
+    for (const c of commitments) {
+      await pb.collection("commitments").update(c.id, { status: "cancelled" });
+    }
+
+    const entries = await pb
+      .collection("entries")
+      .getFullList({
+        filter: [ALIVE, pb.filter("quote = {:q} && status = 'planned'", { q: id })].join(" && "),
+      });
+    for (const e of entries) {
+      await pb.collection("entries").update(e.id, { status: "cancelled" });
+    }
+  }
+
+  revalidateQuote(id);
+  revalidatePath("/calendario");
+  revalidatePath("/finanzas");
+  revalidatePath("/");
+}
+
+/* ---------------------------------------------------------- compromisos ---- */
+
+function commitmentPayload(fd: FormData) {
+  return {
+    title: str(fd, "title"),
+    kind: str(fd, "kind"),
+    project: str(fd, "project"),
+    entity: str(fd, "entity"),
+    start_date: str(fd, "start_date"),
+    end_date: str(fd, "end_date"),
+    hours_per_week: num(fd, "hours_per_week"),
+    status: str(fd, "status") || "confirmed",
+    notes: str(fd, "notes"),
+  };
+}
+
+export async function createCommitment(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("commitments").create({ ...commitmentPayload(fd), source: "manual" });
+  revalidatePath("/calendario");
+  revalidatePath("/");
+}
+
+export async function updateCommitment(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("commitments").update(str(fd, "id"), commitmentPayload(fd));
+  revalidatePath("/calendario");
+  revalidatePath("/");
+}
+
+export async function setCommitmentStatus(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("commitments").update(str(fd, "id"), { status: str(fd, "status") });
+  revalidatePath("/calendario");
+  revalidatePath("/");
+}
+
+export async function deleteCommitment(fd: FormData) {
+  const pb = await requirePB();
+  await pb.collection("commitments").update(str(fd, "id"), { deleted: true });
+  revalidatePath("/calendario");
+  revalidatePath("/");
+}
+
+/* ------------------------------------------------- calendarios externos ---- */
+
+export async function saveCalendarFeed(fd: FormData) {
+  const pb = await requirePB();
+  const id = str(fd, "id");
+  const payload = {
+    label: str(fd, "label"),
+    url: str(fd, "url"),
+    active: !bool(fd, "inactive"),
+    default_hours: num(fd, "default_hours"),
+  };
+
+  const feed = id
+    ? await pb.collection("calendar_feeds").update<CalendarFeed>(id, payload)
+    : await pb.collection("calendar_feeds").create<CalendarFeed>(payload);
+
+  // Sincronizar de inmediato: si la URL está mala, el error tiene que salir
+  // ahora y no en seis horas cuando ya no te acuerdas de qué pegaste.
+  if (feed.active) await syncFeed(pb, feed);
+
+  revalidatePath("/calendario");
+}
+
+export async function deleteCalendarFeed(fd: FormData) {
+  const pb = await requirePB();
+  // Los eventos se van con él por cascade: son cache del .ics, no datos tuyos.
+  await pb.collection("calendar_feeds").delete(str(fd, "id"));
+  revalidatePath("/calendario");
+}
+
+export async function syncCalendarFeeds() {
+  const pb = await requirePB();
+  const feeds = await pb.collection("calendar_feeds").getFullList<CalendarFeed>({ sort: "label" });
+  for (const feed of feeds) {
+    if (feed.active) await syncFeed(pb, feed);
+  }
+  revalidatePath("/calendario");
+  revalidatePath("/");
 }
 
 /* ------------------------------------------------------------ entities ---- */

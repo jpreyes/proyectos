@@ -78,3 +78,39 @@ body {
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
+
+/* Hoja imprimible.
+   Toda la app es oscura porque se mira 20 veces al día; un presupuesto, en
+   cambio, se manda. Sale en blanco, con márgenes de carta y sin nada de la
+   interfaz. `.no-print` marca lo que existe solo en pantalla. */
+.sheet {
+  background: #fff;
+  color: #111827;
+}
+.sheet a {
+  color: inherit;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #111827 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* Que una tabla no se parta justo entre el encabezado y su primera fila. */
+  thead {
+    display: table-header-group;
+  }
+  tr,
+  section,
+  footer {
+    break-inside: avoid;
+  }
+}

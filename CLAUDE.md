@@ -27,6 +27,11 @@ En dev no hay túnel, así que `next.config.ts` proxea los mismos dos prefijos a
 
 - **`pb/`** — PocketBase 0.39.x. El esquema vive **solo** en `pb/pb_migrations/*.js`,
   nunca se edita a mano en el admin UI. Se aplican solas al arrancar.
+  **Una migración ya aplicada no vuelve a correr**: editarla no cambia nada en esta base
+  y solo surtiría efecto en una instalación nueva — la peor clase de diferencia entre
+  entornos. Todo cambio posterior va en un archivo nuevo. Ojo con que PocketBase se
+  reinicia solo al tocar `pb_hooks/`, así que las migraciones pueden quedar aplicadas
+  antes de lo que uno cree.
 - **`web/`** — Next.js 15 (App Router), React 19, Tailwind v4, sin librería de
   componentes. Escrituras vía **server actions**; lecturas en server components.
 
@@ -41,7 +46,8 @@ docker compose up -d --build
 
 ## Modelo de datos
 
-7 colecciones. `projects` es la raíz; todo lo demás cuelga de ella.
+`projects` es la raíz de casi todo. Las dos excepciones son `quotes` —que cuelga del
+cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo, no trabajo.
 
 | Colección | Rol |
 |---|---|
@@ -57,6 +63,9 @@ docker compose up -d --build
 | `inbox` | Captura universal. `status` obliga a que cada ítem termine con un plan. |
 | `routines`, `routine_log` | Rutinas y sus repeticiones. Sin campo de racha, a propósito. |
 | `daily` | Ventana de sueño y energía por franja. |
+| `quotes`, `quote_items`, `deliverables` | Presupuestos. Cuelgan del cliente, no del proyecto. |
+| `commitments` | **Horas por semana entre dos fechas.** La unidad del calendario. |
+| `calendar_feeds`, `calendar_events` | Espejo de solo lectura del .ics de Outlook. |
 
 ### Decisiones que no hay que deshacer
 
@@ -69,6 +78,30 @@ docker compose up -d --build
 - **La bandeja obliga a triar.** Capturar no libera la carga; el plan sí. Un ítem no
   sale de `inbox` hasta convertirse en plan, tarea o bitácora — o en un descarte
   explícito, que también es una decisión.
+- **El calendario mide horas por semana, no bloques con hora.** Una agenda de días y
+  horas exige mantenerla al día o queda mintiendo en una semana. Lo que llena un año
+  se contrata en la otra unidad —«4 h semanales durante 30 meses», «un ramo, 10 h
+  semanales el semestre»— y la única pregunta que el modelo tiene que responder es si
+  algo cabe sin que ninguna semana pase del techo. Eso es una suma, no una grilla.
+  Las semanas parciales del principio y del final se prorratean por días cubiertos.
+- **El buscador de huecos propone un ritmo plano, no llena hasta el tope.** Un ritmo
+  plano se puede escribir en un contrato y se puede sostener; el llenado codicioso
+  produce semanas al 100% seguidas de semanas vacías. Prefiere empezar antes por sobre
+  terminar antes: es lo que se responde cuando preguntan «¿cuándo puedes partir?».
+- **Aprobar un presupuesto escribe en cuatro colecciones a la vez** —proyecto, reserva
+  de tiempo, ingreso proyectado y bitácora— y así tiene que quedar. El momento en que
+  el cliente dice que sí es el único en que está toda la información junta y hay ganas
+  de anotarla; lo que se deja para después termina anotándose el día en que ya no cabía.
+  Deshacerlo anula la reserva y el ingreso, pero **no** borra el proyecto.
+- **Los totales del presupuesto se congelan al escribir**, igual que `amount_clp`. Un
+  presupuesto enviado es una promesa hecha en una fecha: el papel que el cliente tiene
+  en la mano no puede cambiar porque hoy ajustaste un porcentaje por defecto. Gastos
+  generales y utilidades van **ambos sobre el costo directo**, no en cascada.
+- **Outlook entra en una sola dirección.** Se lee el .ics publicado para que los
+  exámenes de grado ocupen horas de la semana; la app nunca escribe en el calendario de
+  la UACh. `calendar_events` es cache y se rehace en cada sincronización — no lleva
+  borrado suave. El JSVM de PocketBase **no tiene `Intl`**, así que el parseo de zonas
+  horarias vive en Next (`lib/ics.ts`), no en un hook.
 - **`routines` no tiene campo de racha y no debe tenerlo.** Saltarse una repetición no
   afecta la formación del hábito; la grilla muestra huecos sin penalizarlos.
 - **`num()` vs `money()` en `actions.ts`.** En Chile el punto es separador de miles,

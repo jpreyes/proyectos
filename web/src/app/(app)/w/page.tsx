@@ -4,10 +4,10 @@ import { requirePB } from "@/lib/pb.server";
 import { getConfig } from "@/lib/config";
 import { alive, ALIVE } from "@/lib/filters";
 import { fmtRelative } from "@/lib/dates";
-import { Badge, btn, cx, Empty, inputClass, PageHeader } from "@/components/ui";
+import { Badge, btn, Empty, Group, inputClass, PageHeader, Row } from "@/components/ui";
 import { NextStepLine } from "@/components/NextStep";
 
-export const metadata = { title: "Workspaces · Proyectos" };
+export const metadata = { title: "Trabajo · Proyectos" };
 
 const ACTIVE = ["idea", "active", "paused", "waiting"];
 
@@ -45,10 +45,12 @@ export default async function WorkspacesPage({
     byKind.set(p.kind, list);
   }
 
+  const filtering = Boolean(sp.q || sp.kind || sp.todos);
+
   return (
     <>
       <PageHeader
-        title="Workspaces"
+        title="Trabajo"
         subtitle={`${projects.length} ${sp.todos ? "en total" : "abiertos"}`}
         action={
           <Link href="/w/nuevo" className={btn("primary", "sm")}>
@@ -57,81 +59,81 @@ export default async function WorkspacesPage({
         }
       />
 
-      <form className="mb-5 flex flex-wrap gap-2">
-        <input
-          name="q"
-          defaultValue={sp.q || ""}
-          placeholder="Buscar…"
-          className={`${inputClass} max-w-xs`}
-        />
-        <select name="kind" defaultValue={sp.kind || ""} className={`${inputClass} max-w-[11rem]`}>
-          <option value="">Todos los tipos</option>
-          {cfg.options("project_kind").map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-2 rounded-md border border-line2 bg-panel2 px-2.5 text-[13px] text-muted">
-          <input type="checkbox" name="todos" value="1" defaultChecked={!!sp.todos} />
-          Incluir cerrados
-        </label>
-        <button type="submit" className={btn("subtle")}>
-          Filtrar
-        </button>
+      {/* Search stays inline and always visible; the two refinements collapse
+          into a <details> so the default view is one field, not four controls. */}
+      <form className="mb-6 space-y-2.5">
+        <div className="flex gap-2">
+          <input
+            name="q"
+            defaultValue={sp.q || ""}
+            placeholder="Buscar…"
+            className={`${inputClass} min-w-0 flex-1`}
+          />
+          <button type="submit" className={btn("subtle")}>
+            Buscar
+          </button>
+        </div>
+
+        <details open={filtering} className="group">
+          <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">
+            Filtros
+            <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <select
+              name="kind"
+              defaultValue={sp.kind || ""}
+              className={`${inputClass} max-w-[13rem]`}
+            >
+              <option value="">Todos los tipos</option>
+              {cfg.options("project_kind").map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-2 rounded-xl bg-panel2 px-3.5 text-[15px] text-muted">
+              <input type="checkbox" name="todos" value="1" defaultChecked={!!sp.todos} />
+              Incluir cerrados
+            </label>
+            <button type="submit" className={btn("subtle")}>
+              Aplicar
+            </button>
+          </div>
+        </details>
       </form>
 
       {projects.length === 0 && <Empty>No hay workspaces que coincidan.</Empty>}
 
-      <div className="space-y-7">
-        {[...byKind.entries()].map(([kind, list]) => (
-          <section key={kind}>
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-faint">
-              {cfg.label("project_kind", kind)} · {list.length}
-            </h2>
-
-            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-panel/50">
-              {list.map((p) => {
-                const seen = lastSeen.get(p.id);
-                const cold = !seen;
-                return (
-                  <li key={p.id}>
-                    <Link
-                      href={`/w/${p.id}`}
-                      className="flex flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-panel2/60"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[14px] font-medium">{p.name}</span>
-                        {p.code && (
-                          <span className="font-mono text-[11px] text-faint">{p.code}</span>
-                        )}
-                        <Badge tone={cfg.tone("project_status", p.status)}>
-                          {cfg.label("project_status", p.status)}
-                        </Badge>
-                        {p.health && p.health !== "ok" && (
-                          <Badge tone={cfg.tone("health", p.health)}>
-                            {cfg.label("health", p.health)}
-                          </Badge>
-                        )}
-                        <span
-                          className={cx(
-                            "ml-auto text-[11px]",
-                            cold ? "text-faint" : "text-muted"
-                          )}
-                        >
-                          {seen ? fmtRelative(seen) : "sin bitácora"}
-                        </span>
-                      </div>
-
-                      <NextStepLine cue={p.next_cue} step={p.next_step} />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
+      {[...byKind.entries()].map(([kind, list]) => (
+        <Group key={kind} title={`${cfg.label("project_kind", kind)} · ${list.length}`}>
+          {list.map((p) => {
+            const seen = lastSeen.get(p.id);
+            return (
+              <Row
+                key={p.id}
+                href={`/w/${p.id}`}
+                label={p.name}
+                value={seen ? fmtRelative(seen) : "sin bitácora"}
+                badge={
+                  <>
+                    <Badge tone={cfg.tone("project_status", p.status)}>
+                      {cfg.label("project_status", p.status)}
+                    </Badge>
+                    {p.health && p.health !== "ok" && (
+                      <Badge tone={cfg.tone("health", p.health)}>
+                        {cfg.label("health", p.health)}
+                      </Badge>
+                    )}
+                  </>
+                }
+              >
+                <NextStepLine cue={p.next_cue} step={p.next_step} />
+              </Row>
+            );
+          })}
+        </Group>
+      ))}
     </>
   );
 }

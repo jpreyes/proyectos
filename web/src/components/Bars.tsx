@@ -40,20 +40,18 @@ export function Bars({
                   title={`Egresos ${monthLabel(m)}: ${formatCLPShort(exp)}`}
                 />
               </div>
-              <span className="truncate text-center text-[10px] text-faint">
-                {monthLabel(m)}
-              </span>
+              <span className="truncate text-center text-[11px] text-faint">{monthLabel(m)}</span>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 border-t border-line pt-2 text-[11px] text-muted">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm bg-ok/70" /> Ingresos
+          <span className="h-2.5 w-2.5 rounded-full bg-ok/70" /> Ingresos
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm bg-line2" /> Egresos
+          <span className="h-2.5 w-2.5 rounded-full bg-line2" /> Egresos
         </span>
         <span className="ml-auto text-faint">Máximo: {formatCLPShort(max)}</span>
       </div>

@@ -12,13 +12,13 @@ function Body({ body }: { body: string }) {
   if (html) {
     return (
       <div
-        className="prose-log mt-1 text-[13px] leading-relaxed text-muted"
+        className="prose-log mt-1.5 text-[15px] leading-relaxed text-muted"
         dangerouslySetInnerHTML={{ __html: body }}
       />
     );
   }
   return (
-    <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-muted">{body}</p>
+    <p className="mt-1.5 whitespace-pre-wrap text-[15px] leading-relaxed text-muted">{body}</p>
   );
 }
 
@@ -39,10 +39,7 @@ export async function LogFeed({
   return (
     <div>
       {showForm && (
-        <form
-          action={addLog}
-          className="mb-4 rounded-lg border border-line bg-panel2/50 px-3 py-3"
-        >
+        <form action={addLog} className="mb-5 rounded-2xl bg-panel2/60 p-3.5">
           <input type="hidden" name="project" value={projectId} />
 
           <textarea
@@ -53,35 +50,33 @@ export async function LogFeed({
             className={`${inputClass} resize-y`}
           />
 
-          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_8rem_6rem]">
-            <input name="title" placeholder="Título (opcional)" className={inputClass} />
-            <Select name="kind" options={cfg.options("log_kind")} defaultValue="progress" />
-            <input
-              type="date"
-              name="date"
-              defaultValue={todayISO()}
-              className={inputClass}
-            />
-            <input
-              name="hours"
-              inputMode="decimal"
-              placeholder="horas"
-              className={inputClass}
-            />
-          </div>
+          {/* Only the body is required to log something. The eight refinements
+              below used to sit open on every workspace, which made a two-second
+              note look like a form to fill in. */}
+          <details className="group mt-2.5">
+            <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">
+              Detalles
+              <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+            </summary>
 
-          {/* Closing the session is the cheapest moment to leave the next plan. */}
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <input
-              name="next_cue"
-              placeholder="Cuando… (dejar disparador para retomar)"
-              className={inputClass}
-            />
-            <input name="next_step" placeholder="entonces…" className={inputClass} />
-          </div>
+            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+              <input name="title" placeholder="Título (opcional)" className={inputClass} />
+              <Select name="kind" options={cfg.options("log_kind")} defaultValue="progress" />
+              <input type="date" name="date" defaultValue={todayISO()} className={inputClass} />
+              <input name="hours" inputMode="decimal" placeholder="horas" className={inputClass} />
 
-          <div className="mt-2 flex justify-end">
-            <button type="submit" className={btn("primary", "sm")}>
+              {/* Closing the session is the cheapest moment to leave the next plan. */}
+              <input
+                name="next_cue"
+                placeholder="Cuando… (dejar disparador para retomar)"
+                className={inputClass}
+              />
+              <input name="next_step" placeholder="entonces…" className={inputClass} />
+            </div>
+          </details>
+
+          <div className="mt-3 flex justify-end">
+            <button type="submit" className={btn("primary")}>
               Registrar
             </button>
           </div>
@@ -91,20 +86,20 @@ export async function LogFeed({
       {shown.length === 0 ? (
         <Empty>Sin entradas todavía.</Empty>
       ) : (
-        <ol className="space-y-3">
+        <ol className="space-y-4">
           {shown.map((e) => (
-            <li key={e.id} className="group flex gap-3">
+            <li key={e.id} className="flex gap-3">
               <div className="flex flex-col items-center pt-1">
-                <span className="text-[11px] text-muted">
+                <span className="text-[13px] text-muted">
                   {cfg.icon("log_kind", e.kind) || LOG_KIND_ICON[e.kind] || "•"}
                 </span>
-                <span className="mt-1 w-px flex-1 bg-line" />
+                <span className="mt-1.5 w-px flex-1 bg-line" />
               </div>
 
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  {e.title && <span className="text-[13px] font-medium">{e.title}</span>}
-                  <span className="text-[11px] text-faint">
+                  {e.title && <span className="text-[15px] font-semibold">{e.title}</span>}
+                  <span className="text-[12px] text-faint">
                     {fmtDate(e.date)} · {fmtRelative(e.date)}
                     {e.hours ? ` · ${e.hours} h` : ""}
                     {" · "}
@@ -115,7 +110,8 @@ export async function LogFeed({
                     <input type="hidden" name="project" value={e.project} />
                     <button
                       type="submit"
-                      className="text-[11px] text-faint opacity-0 transition-opacity hover:text-bad group-hover:opacity-100"
+                      aria-label="Borrar entrada"
+                      className="grid h-8 w-8 place-items-center rounded-full text-[12px] text-faint transition-colors hover:bg-bad/15 hover:text-bad"
                     >
                       ✕
                     </button>

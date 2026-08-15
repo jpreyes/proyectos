@@ -5,7 +5,7 @@ import { deleteInboxItem, dropInboxItem, triage } from "@/lib/actions";
 import { getConfig } from "@/lib/config";
 import { alive } from "@/lib/filters";
 import { fmtRelative } from "@/lib/dates";
-import { btn, Card, Empty, inputClass, PageHeader, Select } from "@/components/ui";
+import { btn, Card, Empty, Group, inputClass, PageHeader, Row, Select } from "@/components/ui";
 
 export const metadata = { title: "Bandeja · Proyectos" };
 
@@ -44,27 +44,25 @@ export default async function InboxPage() {
         }
       />
 
-      <p className="mb-5 max-w-2xl rounded-lg border border-line bg-panel/50 px-4 py-3 text-[13px] leading-relaxed text-muted">
+      <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
         Anotar no cierra el bucle. Una meta pendiente sigue interrumpiendo — con pensamientos
         intrusivos y peor rendimiento en cosas no relacionadas — hasta que existe un{" "}
-        <span className="text-ink">plan concreto</span>, aunque no la hayas hecho. Por eso cada
-        ítem sale de acá convertido en algo con destino y momento.
+        <span className="font-semibold text-ink">plan concreto</span>, aunque no la hayas hecho. Por
+        eso cada ítem sale de acá convertido en algo con destino y momento.
       </p>
 
       {open.length === 0 ? (
         <Empty>Nada pendiente de clasificar.</Empty>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {open.map((item) => (
-            <Card key={item.id} bodyClassName="px-4 py-3">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <p className="text-[14px] leading-snug">{item.text}</p>
-                <span className="shrink-0 text-[11px] text-faint">
-                  {fmtRelative(item.created)}
-                </span>
+            <Card key={item.id}>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <p className="text-[17px] font-semibold leading-snug">{item.text}</p>
+                <span className="shrink-0 text-[12px] text-faint">{fmtRelative(item.created)}</span>
               </div>
 
-              <form action={triage} className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+              <form action={triage} className="grid gap-2.5 sm:grid-cols-2">
                 <input type="hidden" name="id" value={item.id} />
                 <input type="hidden" name="text" value={item.text} />
 
@@ -87,7 +85,7 @@ export default async function InboxPage() {
                 <input
                   name="next_cue"
                   placeholder="Cuando… (solo para plan)"
-                  className={`${inputClass} sm:col-span-1`}
+                  className={inputClass}
                 />
                 <input
                   name="next_step"
@@ -96,16 +94,16 @@ export default async function InboxPage() {
                 />
 
                 <Select name="priority" options={cfg.options("priority")} defaultValue="normal" />
+                <input type="date" name="due_date" className={inputClass} />
 
-                <div className="flex flex-wrap gap-2">
-                  <input type="date" name="due_date" className={`${inputClass} max-w-[10rem]`} />
-                  <button type="submit" className={btn("primary", "sm")}>
+                <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                  <button type="submit" className={btn("primary")}>
                     Darle destino
                   </button>
                   <button
                     type="submit"
                     formAction={dropInboxItem}
-                    className={btn("ghost", "sm")}
+                    className={btn("ghost")}
                     title="Decidir que no se hace"
                   >
                     Descartar
@@ -113,7 +111,8 @@ export default async function InboxPage() {
                   <button
                     type="submit"
                     formAction={deleteInboxItem}
-                    className={btn("ghost", "sm")}
+                    className={btn("ghost")}
+                    aria-label="Borrar"
                   >
                     ✕
                   </button>
@@ -125,24 +124,27 @@ export default async function InboxPage() {
       )}
 
       {recent.items.length > 0 && (
-        <Card className="mt-6" title="Ya procesado" subtitle={`Últimos ${recent.items.length}`}>
-          <ul className="divide-y divide-line">
+        <div className="mt-8">
+          <Group title="Ya procesado">
             {recent.items.map((i) => (
-              <li key={i.id} className="flex items-center gap-3 py-2 text-[13px]">
-                <span className="min-w-0 flex-1 truncate text-muted">{i.text}</span>
-                <span className="shrink-0 text-[11px] text-faint">{i.outcome || "—"}</span>
-                {i.expand?.project && (
-                  <Link
-                    href={`/w/${i.project}`}
-                    className="shrink-0 text-[11px] text-faint hover:text-accent"
-                  >
-                    {i.expand.project.name}
-                  </Link>
-                )}
-              </li>
+              <Row
+                key={i.id}
+                href={i.expand?.project ? `/w/${i.project}` : undefined}
+                label={i.text}
+                hint={[i.outcome || "—", i.expand?.project?.name].filter(Boolean).join(" · ")}
+              />
             ))}
-          </ul>
-        </Card>
+          </Group>
+        </div>
+      )}
+
+      {open.length === 0 && recent.items.length === 0 && (
+        <p className="mt-6 text-center text-[13px] text-faint">
+          Captura con el botón ＋ y vuelve acá a darle destino.{" "}
+          <Link href="/" className="text-accent">
+            Ir a Hoy
+          </Link>
+        </p>
       )}
     </>
   );

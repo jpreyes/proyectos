@@ -28,13 +28,13 @@ export async function EntryForm({
   const ivaPct = Math.round((cfg.settings.iva_rate || 0.19) * 100);
 
   return (
-    <form action={action} className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+    <form action={action} className="space-y-5">
       {e && <input type="hidden" name="id" value={e.id} />}
       <input type="hidden" name="return_to" value={returnTo || "/finanzas"} />
 
       <div className="space-y-5">
         <Card title="Movimiento">
-          <div className="grid gap-3 sm:grid-cols-[9rem_9rem_1fr]">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Fecha">
               <input
                 type="date"
@@ -52,7 +52,7 @@ export async function EntryForm({
                 defaultValue={e?.direction || "income"}
               />
             </Field>
-            <Field label="Descripción">
+            <Field label="Descripción" className="sm:col-span-2">
               <input
                 name="description"
                 required
@@ -68,7 +68,7 @@ export async function EntryForm({
           title="Monto"
           subtitle="El valor en CLP se congela al guardar, para que los reportes históricos no se muevan."
         >
-          <div className="grid gap-3 sm:grid-cols-[1fr_7rem_9rem]">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Total">
               <input
                 name="amount"
@@ -85,7 +85,11 @@ export async function EntryForm({
                 defaultValue={e?.currency || cfg.settings.default_currency}
               />
             </Field>
-            <Field label="Valor en CLP" hint="Solo si no es CLP (UF del día, dólar observado)">
+            <Field
+              label="Valor en CLP"
+              hint="Solo si no es CLP (UF del día, dólar observado)"
+              className="sm:col-span-2"
+            >
               <input
                 name="fx_rate"
                 inputMode="decimal"
@@ -96,7 +100,7 @@ export async function EntryForm({
             </Field>
           </div>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-3.5 grid gap-3.5 sm:grid-cols-3">
             <Field label="Neto">
               <input
                 name="net"
@@ -123,14 +127,14 @@ export async function EntryForm({
             </Field>
           </div>
 
-          <label className="mt-3 flex items-center gap-2 text-[13px] text-muted">
+          <label className="mt-4 flex items-center gap-2.5 text-[15px] text-muted">
             <input type="checkbox" name="apply_iva" />
             Calcular neto e IVA ({ivaPct}%) desde el total si los dejo vacíos
           </label>
         </Card>
 
         <Card title="Documento">
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Tipo">
               <Select
                 name="doc_type"
@@ -156,20 +160,20 @@ export async function EntryForm({
             </Field>
           </div>
 
-          <div className="mt-3 space-y-2 border-t border-line pt-3">
-            <label className="flex items-start gap-2 text-[13px] text-muted">
+          <div className="mt-4 space-y-3 border-t border-line pt-4">
+            <label className="flex items-start gap-2.5 text-[15px] leading-snug text-muted">
               <input
                 type="checkbox"
                 name="friction_cost"
                 defaultChecked={e?.friction_cost}
-                className="mt-0.5"
+                className="mt-1"
               />
               <span>
-                <span className="text-ink">Costo de fricción</span> — multa, recargo, interés
-                por atraso, algo repuesto o comprado dos veces, suscripción olvidada
+                <span className="font-semibold text-ink">Costo de fricción</span> — multa, recargo,
+                interés por atraso, algo repuesto o comprado dos veces, suscripción olvidada
               </span>
             </label>
-            <label className="flex items-center gap-2 text-[13px] text-muted">
+            <label className="flex items-center gap-2.5 text-[15px] text-muted">
               <input type="checkbox" name="recurring" defaultChecked={e?.recurring} />
               <span>Es recurrente (suscripción, cuota)</span>
             </label>
@@ -179,7 +183,7 @@ export async function EntryForm({
 
       <div className="space-y-5">
         <Card title="Estado del cobro">
-          <div className="grid gap-3">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Situación">
               <Select
                 name="status"
@@ -208,7 +212,7 @@ export async function EntryForm({
         </Card>
 
         <Card title="Vínculos">
-          <div className="grid gap-3">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Workspace">
               <Select
                 name="project"

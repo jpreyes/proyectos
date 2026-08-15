@@ -166,13 +166,13 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
       {/* -------------------------------------------------------------- datos */}
       <Card className="mb-5" title="Datos">
-        <form action={updateQuote} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <form action={updateQuote} className="grid gap-3.5 sm:grid-cols-2">
           <input type="hidden" name="id" value={id} />
 
           <Field label="Número">
             <input name="number" defaultValue={quote.number} className={inputClass} />
           </Field>
-          <Field label="Título" className="sm:col-span-2 lg:col-span-3">
+          <Field label="Título">
             <input name="title" required defaultValue={quote.title} className={inputClass} />
           </Field>
 
@@ -249,7 +249,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               className={inputClass}
             />
           </Field>
-          <Field label="No antes de">
+          <Field label="No antes de" className="sm:col-span-2">
             <input
               type="date"
               name="earliest_start"
@@ -275,11 +275,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             <textarea name="notes" rows={2} defaultValue={quote.notes} className={inputClass} />
           </Field>
 
-          <div className="flex items-end">
-            <button type="submit" className={`${btn("primary")} w-full`}>
-              Guardar
-            </button>
-          </div>
+          <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
+            Guardar
+          </button>
         </form>
       </Card>
 
@@ -329,12 +327,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 </button>
               </form>
 
+              {/* Was hover-only: unreachable on a touch screen. */}
               <form action={deleteQuoteItem}>
                 <input type="hidden" name="id" value={item.id} />
                 <input type="hidden" name="quote" value={id} />
                 <button
                   type="submit"
-                  className="px-1 text-[11px] text-faint opacity-0 transition-opacity hover:text-bad group-hover:opacity-100"
+                  aria-label={`Eliminar ítem: ${item.description}`}
+                  className="grid h-9 w-9 place-items-center rounded-full text-[13px] text-faint transition-colors hover:bg-bad/15 hover:text-bad"
                 >
                   ✕
                 </button>
@@ -453,9 +453,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               extraHours={slot.hoursPerWeek}
             />
 
-            <p className="mt-3 border-t border-line pt-2 text-[11px] text-faint">
+            <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
               Gris: lo que ya tienes comprometido, incluidos los eventos que llegan de Outlook.
-              Azul: este trabajo. Rojo: la semana se pasa del techo.
+              Verde: este trabajo. Rojo: la semana se pasa del techo.
             </p>
           </>
         )}
@@ -494,12 +494,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 </button>
               </form>
 
+              {/* Was hover-only: unreachable on a touch screen. */}
               <form action={deleteDeliverable}>
                 <input type="hidden" name="id" value={d.id} />
                 <input type="hidden" name="quote" value={id} />
                 <button
                   type="submit"
-                  className="px-1 text-[11px] text-faint opacity-0 transition-opacity hover:text-bad group-hover:opacity-100"
+                  aria-label={`Eliminar entregable: ${d.name}`}
+                  className="grid h-9 w-9 place-items-center rounded-full text-[13px] text-faint transition-colors hover:bg-bad/15 hover:text-bad"
                 >
                   ✕
                 </button>

@@ -69,6 +69,22 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 
 ### Decisiones que no hay que deshacer
 
+- **Cinco destinos en la barra, no diez.** La app se abre en el teléfono, y un
+  índice de diez secciones con tipografía de 11–13 px se lee como panel de
+  control: todo pesa lo mismo y nada invita a entrar. Abajo queda lo que se abre
+  un día cualquiera —Hoy, Bandeja, Trabajo, Calendario— y el resto vive un toque
+  más adentro, en **Yo**. Agregar un sexto tab es volver al problema; lo que
+  aparezca nuevo entra como fila de Yo.
+- **Las superficies se separan por elevación, no por bordes.** Una fila se
+  levanta sobre la página y las filas de un grupo se parten con una hendidura de
+  1 px del color del fondo. Esa ranura es lo que hace que un grupo se lea como un
+  solo objeto; un borde más claro lo vuelve una tabla otra vez.
+- **Nada se esconde detrás de `hover`.** En el teléfono no existe: los botones de
+  fijar, borrar y quitar estaban en `opacity-0` hasta pasar el mouse, o sea que
+  en móvil no se podían tocar. Van atenuados pero presentes.
+- **Los formularios largos van plegados.** Configuración, el alta de contacto, el
+  de presupuesto, el de rutina y los ocho campos secundarios de la bitácora
+  arrancan cerrados. Lo obligatorio queda a la vista; lo demás es un `<details>`.
 - **`next_cue` + `next_step` son dos campos, no uno.** Codifican un plan
   *si-entonces* ("cuando X, entonces Y"), no una tarea. Los planes contingentes
   superan ampliamente a las intenciones genéricas porque automatizan el **inicio**

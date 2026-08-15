@@ -3,10 +3,10 @@ import type { Entry, Project } from "@/lib/types";
 import { requirePB } from "@/lib/pb.server";
 import { markEntryPaid } from "@/lib/actions";
 import { getConfig } from "@/lib/config";
-import { alive, ALIVE } from "@/lib/filters";
+import { ALIVE } from "@/lib/filters";
 import { clpOf, formatCLP, formatCLPShort } from "@/lib/money";
 import { fmtDate, fmtRelative, monthKey, recentMonths } from "@/lib/dates";
-import { Badge, btn, Card, cx, Empty, inputClass, PageHeader, Stat } from "@/components/ui";
+import { Badge, btn, Card, cx, Empty, Group, inputClass, PageHeader, Row, Stat } from "@/components/ui";
 import { Bars } from "@/components/Bars";
 
 export const metadata = { title: "Finanzas · Proyectos" };
@@ -62,16 +62,18 @@ export default async function FinancePage({
   }
 
   // Per-project margin — the number a generic accounting app never gives you.
-  const byProject = new Map<string, { name: string; income: number; expense: number; pending: number }>();
+  const byProject = new Map<
+    string,
+    { name: string; income: number; expense: number; pending: number }
+  >();
   for (const e of entries) {
     if (!e.project) continue;
-    const row =
-      byProject.get(e.project) || {
-        name: e.expand?.project?.name || "—",
-        income: 0,
-        expense: 0,
-        pending: 0,
-      };
+    const row = byProject.get(e.project) || {
+      name: e.expand?.project?.name || "—",
+      income: 0,
+      expense: 0,
+      pending: 0,
+    };
     const v = clpOf(e);
     if (e.status === "paid") {
       if (e.direction === "income") row.income += v;
@@ -94,6 +96,7 @@ export default async function FinancePage({
   const subsTotal = subscriptions.reduce((s, e) => s + clpOf(e), 0);
 
   const years = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
+  const filtering = Boolean(sp.project || sp.direction || sp.year);
 
   return (
     <>
@@ -107,44 +110,45 @@ export default async function FinancePage({
         }
       />
 
-      <form className="mb-5 flex flex-wrap gap-2">
-        <select name="year" defaultValue={year} className={`${inputClass} max-w-[7rem]`}>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-        <select
-          name="project"
-          defaultValue={sp.project || ""}
-          className={`${inputClass} max-w-[14rem]`}
-        >
-          <option value="">Todos los workspaces</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          name="direction"
-          defaultValue={sp.direction || ""}
-          className={`${inputClass} max-w-[9rem]`}
-        >
-          <option value="">Ingresos y egresos</option>
-          {cfg.options("direction").map((o) => (
-            <option key={o.value} value={o.value}>
-              Solo {o.label.toLowerCase()}s
-            </option>
-          ))}
-        </select>
-        <button type="submit" className={btn("subtle")}>
-          Filtrar
-        </button>
-      </form>
+      {/* Three selects that used to greet you before a single number did. */}
+      <details open={filtering} className="group mb-6">
+        <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">
+          {year}
+          {sp.project ? " · un workspace" : ""}
+          {sp.direction ? ` · solo ${cfg.label("direction", sp.direction).toLowerCase()}s` : ""}
+          <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <form className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+          <select name="year" defaultValue={year} className={inputClass}>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <select name="project" defaultValue={sp.project || ""} className={inputClass}>
+            <option value="">Todos los workspaces</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <select name="direction" defaultValue={sp.direction || ""} className={inputClass}>
+            <option value="">Ingresos y egresos</option>
+            {cfg.options("direction").map((o) => (
+              <option key={o.value} value={o.value}>
+                Solo {o.label.toLowerCase()}s
+              </option>
+            ))}
+          </select>
+          <button type="submit" className={btn("subtle")}>
+            Filtrar
+          </button>
+        </form>
+      </details>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat label="Recibido" value={formatCLPShort(income)} tone="ok" hint={`en ${year}`} />
         <Stat label="Gastado" value={formatCLPShort(expense)} hint={`en ${year}`} />
         <Stat
@@ -159,203 +163,136 @@ export default async function FinancePage({
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <Card title="Flujo mensual" subtitle="Últimos 12 meses, solo lo efectivamente pagado">
-          <Bars months={months} income={incomeByMonth} expense={expenseByMonth} />
-        </Card>
+      <Card
+        className="mb-6"
+        title="Flujo mensual"
+        subtitle="Últimos 12 meses, solo lo efectivamente pagado"
+      >
+        <Bars months={months} income={incomeByMonth} expense={expenseByMonth} />
+      </Card>
 
-        <Card title="Margen por workspace" subtitle={`Año ${year}`}>
-          {projectRows.length === 0 ? (
-            <Empty>Sin movimientos asociados a un workspace.</Empty>
-          ) : (
-            <ul className="divide-y divide-line">
-              {projectRows.map((r) => (
-                <li key={r.id} className="flex items-center gap-3 py-2">
-                  <Link
-                    href={`/w/${r.id}`}
-                    className="min-w-0 flex-1 truncate text-[13px] hover:text-accent"
-                  >
-                    {r.name}
-                  </Link>
-                  {r.pending > 0 && (
-                    <span className="shrink-0 text-[11px] text-warn">
-                      +{formatCLPShort(r.pending)} por cobrar
-                    </span>
-                  )}
-                  <span
-                    className={cx(
-                      "w-24 shrink-0 text-right text-[13px] tabular-nums",
-                      r.margin >= 0 ? "text-ok" : "text-bad"
-                    )}
-                  >
-                    {formatCLPShort(r.margin)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      <Group title={`Margen por workspace · ${year}`}>
+        {projectRows.length === 0 ? (
+          <Empty>Sin movimientos asociados a un workspace.</Empty>
+        ) : (
+          projectRows.map((r) => (
+            <Row
+              key={r.id}
+              href={`/w/${r.id}`}
+              label={r.name}
+              hint={r.pending > 0 ? `+${formatCLPShort(r.pending)} por cobrar` : undefined}
+              value={
+                <span className={r.margin >= 0 ? "text-ok" : "text-bad"}>
+                  {formatCLPShort(r.margin)}
+                </span>
+              }
+            />
+          ))
+        )}
+      </Group>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card
-          title="Costo de fricción"
-          subtitle="Multas, recargos, cosas repuestas, compras duplicadas, suscripciones olvidadas"
-        >
-          {taxed.length === 0 ? (
-            <Empty>
-              Nada marcado en {year}. Se marca con la casilla al registrar un egreso.
-            </Empty>
-          ) : (
-            <>
-              <div className="mb-3 flex items-baseline justify-between border-b border-line pb-3">
-                <span className="text-[13px] text-muted">
-                  {taxed.length} movimiento{taxed.length === 1 ? "" : "s"} en {year}
-                </span>
-                <span className="text-xl font-semibold tabular-nums text-bad">
-                  {formatCLP(taxTotal)}
-                </span>
-              </div>
-              <ul className="divide-y divide-line">
-                {taxed.slice(0, 8).map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 py-1.5 text-[13px]">
-                    <span className="w-16 shrink-0 text-[11px] tabular-nums text-faint">
-                      {fmtDate(e.date)}
-                    </span>
-                    <Link href={`/finanzas/${e.id}`} className="min-w-0 flex-1 truncate hover:text-accent">
-                      {e.description}
-                    </Link>
-                    <span className="shrink-0 tabular-nums text-muted">
-                      {formatCLPShort(clpOf(e))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {taxed.length > 8 && (
-                <p className="mt-2 text-[11px] text-faint">y {taxed.length - 8} más</p>
-              )}
-            </>
-          )}
-        </Card>
-
-        <Card
-          title="Recurrentes"
-          subtitle="Para revisarlas, no para renovarlas por inercia"
-        >
-          {subscriptions.length === 0 ? (
-            <Empty>Nada marcado como recurrente.</Empty>
-          ) : (
-            <>
-              <div className="mb-3 flex items-baseline justify-between border-b border-line pb-3">
-                <span className="text-[13px] text-muted">
-                  {subscriptions.length} en {year}
-                </span>
-                <span className="text-xl font-semibold tabular-nums">
-                  {formatCLP(subsTotal)}
-                </span>
-              </div>
-              <ul className="divide-y divide-line">
-                {subscriptions.slice(0, 8).map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 py-1.5 text-[13px]">
-                    <Link href={`/finanzas/${e.id}`} className="min-w-0 flex-1 truncate hover:text-accent">
-                      {e.description}
-                    </Link>
-                    <span className="shrink-0 text-[11px] text-faint">
-                      {e.expand?.entity?.name || ""}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-muted">
-                      {formatCLPShort(clpOf(e))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </Card>
-      </div>
-
-      <Card className="mt-5" title="Movimientos">
+      {/* The whole table collapsed into rows: six columns never fitted a phone,
+          and the amount plus the status is what you actually scan for. */}
+      <Group title="Movimientos">
         {entries.length === 0 ? (
           <Empty>Sin movimientos en este filtro.</Empty>
         ) : (
-          <div className="-mx-4 overflow-x-auto px-4">
-            <table className="w-full min-w-[52rem] text-[13px]">
-              <thead>
-                <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
-                  <th className="py-2 pr-3 font-medium">Fecha</th>
-                  <th className="py-2 pr-3 font-medium">Descripción</th>
-                  <th className="py-2 pr-3 font-medium">Workspace</th>
-                  <th className="py-2 pr-3 font-medium">Estado</th>
-                  <th className="py-2 pr-3 text-right font-medium">Monto</th>
-                  <th className="py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {entries.map((e) => (
-                  <tr key={e.id} className="group hover:bg-panel2/50">
-                    <td className="whitespace-nowrap py-2 pr-3 tabular-nums text-muted">
-                      {fmtDate(e.date)}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Link href={`/finanzas/${e.id}`} className="hover:text-accent">
-                        {e.description}
-                      </Link>
-                      <span className="block text-[11px] text-faint">
-                        {cfg.label("direction", e.direction)}
-                        {e.expand?.entity ? ` · ${e.expand.entity.name}` : ""}
-                        {e.currency !== "CLP" ? ` · ${e.currency} ${e.amount}` : ""}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 text-muted">
-                      {e.expand?.project ? (
-                        <Link href={`/w/${e.project}`} className="hover:text-accent">
-                          {e.expand.project.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Badge tone={cfg.tone("entry_status", e.status)}>
-                        {cfg.label("entry_status", e.status)}
-                      </Badge>
-                      {e.due_date && e.status !== "paid" && (
-                        <span className="ml-1.5 text-[11px] text-faint">
-                          {fmtRelative(e.due_date)}
-                        </span>
-                      )}
-                    </td>
-                    <td
-                      className={cx(
-                        "whitespace-nowrap py-2 pr-3 text-right tabular-nums",
-                        e.direction === "income" ? "text-ok" : "text-ink"
-                      )}
-                    >
-                      {e.direction === "expense" ? "−" : ""}
-                      {formatCLP(clpOf(e))}
-                    </td>
-                    <td className="py-2 text-right">
-                      {e.direction === "income" && e.status !== "paid" && (
-                        <form action={markEntryPaid}>
-                          <input type="hidden" name="id" value={e.id} />
-                          <input type="hidden" name="project" value={e.project} />
-                          <button
-                            type="submit"
-                            title="Marcar pagado"
-                            className="text-[11px] text-faint opacity-0 transition-opacity hover:text-ok group-hover:opacity-100"
-                          >
-                            ✓ pagado
-                          </button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          entries.map((e) => (
+            <Row
+              key={e.id}
+              href={`/finanzas/${e.id}`}
+              label={e.description}
+              hint={[
+                fmtDate(e.date),
+                cfg.label("direction", e.direction),
+                e.expand?.entity?.name,
+                e.expand?.project?.name,
+                e.currency !== "CLP" ? `${e.currency} ${e.amount}` : null,
+                e.due_date && e.status !== "paid" ? `vence ${fmtRelative(e.due_date)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              value={
+                <span className={cx(e.direction === "income" ? "text-ok" : "text-ink")}>
+                  {e.direction === "expense" ? "−" : ""}
+                  {formatCLP(clpOf(e))}
+                </span>
+              }
+              badge={
+                <Badge tone={cfg.tone("entry_status", e.status)}>
+                  {cfg.label("entry_status", e.status)}
+                </Badge>
+              }
+            />
+          ))
         )}
-      </Card>
+      </Group>
+
+      {/* The two review panels sit last: they are for a deliberate sit-down,
+          not for the glance you open this screen with. */}
+      <Group title={`Costo de fricción · ${formatCLP(taxTotal)}`}>
+        {taxed.length === 0 ? (
+          <Empty>
+            Nada marcado en {year}. Multas, recargos, cosas repuestas, compras duplicadas — se marca
+            con la casilla al registrar un egreso.
+          </Empty>
+        ) : (
+          taxed
+            .slice(0, 8)
+            .map((e) => (
+              <Row
+                key={e.id}
+                href={`/finanzas/${e.id}`}
+                label={e.description}
+                hint={fmtDate(e.date)}
+                value={formatCLPShort(clpOf(e))}
+              />
+            ))
+        )}
+      </Group>
+
+      <Group title={`Recurrentes · ${formatCLP(subsTotal)}`}>
+        {subscriptions.length === 0 ? (
+          <Empty>Nada marcado como recurrente. Están acá para revisarlas, no para renovarlas.</Empty>
+        ) : (
+          subscriptions
+            .slice(0, 8)
+            .map((e) => (
+              <Row
+                key={e.id}
+                href={`/finanzas/${e.id}`}
+                label={e.description}
+                hint={e.expand?.entity?.name}
+                value={formatCLPShort(clpOf(e))}
+              />
+            ))
+        )}
+      </Group>
+
+      {/* Kept out of the rows above: a link that also mutates would make the
+          whole row ambiguous to tap. */}
+      {receivable > 0 && (
+        <Group title="Marcar como pagado">
+          {entries
+            .filter((e) => e.direction === "income" && e.status !== "paid")
+            .map((e) => (
+              <form key={e.id} action={markEntryPaid}>
+                <input type="hidden" name="id" value={e.id} />
+                <input type="hidden" name="project" value={e.project} />
+                <button type="submit" className="block w-full text-left">
+                  <Row
+                    icon="✓"
+                    iconTone="ok"
+                    label={e.description}
+                    hint={e.due_date ? `vence ${fmtRelative(e.due_date)}` : undefined}
+                    value={formatCLPShort(clpOf(e))}
+                    chevron={false}
+                  />
+                </button>
+              </form>
+            ))}
+        </Group>
+      )}
     </>
   );
 }

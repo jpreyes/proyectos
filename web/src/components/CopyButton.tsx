@@ -36,10 +36,8 @@ export function CopyButton({
       onClick={copy}
       title={value}
       className={cx(
-        "shrink-0 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
-        done
-          ? "border-ok/40 bg-ok/10 text-ok"
-          : "border-line2 bg-panel2 text-muted hover:text-ink hover:bg-line/60",
+        "shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors",
+        done ? "bg-ok/15 text-ok" : "bg-pill text-muted hover:text-ink",
         className
       )}
     >

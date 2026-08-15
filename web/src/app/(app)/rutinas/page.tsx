@@ -64,10 +64,8 @@ function RoutineCard({
           <button
             type="submit"
             className={cx(
-              "rounded-md border px-2.5 py-1 text-xs transition-colors",
-              todayLog
-                ? "border-ok/50 bg-ok/15 text-ok"
-                : "border-line2 bg-panel2 text-muted hover:text-ink"
+              "rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors",
+              todayLog ? "bg-ok/15 text-ok" : "bg-pill text-muted hover:text-ink"
             )}
           >
             {todayLog ? "✓ hecho hoy" : "marcar hoy"}
@@ -75,7 +73,7 @@ function RoutineCard({
         </form>
       }
     >
-      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-muted">
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-muted">
         <span>
           <span className="tabular-nums text-ink">{reps}</span> repetici{reps === 1 ? "ón" : "ones"}
         </span>
@@ -93,7 +91,7 @@ function RoutineCard({
       </div>
 
       {/* Dot grid, not a streak. Gaps are information, not failure. */}
-      <div className="flex flex-wrap gap-[3px]">
+      <div className="flex flex-wrap gap-1">
         {days.map((d) => {
           const hit = byDay.has(d);
           const isToday = d === today;
@@ -102,9 +100,9 @@ function RoutineCard({
               key={d}
               title={d}
               className={cx(
-                "h-2.5 w-2.5 rounded-[2px]",
+                "h-3 w-3 rounded-[3px]",
                 hit ? "bg-ok/75" : "bg-line",
-                isToday && "ring-1 ring-accent/70"
+                isToday && "ring-2 ring-accent/70"
               )}
             />
           );
@@ -112,8 +110,8 @@ function RoutineCard({
       </div>
 
       {rated.length >= 3 && (
-        <div className="mt-4 border-t border-line pt-3">
-          <div className="mb-1.5 text-[11px] uppercase tracking-wider text-faint">
+        <div className="mt-5 border-t border-line pt-4">
+          <div className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
             Automaticidad (1–7)
           </div>
           <div className="flex items-end gap-[3px]" style={{ height: 48 }}>
@@ -129,7 +127,7 @@ function RoutineCard({
         </div>
       )}
 
-      <div className="mt-3 flex justify-end gap-2 border-t border-line pt-3">
+      <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
         <form action={archiveRoutine}>
           <input type="hidden" name="id" value={routine.id} />
           <button type="submit" className={btn("ghost", "sm")}>
@@ -175,47 +173,47 @@ export default async function RoutinesPage() {
     <>
       <PageHeader title="Rutinas" subtitle={`${routines.length} activa${routines.length === 1 ? "" : "s"}`} />
 
-      <p className="mb-5 max-w-2xl rounded-lg border border-line bg-panel/50 px-4 py-3 text-[13px] leading-relaxed text-muted">
-        No hay rachas acá, a propósito. La automaticidad crece siguiendo una curva que se
-        aplana: mediana de <span className="text-ink">66 días</span>, pero con un rango real de
+      <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
+        No hay rachas acá, a propósito. La automaticidad crece siguiendo una curva que se aplana:
+        mediana de <span className="font-semibold text-ink">66 días</span>, pero con un rango real de
         18 a 254. Y{" "}
-        <span className="text-ink">saltarse un día no afecta el proceso</span> — así que un
-        hueco en la grilla es un dato, no un fracaso.
+        <span className="font-semibold text-ink">saltarse un día no afecta el proceso</span> — así
+        que un hueco en la grilla es un dato, no un fracaso.
       </p>
 
       <div className="space-y-4">
         {routines.length === 0 && <Empty>Sin rutinas activas.</Empty>}
         {routines.map((r) => (
-          <RoutineCard
-            key={r.id}
-            routine={r}
-            logs={byRoutine.get(r.id) || []}
-            gridDays={gridDays}
-          />
+          <RoutineCard key={r.id} routine={r} logs={byRoutine.get(r.id) || []} gridDays={gridDays} />
         ))}
       </div>
 
-      <Card className="mt-6" title="Nueva rutina">
-        <form action={createRoutine} className="grid gap-3 sm:grid-cols-2">
-          <Field label="Nombre" className="sm:col-span-2">
-            <input name="name" required className={inputClass} />
-          </Field>
-          <Field label="Cuando…" hint="Una situación o una hora: funcionan igual">
-            <input name="cue" placeholder="me siente en el escritorio" className={inputClass} />
-          </Field>
-          <Field label="entonces…">
-            <input name="action" placeholder="reviso la bandeja 5 minutos" className={inputClass} />
-          </Field>
-          <Field label="Desde">
-            <input type="date" name="started" defaultValue={todayISO()} className={inputClass} />
-          </Field>
-          <div className="flex items-end">
-            <button type="submit" className={btn("primary")}>
+      <details className="group mt-6">
+        <summary className={`${btn("subtle")} list-none`}>+ Nueva rutina</summary>
+        <Card className="mt-3">
+          <form action={createRoutine} className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Nombre" className="sm:col-span-2">
+              <input name="name" required className={inputClass} />
+            </Field>
+            <Field label="Cuando…" hint="Una situación o una hora: funcionan igual">
+              <input name="cue" placeholder="me siente en el escritorio" className={inputClass} />
+            </Field>
+            <Field label="entonces…">
+              <input
+                name="action"
+                placeholder="reviso la bandeja 5 minutos"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Desde" className="sm:col-span-2">
+              <input type="date" name="started" defaultValue={todayISO()} className={inputClass} />
+            </Field>
+            <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Crear
             </button>
-          </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </details>
     </>
   );
 }

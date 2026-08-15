@@ -4,7 +4,7 @@ import { saveDaily } from "@/lib/actions";
 import { getConfig } from "@/lib/config";
 import { ALIVE } from "@/lib/filters";
 import { fmtDate, todayISO } from "@/lib/dates";
-import { btn, Card, cx, Empty, Field, inputClass, PageHeader, Stat } from "@/components/ui";
+import { btn, Card, cx, Empty, Field, Group, inputClass, PageHeader, Row, Stat } from "@/components/ui";
 
 export const metadata = { title: "Ritmo · Proyectos" };
 
@@ -77,14 +77,14 @@ export default async function RhythmPage() {
         subtitle={`${days.length} día${days.length === 1 ? "" : "s"} registrado${days.length === 1 ? "" : "s"}`}
       />
 
-      <p className="mb-5 max-w-2xl rounded-lg border border-line bg-panel/50 px-4 py-3 text-[13px] leading-relaxed text-muted">
-        El cronotipo varía mucho entre personas, y el rango es lo bastante amplio como para que
-        el consejo estándar de “levántate temprano y haz lo difícil primero” esté{" "}
-        <span className="text-ink">al revés</span> para buena parte de la gente. Esto no lo
-        decide una regla general: lo decide tu propio registro.
+      <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
+        El cronotipo varía mucho entre personas, y el rango es lo bastante amplio como para que el
+        consejo estándar de “levántate temprano y haz lo difícil primero” esté{" "}
+        <span className="font-semibold text-ink">al revés</span> para buena parte de la gente. Esto
+        no lo decide una regla general: lo decide tu propio registro.
       </p>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Franja peak"
           value={enough && best?.avg ? best.label : "—"}
@@ -107,9 +107,9 @@ export default async function RhythmPage() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+      <div className="space-y-6">
         <Card title={todayRow ? "Editar hoy" : "Registrar hoy"}>
-          <form action={saveDaily} className="grid gap-3 sm:grid-cols-2">
+          <form action={saveDaily} className="grid gap-3.5 sm:grid-cols-2">
             {todayRow && <input type="hidden" name="id" value={todayRow.id} />}
             <Field label="Fecha" className="sm:col-span-2">
               <input
@@ -192,75 +192,66 @@ export default async function RhythmPage() {
           </form>
         </Card>
 
-        <div className="space-y-5">
-          <Card title="Energía por franja" subtitle={`Promedio de ${rated} día${rated === 1 ? "" : "s"}`}>
-            {rated === 0 ? (
-              <Empty>Sin datos de energía todavía.</Empty>
-            ) : (
-              <div className="space-y-2.5">
-                {slots.map((s) => (
-                  <div key={s.key} className="flex items-center gap-3">
-                    <span className="w-16 shrink-0 text-[13px] text-muted">{s.label}</span>
-                    <span className="h-2.5 flex-1 overflow-hidden rounded bg-line">
-                      <span
-                        className={cx(
-                          "block h-full rounded",
-                          enough && s.key === best?.key ? "bg-accent" : "bg-line2"
-                        )}
-                        style={{ width: `${((s.avg || 0) / 5) * 100}%` }}
-                      />
-                    </span>
-                    <span className="w-8 shrink-0 text-right text-[12px] tabular-nums text-muted">
-                      {s.avg ? s.avg.toFixed(1) : "—"}
-                    </span>
-                  </div>
-                ))}
-                {!enough && (
-                  <p className="pt-1 text-[11px] text-faint">
-                    Con menos de {MIN_SAMPLE} días esto no dice nada todavía.
-                  </p>
-                )}
-              </div>
-            )}
-          </Card>
+        <Card
+          title="Energía por franja"
+          subtitle={`Promedio de ${rated} día${rated === 1 ? "" : "s"}`}
+        >
+          {rated === 0 ? (
+            <Empty>Sin datos de energía todavía.</Empty>
+          ) : (
+            <div className="space-y-3">
+              {slots.map((s) => (
+                <div key={s.key} className="flex items-center gap-3">
+                  <span className="w-16 shrink-0 text-[15px] text-muted">{s.label}</span>
+                  <span className="h-3 flex-1 overflow-hidden rounded-full bg-line">
+                    <span
+                      className={cx(
+                        "block h-full rounded-full",
+                        enough && s.key === best?.key ? "bg-accent" : "bg-line2"
+                      )}
+                      style={{ width: `${((s.avg || 0) / 5) * 100}%` }}
+                    />
+                  </span>
+                  <span className="w-8 shrink-0 text-right text-[13px] tabular-nums text-muted">
+                    {s.avg ? s.avg.toFixed(1) : "—"}
+                  </span>
+                </div>
+              ))}
+              {!enough && (
+                <p className="pt-1 text-[13px] text-faint">
+                  Con menos de {MIN_SAMPLE} días esto no dice nada todavía.
+                </p>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
 
-          <Card title="Últimos días">
-            {days.length === 0 ? (
-              <Empty>Sin registros.</Empty>
-            ) : (
-              <div className="-mx-4 overflow-x-auto px-4">
-                <table className="w-full min-w-[26rem] text-[13px]">
-                  <thead>
-                    <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
-                      <th className="py-1.5 pr-3 font-medium">Día</th>
-                      <th className="py-1.5 pr-3 font-medium">Sueño</th>
-                      <th className="py-1.5 pr-3 font-medium">M / T / N</th>
-                      <th className="py-1.5 text-right font-medium">Foco</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {days.slice(0, 14).map((d) => (
-                      <tr key={d.id}>
-                        <td className="py-1.5 pr-3 text-muted">{fmtDate(d.date)}</td>
-                        <td className="py-1.5 pr-3 tabular-nums text-faint">
-                          {d.sleep_start && d.sleep_end ? `${d.sleep_start}–${d.sleep_end}` : "—"}
-                        </td>
-                        <td className="py-1.5 pr-3 tabular-nums">
-                          {[d.energy_morning, d.energy_afternoon, d.energy_evening]
-                            .map((v) => v || "·")
-                            .join(" / ")}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums text-muted">
-                          {d.focus_hours || "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </div>
+      {/* The four-column table is gone: on a phone it scrolled sideways, and the
+          sleep window plus the three ratings fit fine on one line of hint. */}
+      <div className="mt-6">
+        <Group title="Últimos días">
+          {days.length === 0 ? (
+            <Empty>Sin registros.</Empty>
+          ) : (
+            days.slice(0, 14).map((d) => (
+              <Row
+                key={d.id}
+                label={fmtDate(d.date)}
+                chevron={false}
+                hint={[
+                  d.sleep_start && d.sleep_end ? `${d.sleep_start}–${d.sleep_end}` : null,
+                  `M/T/N ${[d.energy_morning, d.energy_afternoon, d.energy_evening]
+                    .map((v) => v || "·")
+                    .join(" / ")}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                value={d.focus_hours ? `${d.focus_hours} h` : "—"}
+              />
+            ))
+          )}
+        </Group>
       </div>
     </>
   );

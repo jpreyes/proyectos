@@ -45,10 +45,10 @@ export function Due({
     <span className={cx("inline-flex flex-col gap-1", className)}>
       <span className="flex items-baseline gap-1.5 whitespace-nowrap text-[13px]">
         <span className="tabular-nums">{fmtDate(date)}</span>
-        <span className={cx("text-[11px]", text)}>{fmtRelative(date)}</span>
+        <span className={cx("text-[12px] font-semibold", text)}>{fmtRelative(date)}</span>
       </span>
       {showBar && (
-        <span className="block h-0.5 w-full overflow-hidden rounded bg-line">
+        <span className="block h-1 w-full overflow-hidden rounded-full bg-line">
           <span className={cx("block h-full rounded", fill)} style={{ width: `${pct}%` }} />
         </span>
       )}

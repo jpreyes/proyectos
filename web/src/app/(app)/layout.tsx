@@ -1,11 +1,9 @@
 import { requirePB } from "@/lib/pb.server";
-import { Nav } from "@/components/Nav";
-import { MobileNav } from "@/components/MobileNav";
+import { Rail, TabBar } from "@/components/Tabs";
 import { CaptureBar } from "@/components/CaptureBar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const pb = await requirePB();
-  const user = pb.authStore.record as { email?: string; name?: string } | null;
 
   let open = 0;
   try {
@@ -17,21 +15,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // collection missing (pre-migration) -> just hide the counter
   }
 
-  const label = user?.name || user?.email || "";
-
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-52 shrink-0 border-r border-line bg-panel/40 px-2 py-3 md:block">
-        <Nav userLabel={label} />
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 px-3 py-4 md:block">
+        <Rail open={open} />
       </aside>
 
-      <div className="min-w-0 flex-1">
-        <MobileNav userLabel={label} open={open} />
-
+      {/* One column at both widths. The old layout ran content to 72rem, which
+          on a laptop produced four-column grids nobody reads across; the point
+          of this app is a short scannable list, and that has a natural width. */}
+      <main className="pb-tabbar mx-auto w-full min-w-0 max-w-3xl px-4 pt-5 md:px-8 md:pt-8">
         <CaptureBar open={open} />
+        {children}
+      </main>
 
-        <main className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-8">{children}</main>
-      </div>
+      <TabBar open={open} />
     </div>
   );
 }

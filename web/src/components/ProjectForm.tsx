@@ -19,13 +19,13 @@ export async function ProjectForm({
   const p = project;
 
   return (
-    <form action={action} className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+    <form action={action} className="space-y-5">
       {p && <input type="hidden" name="id" value={p.id} />}
 
       <div className="space-y-5">
         <Card title="Identidad">
-          <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
-            <Field label="Nombre" className="sm:col-span-1">
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Nombre">
               <input name="name" required defaultValue={p?.name} className={inputClass} />
             </Field>
             <Field label="Código" hint="Opcional, único">
@@ -57,7 +57,7 @@ export async function ProjectForm({
         </Card>
 
         <Card title="Retomar" subtitle="El plan si-entonces con el que vas a volver a entrar.">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Cuando…">
               <input
                 name="next_cue"
@@ -80,7 +80,7 @@ export async function ProjectForm({
 
       <div className="space-y-5">
         <Card title="Estado">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Tipo">
               <Select
                 name="kind"
@@ -115,7 +115,7 @@ export async function ProjectForm({
         </Card>
 
         <Card title="Contexto">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Contraparte" className="sm:col-span-2">
               <Select
                 name="client"

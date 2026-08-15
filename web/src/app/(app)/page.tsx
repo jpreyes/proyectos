@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { Entry, LogEntry, Project, Task } from "@/lib/types";
 import { requirePB } from "@/lib/pb.server";
-import { addLog, markEntryPaid } from "@/lib/actions";
+import { markEntryPaid } from "@/lib/actions";
 import { getConfig } from "@/lib/config";
 import { alive, ALIVE } from "@/lib/filters";
 import { clpOf, formatCLPShort } from "@/lib/money";
-import { daysUntil, fmtRelative, todayISO } from "@/lib/dates";
-import { Badge, btn, Card, cx, Empty, inputClass, PageHeader, Stat } from "@/components/ui";
+import { daysUntil, fmtRelative } from "@/lib/dates";
+import { Badge, btn, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
 import { Due } from "@/components/Due";
 import { NextStepLine } from "@/components/NextStep";
 
@@ -134,7 +134,7 @@ export default async function TodayPage() {
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Vencido"
           value={overdueCount}
@@ -144,169 +144,110 @@ export default async function TodayPage() {
         <Stat label="Próximos 7 días" value={weekCount} tone={weekCount > 0 ? "warn" : "neutral"} />
         <Stat
           label="Por cobrar"
+          href="/finanzas"
           value={formatCLPShort(receivableTotal)}
           tone={receivableTotal > 0 ? "warn" : "neutral"}
           hint={`${receivables.length} documento${receivables.length === 1 ? "" : "s"}`}
         />
-        <Stat label="Workspaces abiertos" value={projects.length} />
+        <Stat label="Workspaces abiertos" href="/w" value={projects.length} />
       </div>
 
-      {/* Capture has to cost nothing, or the offload never happens. */}
-      <form
-        action={addLog}
-        className="mb-6 flex flex-wrap gap-2 rounded-lg border border-line bg-panel/60 px-3 py-2.5"
+      <Group title={`Horizonte · vencido y próximos ${HORIZON_DAYS} días`}>
+        {near.length === 0 ? (
+          <Empty>Nada en el horizonte cercano.</Empty>
+        ) : (
+          near.map((h) => (
+            <Row key={h.key} href={h.href} label={h.label} hint={`${h.tag} · ${h.context}`}>
+              <span className="mt-1.5 block max-w-40">
+                <Due date={h.date} horizon={HORIZON_DAYS} />
+              </span>
+            </Row>
+          ))
+        )}
+      </Group>
+
+      <Group
+        title="Por cobrar"
+        action={
+          <Link href="/finanzas" className="text-[13px] font-semibold text-accent">
+            Finanzas ›
+          </Link>
+        }
       >
-        <input type="hidden" name="date" value={todayISO()} />
-        <input type="hidden" name="kind" value="note" />
-        <select name="project" required className={`${inputClass} max-w-[13rem]`}>
-          <option value="">¿Dónde va?</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <input
-          name="body"
-          required
-          placeholder="Anota rápido lo que no quieres perder…"
-          className={`${inputClass} min-w-40 flex-1`}
-        />
-        <button type="submit" className={btn("primary", "sm")}>
-          Guardar
-        </button>
-      </form>
-
-      <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-5">
-          <Card title="Horizonte" subtitle={`Vencido y próximos ${HORIZON_DAYS} días`}>
-            {near.length === 0 ? (
-              <Empty>Nada en el horizonte cercano.</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {near.map((h) => (
-                  <li key={h.key}>
-                    <Link
-                      href={h.href}
-                      className="flex items-center gap-3 py-2.5 transition-colors hover:bg-panel2/50"
+        {receivables.length === 0 ? (
+          <Empty>Nada pendiente de cobro.</Empty>
+        ) : (
+          receivables.map((e) => (
+            <Row
+              key={e.id}
+              label={e.description}
+              hint={[
+                e.expand?.entity?.name || "—",
+                e.expand?.project?.name,
+                e.due_date ? `vence ${fmtRelative(e.due_date)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              value={formatCLPShort(clpOf(e))}
+              chevron={false}
+              badge={
+                <>
+                  <Badge tone={cfg.tone("entry_status", e.status)}>
+                    {cfg.label("entry_status", e.status)}
+                  </Badge>
+                  <form action={markEntryPaid} className="shrink-0">
+                    <input type="hidden" name="id" value={e.id} />
+                    <input type="hidden" name="project" value={e.project} />
+                    <button
+                      type="submit"
+                      className="grid h-9 w-9 place-items-center rounded-full bg-ok/15 text-[15px] text-ok"
+                      title="Marcar pagado"
+                      aria-label={`Marcar pagado: ${e.description}`}
                     >
-                      <span className="w-28 shrink-0">
-                        <Due date={h.date} horizon={HORIZON_DAYS} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px]">{h.label}</span>
-                        <span className="block truncate text-[11px] text-faint">
-                          {h.tag} · {h.context}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                      ✓
+                    </button>
+                  </form>
+                </>
+              }
+            />
+          ))
+        )}
+      </Group>
 
-          <Card
-            title="Por cobrar"
-            subtitle="Lo más concreto que registra el sistema."
-            action={
-              <Link href="/finanzas" className={btn("ghost", "sm")}>
-                Finanzas →
-              </Link>
-            }
-          >
-            {receivables.length === 0 ? (
-              <Empty>Nada pendiente de cobro.</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {receivables.map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 py-2.5">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px]">{e.description}</span>
-                      <span className="block truncate text-[11px] text-faint">
-                        {e.expand?.entity?.name || "—"}
-                        {e.expand?.project ? ` · ${e.expand.project.name}` : ""}
-                        {e.due_date ? ` · vence ${fmtRelative(e.due_date)}` : ""}
-                      </span>
-                    </span>
-                    <Badge tone={cfg.tone("entry_status", e.status)}>
-                      {cfg.label("entry_status", e.status)}
-                    </Badge>
-                    <span className="w-24 shrink-0 text-right text-[13px] tabular-nums">
-                      {formatCLPShort(clpOf(e))}
-                    </span>
-                    <form action={markEntryPaid} className="shrink-0">
-                      <input type="hidden" name="id" value={e.id} />
-                      <input type="hidden" name="project" value={e.project} />
-                      <button type="submit" className={btn("ghost", "sm")} title="Marcar pagado">
-                        ✓
-                      </button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
+      <Group title="Sin plan de reentrada">
+        {withoutPlan.length === 0 ? (
+          <Empty>Todos tienen su siguiente paso.</Empty>
+        ) : (
+          withoutPlan.map((p) => (
+            <Row
+              key={p.id}
+              href={`/w/${p.id}`}
+              label={p.name}
+              hint={cfg.label("project_kind", p.kind)}
+            />
+          ))
+        )}
+      </Group>
 
-        <div className="space-y-5">
-          <Card
-            title="Sin plan de reentrada"
-            subtitle="Activos sin un si-entonces definido."
-          >
-            {withoutPlan.length === 0 ? (
-              <Empty>Todos tienen su siguiente paso.</Empty>
-            ) : (
-              <ul className="space-y-1">
-                {withoutPlan.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/w/${p.id}`}
-                      className="block rounded px-2 py-1.5 hover:bg-panel2"
-                    >
-                      <span className="block text-[13px]">{p.name}</span>
-                      <span className="block text-[11px] text-faint">
-                        {cfg.label("project_kind", p.kind)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card
-            title="Enfriándose"
-            subtitle={`Activos sin señales hace más de ${COLD_DAYS} días`}
-          >
-            {cooling.length === 0 ? (
-              <Empty>Todo con actividad reciente.</Empty>
-            ) : (
-              <ul className="space-y-1">
-                {cooling.map((p) => {
-                  const seen = lastSeen.get(p.id);
-                  return (
-                    <li key={p.id}>
-                      <Link
-                        href={`/w/${p.id}`}
-                        className="block rounded px-2 py-1.5 hover:bg-panel2"
-                      >
-                        <span className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-[13px]">{p.name}</span>
-                          <span className={cx("shrink-0 text-[11px] text-faint")}>
-                            {seen ? fmtRelative(seen) : "nunca"}
-                          </span>
-                        </span>
-                        <NextStepLine cue={p.next_cue} step={p.next_step} />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-        </div>
-      </div>
+      <Group title={`Enfriándose · sin señales hace más de ${COLD_DAYS} días`}>
+        {cooling.length === 0 ? (
+          <Empty>Todo con actividad reciente.</Empty>
+        ) : (
+          cooling.map((p) => {
+            const seen = lastSeen.get(p.id);
+            return (
+              <Row
+                key={p.id}
+                href={`/w/${p.id}`}
+                label={p.name}
+                value={seen ? fmtRelative(seen) : "nunca"}
+              >
+                <NextStepLine cue={p.next_cue} step={p.next_step} />
+              </Row>
+            );
+          })
+        )}
+      </Group>
     </>
   );
 }

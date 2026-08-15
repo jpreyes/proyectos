@@ -27,14 +27,14 @@ export function NextStep({
     <form
       action={setNextStep}
       className={cx(
-        "rounded-lg border px-4 py-3.5",
-        empty ? "border-dashed border-line2 bg-panel/40" : "border-accent/25 bg-accent/[0.06]"
+        "rounded-2xl px-4 py-4",
+        empty ? "bg-row" : "bg-accent/10 ring-1 ring-inset ring-accent/25"
       )}
     >
       <input type="hidden" name="id" value={projectId} />
 
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-[13px] font-semibold uppercase tracking-wider text-muted">
           Retomar
         </span>
         <button type="submit" className={btn("ghost", "sm")}>
@@ -42,14 +42,14 @@ export function NextStep({
         </button>
       </div>
 
-      <div className="space-y-1.5 text-[15px] leading-relaxed">
+      <div className="space-y-3 text-[17px] leading-relaxed">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="shrink-0 text-muted">Cuando</span>
           <input
             name="next_cue"
             defaultValue={cue}
             placeholder="llegue el lunes a la oficina… (o: sean las 9:00)"
-            className="min-w-0 flex-1 border-b border-line2 bg-transparent pb-0.5 text-ink outline-none placeholder:text-faint focus:border-accent"
+            className="min-w-0 flex-1 border-b border-line2 bg-transparent pb-1 text-ink outline-none placeholder:text-faint focus:border-accent"
           />
         </div>
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -58,13 +58,13 @@ export function NextStep({
             name="next_step"
             defaultValue={step}
             placeholder="abro el notebook 03 y corro el ajuste con la base nueva"
-            className="min-w-0 flex-1 border-b border-line2 bg-transparent pb-0.5 text-ink outline-none placeholder:text-faint focus:border-accent"
+            className="min-w-0 flex-1 border-b border-line2 bg-transparent pb-1 text-ink outline-none placeholder:text-faint focus:border-accent"
           />
         </div>
       </div>
 
       {!compact && (
-        <p className="mt-2.5 text-[11px] text-faint">
+        <p className="mt-3.5 text-[13px] leading-relaxed text-faint">
           Concreto y pequeño. El disparador puede ser una situación o una hora — el ensayo que
           comparó ambos no encontró diferencia. Lo que importa es que sea específico.
         </p>
@@ -76,10 +76,10 @@ export function NextStep({
 /** Read-only one-liner for lists (dashboard, cartera). */
 export function NextStepLine({ cue, step }: { cue: string; step: string }) {
   if (!step && !cue) {
-    return <span className="text-[13px] text-faint">Sin siguiente paso definido</span>;
+    return <span className="mt-1 block text-[13px] text-faint">Sin siguiente paso definido</span>;
   }
   return (
-    <span className="text-[13px] text-ink">
+    <span className="mt-1 block text-[13px] text-ink">
       {cue && <span className="text-muted">Cuando </span>}
       {cue}
       {cue && step && <span className="text-muted">, entonces </span>}

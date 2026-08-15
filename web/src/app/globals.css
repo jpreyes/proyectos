@@ -1,20 +1,27 @@
 @import "tailwindcss";
 
-/* Dark, dense, information-first. This is a tool you open 20 times a day,
-   not a landing page. */
+/* Dark navy, few options per screen, generous touch targets.
+   This is a tool you open 20 times a day on a phone: the previous build packed
+   ten sidebar links and 11px type into every view, which reads as a control
+   panel rather than something you reach for. Surfaces are separated by
+   elevation, never by borders — a row sits on a lighter plane than the page,
+   and rows within a group are split by a hairline of the page colour showing
+   through. That groove is what makes a group read as one object. */
 @theme {
-  --color-bg: #0b0d10;
-  --color-panel: #13161b;
-  --color-panel2: #191d24;
-  --color-line: #262c35;
-  --color-line2: #343c48;
-  --color-ink: #e7eaee;
-  --color-muted: #8a929f;
-  --color-faint: #5c6674;
-  --color-accent: #5b9dff;
-  --color-ok: #46b978;
+  --color-bg: #040a18;
+  --color-panel: #151d2d;
+  --color-panel2: #1b212e;
+  --color-row: #212733;
+  --color-pill: #353e51;
+  --color-line: #2b3242;
+  --color-line2: #3b4354;
+  --color-ink: #f7f8fe;
+  --color-muted: #a8adb8;
+  --color-faint: #7a8194;
+  --color-accent: #79e99d;
+  --color-ok: #63ca76;
   --color-warn: #e0a33a;
-  --color-bad: #e26a6a;
+  --color-bad: #e07c70;
 
   --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
@@ -47,6 +54,29 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* The tab bar floats over the page, so the last card would otherwise sit under
+   it. Installed as a PWA there is also a home indicator to clear. */
+.pb-tabbar {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+/* The rail replaces the floating bar past this width, so the reserve is gone.
+   This has to live inside the class rather than as a `md:pb-*` utility: both
+   would have the same specificity and this stylesheet is loaded last, so the
+   utility would silently lose. */
+@media (min-width: 768px) {
+  .pb-tabbar {
+    padding-bottom: 2.5rem;
+  }
+}
+.bottom-tabbar {
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+/* Above the bar, not beside it: with five tabs the bar is wide enough on a
+   narrow phone that a right-aligned button would land on top of "Yo". */
+.bottom-fab {
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Rich-text coming out of the `editor` fields */

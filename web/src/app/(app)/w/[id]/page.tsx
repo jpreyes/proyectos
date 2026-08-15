@@ -4,10 +4,9 @@ import type { Entry, LogEntry, Project, Resource, Task } from "@/lib/types";
 import { requirePB } from "@/lib/pb.server";
 import { getConfig } from "@/lib/config";
 import { alive, ALIVE } from "@/lib/filters";
-import { clpOf } from "@/lib/money";
-import { formatCLPShort } from "@/lib/money";
+import { clpOf, formatCLPShort } from "@/lib/money";
 import { fmtDate, fmtRelative } from "@/lib/dates";
-import { Badge, btn, Card, Empty, PageHeader, Stat } from "@/components/ui";
+import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
 import { NextStep } from "@/components/NextStep";
 import { ResourceMap } from "@/components/ResourceMap";
 import { LogFeed } from "@/components/LogFeed";
@@ -63,8 +62,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
     .reduce((s, e) => s + clpOf(e), 0);
   const receivable = entries
     .filter(
-      (e) =>
-        e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
+      (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
     )
     .reduce((s, e) => s + clpOf(e), 0);
 
@@ -73,14 +71,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
   return (
     <>
       <PageHeader
-        title={
-          <span className="flex flex-wrap items-center gap-2.5">
-            {project.name}
-            {project.code && (
-              <span className="font-mono text-[13px] font-normal text-faint">{project.code}</span>
-            )}
-          </span>
-        }
+        title={project.name}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <Badge tone={cfg.tone("project_status", project.status)}>
@@ -92,13 +83,14 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
                 {cfg.label("health", project.health)}
               </Badge>
             )}
+            {project.code && <span className="font-mono text-[13px] text-faint">{project.code}</span>}
             {project.expand?.parent && (
-              <Link href={`/w/${project.parent}`} className="text-[12px] text-faint hover:text-accent">
+              <Link href={`/w/${project.parent}`} className="text-[13px] text-faint">
                 ↑ {project.expand.parent.name}
               </Link>
             )}
             {project.expand?.client && (
-              <span className="text-[12px] text-muted">{project.expand.client.name}</span>
+              <span className="text-[13px] text-muted">{project.expand.client.name}</span>
             )}
           </span>
         }
@@ -115,7 +107,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
       <div className="mb-6 space-y-3">
         <NextStep projectId={project.id} cue={project.next_cue} step={project.next_step} />
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-[12px] text-faint">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-[13px] text-faint">
           {lastLog ? (
             <span>
               Última señal: <span className="text-muted">{fmtRelative(lastLog.date)}</span>
@@ -130,135 +122,126 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
               {fmtRelative(project.due_date)})
             </span>
           )}
-          {open.length > 0 && <span>{open.length} pendiente{open.length === 1 ? "" : "s"}</span>}
+          {open.length > 0 && (
+            <span>
+              {open.length} pendiente{open.length === 1 ? "" : "s"}
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        {/* ------------------------------------------------------- left --- */}
-        <div className="space-y-5">
-          <Card
-            title="Dónde vive"
-            subtitle="Cada ubicación con una línea que explique para qué sirve."
+      {project.summary && (
+        <Card className="mb-6" title="Qué es">
+          <p className="text-[15px] leading-relaxed text-muted">{project.summary}</p>
+        </Card>
+      )}
+
+      <Card className="mb-6" title="Pendientes">
+        <TaskList tasks={open} projectId={project.id} />
+      </Card>
+
+      <Card
+        className="mb-6"
+        title="Dónde vive"
+        subtitle="Cada ubicación con una línea que explique para qué sirve."
+      >
+        <ResourceMap projectId={project.id} resources={resources} />
+      </Card>
+
+      <Card
+        className="mb-6"
+        title="Plata"
+        action={
+          <Link
+            href={`/finanzas/nuevo?project=${project.id}&return_to=/w/${project.id}`}
+            className={btn("ghost", "sm")}
           >
-            <ResourceMap projectId={project.id} resources={resources} />
-          </Card>
+            + Movimiento
+          </Link>
+        }
+      >
+        {entries.length === 0 ? (
+          <Empty>Sin movimientos.</Empty>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Stat label="Recibido" value={formatCLPShort(income)} tone="ok" />
+              <Stat label="Gastado" value={formatCLPShort(expense)} tone="neutral" />
+              <Stat
+                label="Por cobrar"
+                value={formatCLPShort(receivable)}
+                tone={receivable > 0 ? "warn" : "neutral"}
+              />
+              <Stat label="Margen" value={formatCLPShort(margin)} tone={margin >= 0 ? "ok" : "bad"} />
+            </div>
+            <Link
+              href={`/finanzas?project=${project.id}`}
+              className="mt-4 block text-[13px] font-semibold text-accent"
+            >
+              Ver los {entries.length} movimientos ›
+            </Link>
+          </>
+        )}
+      </Card>
 
-          <Card title="Bitácora" subtitle={`${logs.totalItems} entrada${logs.totalItems === 1 ? "" : "s"}`}>
-            <LogFeed projectId={project.id} entries={logs.items} />
-          </Card>
-        </div>
-
-        {/* ------------------------------------------------------ right --- */}
-        <div className="space-y-5">
-          {project.summary && (
-            <Card title="Qué es">
-              <p className="text-[13px] leading-relaxed text-muted">{project.summary}</p>
-            </Card>
-          )}
-
-          <Card title="Pendientes">
-            <TaskList tasks={open} projectId={project.id} />
-          </Card>
-
-          <Card
-            title="Plata"
-            action={
-              <Link
-                href={`/finanzas/nuevo?project=${project.id}&return_to=/w/${project.id}`}
-                className={btn("ghost", "sm")}
-              >
-                + Movimiento
-              </Link>
-            }
-          >
-            {entries.length === 0 ? (
-              <Empty>Sin movimientos.</Empty>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Stat label="Recibido" value={formatCLPShort(income)} tone="ok" />
-                  <Stat label="Gastado" value={formatCLPShort(expense)} tone="neutral" />
-                  <Stat
-                    label="Por cobrar"
-                    value={formatCLPShort(receivable)}
-                    tone={receivable > 0 ? "warn" : "neutral"}
-                  />
-                  <Stat
-                    label="Margen"
-                    value={formatCLPShort(margin)}
-                    tone={margin >= 0 ? "ok" : "bad"}
-                  />
-                </div>
-                <Link
-                  href={`/finanzas?project=${project.id}`}
-                  className="mt-3 block text-[12px] text-accent hover:underline"
-                >
-                  Ver los {entries.length} movimientos →
-                </Link>
-              </>
+      {(project.start_date || project.due_date || project.budget > 0) && (
+        <Card className="mb-6" title="Ficha">
+          <dl className="space-y-3 text-[15px]">
+            {project.start_date && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Inicio</dt>
+                <dd>{fmtDate(project.start_date)}</dd>
+              </div>
             )}
-          </Card>
-
-          {(project.start_date || project.due_date || project.budget > 0) && (
-            <Card title="Ficha">
-              <dl className="space-y-2 text-[13px]">
-                {project.start_date && (
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-muted">Inicio</dt>
-                    <dd>{fmtDate(project.start_date)}</dd>
-                  </div>
-                )}
-                {project.due_date && (
-                  <div className="flex items-start justify-between gap-3">
-                    <dt className="text-muted">Plazo</dt>
-                    <dd className="w-36">
-                      <Due date={project.due_date} />
-                    </dd>
-                  </div>
-                )}
-                {project.budget > 0 && (
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-muted">Presupuesto</dt>
-                    <dd className="tabular-nums">
-                      {project.budget_currency && project.budget_currency !== "CLP"
-                        ? `${project.budget_currency} ${project.budget}`
-                        : formatCLPShort(project.budget)}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-              {project.tags && project.tags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-                  {project.tags.map((t) => (
-                    <Badge key={t}>{t}</Badge>
-                  ))}
-                </div>
-              )}
-            </Card>
+            {project.due_date && (
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted">Plazo</dt>
+                <dd className="w-40">
+                  <Due date={project.due_date} />
+                </dd>
+              </div>
+            )}
+            {project.budget > 0 && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Presupuesto</dt>
+                <dd className="tabular-nums">
+                  {project.budget_currency && project.budget_currency !== "CLP"
+                    ? `${project.budget_currency} ${project.budget}`
+                    : formatCLPShort(project.budget)}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {project.tags && project.tags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {project.tags.map((t) => (
+                <Badge key={t}>{t}</Badge>
+              ))}
+            </div>
           )}
+        </Card>
+      )}
 
-          {children.length > 0 && (
-            <Card title="Sub-workspaces">
-              <ul className="space-y-1">
-                {children.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href={`/w/${c.id}`}
-                      className="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-[13px] hover:bg-panel2"
-                    >
-                      <span className="truncate">{c.name}</span>
-                      <Badge tone={cfg.tone("project_status", c.status)}>
-                        {cfg.label("project_status", c.status)}
-                      </Badge>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-        </div>
-      </div>
+      {children.length > 0 && (
+        <Group title="Sub-workspaces">
+          {children.map((c) => (
+            <Row
+              key={c.id}
+              href={`/w/${c.id}`}
+              label={c.name}
+              badge={
+                <Badge tone={cfg.tone("project_status", c.status)}>
+                  {cfg.label("project_status", c.status)}
+                </Badge>
+              }
+            />
+          ))}
+        </Group>
+      )}
+
+      <Card title="Bitácora" subtitle={`${logs.totalItems} entrada${logs.totalItems === 1 ? "" : "s"}`}>
+        <LogFeed projectId={project.id} entries={logs.items} />
+      </Card>
     </>
   );
 }

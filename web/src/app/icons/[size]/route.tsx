@@ -40,7 +40,7 @@ export async function GET(
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0b0d10",
+          background: "#040a18",
         }}
       >
         <div
@@ -51,16 +51,15 @@ export async function GET(
             flexDirection: "column",
             justifyContent: "center",
             gap: inner * 0.11,
-            borderRadius: maskable ? inner * 0.18 : inner * 0.22,
-            background: "#13161b",
-            border: `${Math.max(2, inner * 0.02)}px solid #262c35`,
+            borderRadius: maskable ? inner * 0.18 : inner * 0.26,
+            background: "#212733",
             padding: inner * 0.18,
           }}
         >
           {/* three stacked bars: the workspace list, at a glance */}
-          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#5b9dff" }} />
-          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#8a929f", width: "78%" }} />
-          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#5c6674", width: "52%" }} />
+          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#79e99d" }} />
+          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#a8adb8", width: "78%" }} />
+          <div style={{ height: inner * 0.1, borderRadius: 99, background: "#7a8194", width: "52%" }} />
         </div>
       </div>
     ),

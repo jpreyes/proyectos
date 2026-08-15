@@ -31,14 +31,11 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-xs rounded-lg border border-line bg-panel px-5 py-6"
-      >
-        <h1 className="text-lg font-semibold tracking-tight">Proyectos</h1>
-        <p className="mt-0.5 mb-5 text-[13px] text-muted">Sistema personal de gestión.</p>
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-3xl bg-panel px-6 py-7">
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">Proyectos</h1>
+        <p className="mb-6 mt-1 text-[15px] text-faint">Sistema personal de gestión.</p>
 
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <Field label="Correo">
             <input
               name="identity"
@@ -60,9 +57,9 @@ export default function LoginPage() {
           </Field>
         </div>
 
-        {error && <p className="mt-3 text-[13px] text-bad">{error}</p>}
+        {error && <p className="mt-4 text-[15px] text-bad">{error}</p>}
 
-        <button type="submit" disabled={busy} className={`${btn("primary")} mt-5 w-full`}>
+        <button type="submit" disabled={busy} className={`${btn("primary")} mt-6 w-full`}>
           {busy ? "Entrando…" : "Entrar"}
         </button>
       </form>

@@ -55,12 +55,14 @@ export function WeekGrid({
             )}
             title={detail}
           >
-            <span className="w-8 shrink-0 text-right font-mono text-[10px] text-faint">
+            <span className="w-8 shrink-0 text-right font-mono text-[11px] text-faint">
               S{isoWeekNumber(week)}
             </span>
-            <span className="w-28 shrink-0 text-[11px] text-muted">{weekSpanLabel(week)}</span>
+            <span className="hidden w-28 shrink-0 text-[12px] text-muted sm:block">
+              {weekSpanLabel(week)}
+            </span>
 
-            <span className="relative flex h-2.5 min-w-0 flex-1 overflow-hidden rounded-sm bg-panel2">
+            <span className="relative flex h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-panel2">
               <span
                 className={cx("h-full", over ? "bg-bad/70" : "bg-line2")}
                 style={{ width: `${usedPct}%` }}
@@ -75,8 +77,8 @@ export function WeekGrid({
 
             <span
               className={cx(
-                "w-16 shrink-0 text-right text-[11px] tabular-nums",
-                over ? "text-bad" : total > 0 ? "text-muted" : "text-faint"
+                "w-16 shrink-0 text-right text-[12px] tabular-nums",
+                over ? "font-semibold text-bad" : total > 0 ? "text-muted" : "text-faint"
               )}
             >
               {fmtHours(total)}

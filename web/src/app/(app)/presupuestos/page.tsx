@@ -6,8 +6,7 @@ import { alive, ALIVE } from "@/lib/filters";
 import { formatAmount, formatCLPShort } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import { createQuote } from "@/lib/actions";
-import { Badge, btn, Card, cx, Empty, Field, inputClass, PageHeader, Select, Stat } from "@/components/ui";
-import { Due } from "@/components/Due";
+import { Badge, btn, Card, cx, Empty, Field, Group, inputClass, PageHeader, Row, Select, Stat } from "@/components/ui";
 
 export const metadata = { title: "Presupuestos · Proyectos" };
 
@@ -49,11 +48,11 @@ export default async function QuotesPage({
         subtitle={`${quotes.length} documento${quotes.length === 1 ? "" : "s"}`}
       />
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Pendiente de respuesta"
           value={formatCLPShort(pendingTotal)}
-          hint={`${pending.length} presupuesto${pending.length === 1 ? "" : "s"} esperando`}
+          hint={`${pending.length} esperando`}
           tone={pending.length ? "warn" : "neutral"}
         />
         <Stat
@@ -73,52 +72,51 @@ export default async function QuotesPage({
         />
       </div>
 
-      <Card className="mb-5" title="Nuevo presupuesto" subtitle="Lo demás se llena adentro.">
-        <form action={createQuote} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Título" className="sm:col-span-2">
-            <input
-              name="title"
-              required
-              placeholder="Revisión estructural galpón…"
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Cliente">
-            <Select
-              name="client"
-              placeholder="—"
-              options={entities.map((e) => ({ value: e.id, label: e.name }))}
-            />
-          </Field>
-          <Field label="Tipo">
-            <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
-          </Field>
-          <Field label="Horas de trabajo" hint="tangible, para buscar el hueco">
-            <input name="work_hours" placeholder="60" className={inputClass} />
-          </Field>
-          <Field label="Ritmo máximo" hint="horas por semana">
-            <input name="max_hours_week" placeholder="12" className={inputClass} />
-          </Field>
-          <Field label="Moneda">
-            <Select
-              name="currency"
-              defaultValue={cfg.settings.default_currency}
-              options={cfg.options("currency")}
-            />
-          </Field>
-          <div className="flex items-end">
-            <button type="submit" className={`${btn("primary")} w-full`}>
+      {/* Eight fields that used to sit open above the list of real quotes. */}
+      <details className="group mb-6">
+        <summary className={`${btn("primary")} list-none`}>+ Nuevo presupuesto</summary>
+        <Card className="mt-3" subtitle="Lo demás se llena adentro.">
+          <form action={createQuote} className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Título" className="sm:col-span-2">
+              <input
+                name="title"
+                required
+                placeholder="Revisión estructural galpón…"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Cliente">
+              <Select
+                name="client"
+                placeholder="—"
+                options={entities.map((e) => ({ value: e.id, label: e.name }))}
+              />
+            </Field>
+            <Field label="Tipo">
+              <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
+            </Field>
+            <Field label="Horas de trabajo" hint="tangible, para buscar el hueco">
+              <input name="work_hours" placeholder="60" className={inputClass} />
+            </Field>
+            <Field label="Ritmo máximo" hint="horas por semana">
+              <input name="max_hours_week" placeholder="12" className={inputClass} />
+            </Field>
+            <Field label="Moneda" className="sm:col-span-2">
+              <Select
+                name="currency"
+                defaultValue={cfg.settings.default_currency}
+                options={cfg.options("currency")}
+              />
+            </Field>
+            <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Crear
             </button>
-          </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </details>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        <Link
-          href="/presupuestos"
-          className={cx(btn(sp.status ? "ghost" : "subtle", "sm"))}
-        >
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        <Link href="/presupuestos" className={cx(btn(sp.status ? "ghost" : "subtle", "sm"))}>
           Todos
         </Link>
         {STATUS_ORDER.map((value) => (
@@ -135,46 +133,31 @@ export default async function QuotesPage({
       {quotes.length === 0 ? (
         <Empty>No hay presupuestos con ese filtro.</Empty>
       ) : (
-        <Card bodyClassName="p-0">
-          <ul className="divide-y divide-line">
-            {quotes.map((q) => (
-              <li key={q.id}>
-                <Link
-                  href={`/presupuestos/${q.id}`}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-panel2"
-                >
-                  <span className="w-24 shrink-0 font-mono text-[11px] text-faint">
-                    {q.number || "—"}
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium">{q.title}</span>
-                    <span className="block truncate text-[11px] text-muted">
-                      {q.expand?.client?.name || "sin cliente"}
-                      {q.kind && ` · ${cfg.label("project_kind", q.kind)}`}
-                    </span>
-                  </span>
-
-                  <span className="w-28 shrink-0 text-right text-[13px] tabular-nums">
-                    {formatAmount(q.net_total || 0, q.currency || "CLP")}
-                  </span>
-
-                  <span className="w-32 shrink-0">
-                    {q.status === "pending" && q.valid_until ? (
-                      <Due date={q.valid_until} horizon={30} />
-                    ) : (
-                      <span className="text-[11px] text-faint">{fmtDate(q.date)}</span>
-                    )}
-                  </span>
-
-                  <Badge tone={cfg.tone("quote_status", q.status)}>
-                    {cfg.label("quote_status", q.status)}
-                  </Badge>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <Group>
+          {quotes.map((q) => (
+            <Row
+              key={q.id}
+              href={`/presupuestos/${q.id}`}
+              label={q.title}
+              hint={[
+                q.number || null,
+                q.expand?.client?.name || "sin cliente",
+                q.kind ? cfg.label("project_kind", q.kind) : null,
+                q.status === "pending" && q.valid_until
+                  ? `vence ${fmtDate(q.valid_until)}`
+                  : fmtDate(q.date),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              value={formatAmount(q.net_total || 0, q.currency || "CLP")}
+              badge={
+                <Badge tone={cfg.tone("quote_status", q.status)}>
+                  {cfg.label("quote_status", q.status)}
+                </Badge>
+              }
+            />
+          ))}
+        </Group>
       )}
     </>
   );

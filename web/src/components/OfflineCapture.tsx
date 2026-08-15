@@ -58,12 +58,12 @@ export function OfflineCapture() {
         className={cx(inputClass, "resize-y")}
       />
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-4 flex items-center gap-3">
         <button type="submit" className={btn("primary")}>
           {saved ? "Guardado" : "Capturar"}
         </button>
 
-        <span className="text-[12px] text-faint">
+        <span className="text-[13px] text-faint">
           {queued > 0
             ? `${queued} esperando subir`
             : online

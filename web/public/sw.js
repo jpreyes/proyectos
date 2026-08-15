@@ -10,7 +10,9 @@
  * they can be posted.
  */
 
-const VERSION = "v2";
+// v3: the whole UI changed, so the precached /offline shell and its chunks are
+// stale. Bumping the version is what evicts them.
+const VERSION = "v3";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const OFFLINE_URL = "/offline";

@@ -38,13 +38,13 @@ export default async function EditProjectPage({
         parents={parents}
       />
 
-      <form action={deleteProject} className="mt-10 border-t border-line pt-5">
+      <form action={deleteProject} className="mt-10 border-t border-line pt-6">
         <input type="hidden" name="id" value={project.id} />
-        <p className="mb-2 text-[12px] text-faint">
+        <p className="mb-3 text-[13px] leading-relaxed text-faint">
           Eliminar borra también su bitácora, tareas y mapa de ubicaciones. Los movimientos
           financieros quedan, pero sin proyecto asociado.
         </p>
-        <button type="submit" className={btn("danger", "sm")}>
+        <button type="submit" className={btn("danger")}>
           Eliminar workspace
         </button>
       </form>

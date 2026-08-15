@@ -15,18 +15,18 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
   return (
     <li
       className={cx(
-        "group flex items-start gap-3 rounded-md px-2 py-2 hover:bg-panel2/70",
+        "flex items-start gap-3 rounded-xl px-1 py-2.5 hover:bg-panel2/70",
         dim && "opacity-55"
       )}
     >
-      <span className="mt-0.5 w-4 shrink-0 text-center text-[13px] text-muted">
+      <span className="mt-1 w-5 shrink-0 text-center text-[15px] text-muted">
         {cfg.icon("resource_kind", r.kind) || RESOURCE_KIND_ICON[r.kind] || "◇"}
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] font-medium">{r.label}</span>
-          {r.pinned && <span className="text-[11px] text-accent">fijado</span>}
+          <span className="text-[15px] font-semibold">{r.label}</span>
+          {r.pinned && <span className="text-[12px] text-accent">fijado</span>}
           {r.state && r.state !== "active" && (
             <Badge tone={cfg.tone("resource_state", r.state)}>
               {cfg.label("resource_state", r.state)}
@@ -35,20 +35,20 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
         </div>
 
         {/* The whole point of the collection: the note your past self left. */}
-        {r.purpose && <p className="mt-0.5 text-[13px] leading-snug text-muted">{r.purpose}</p>}
+        {r.purpose && <p className="mt-1 text-[13px] leading-snug text-muted">{r.purpose}</p>}
 
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2">
           {isWeb(r.path) ? (
             <a
               href={r.path}
               target="_blank"
               rel="noreferrer"
-              className="truncate font-mono text-[11px] text-accent hover:underline"
+              className="truncate font-mono text-[12px] text-accent"
             >
               {r.path}
             </a>
           ) : (
-            <span className="truncate font-mono text-[11px] text-faint" title={r.path}>
+            <span className="truncate font-mono text-[12px] text-faint" title={r.path}>
               {r.path}
             </span>
           )}
@@ -56,19 +56,32 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {/* Was opacity-0 until hover: on a phone these two controls simply were
+          not reachable. Dimmed and permanent instead. */}
+      <div className="flex shrink-0 items-center gap-0.5">
         <form action={toggleResourcePin}>
           <input type="hidden" name="id" value={r.id} />
           <input type="hidden" name="project" value={r.project} />
           <input type="hidden" name="pinned" value={r.pinned ? "0" : "1"} />
-          <button type="submit" className={btn("ghost", "sm")} title="Fijar / desfijar">
+          <button
+            type="submit"
+            aria-label={r.pinned ? `Desfijar ${r.label}` : `Fijar ${r.label}`}
+            className={cx(
+              "grid h-9 w-9 place-items-center rounded-full text-[15px] transition-colors hover:bg-pill",
+              r.pinned ? "text-accent" : "text-faint"
+            )}
+          >
             ★
           </button>
         </form>
         <form action={deleteResource}>
           <input type="hidden" name="id" value={r.id} />
           <input type="hidden" name="project" value={r.project} />
-          <button type="submit" className={btn("ghost", "sm")} title="Eliminar">
+          <button
+            type="submit"
+            aria-label={`Eliminar ${r.label}`}
+            className="grid h-9 w-9 place-items-center rounded-full text-[15px] text-faint transition-colors hover:bg-bad/15 hover:text-bad"
+          >
             ✕
           </button>
         </form>
@@ -103,7 +116,7 @@ export async function ResourceMap({
       )}
 
       {pinned.length > 0 && (
-        <ul className="mb-2 space-y-0.5 border-b border-line pb-2">
+        <ul className="mb-3 space-y-0.5 border-b border-line pb-3">
           {pinned.map((r) => (
             <ResourceRow key={r.id} r={r} cfg={cfg} />
           ))}
@@ -117,8 +130,8 @@ export async function ResourceMap({
       </ul>
 
       {old.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer px-2 py-1 text-[11px] text-faint hover:text-muted">
+        <details className="mt-3">
+          <summary className="cursor-pointer px-1 py-1.5 text-[13px] text-faint hover:text-muted">
             {old.length} archivada{old.length === 1 ? "" : "s"} u obsoleta
             {old.length === 1 ? "" : "s"}
           </summary>
@@ -130,9 +143,9 @@ export async function ResourceMap({
         </details>
       )}
 
-      <details className="mt-3 border-t border-line pt-3">
+      <details className="mt-4">
         <summary className={`${btn("subtle", "sm")} list-none`}>+ Agregar ubicación</summary>
-        <form action={addResource} className="mt-3 grid gap-2 sm:grid-cols-[1fr_9rem]">
+        <form action={addResource} className="mt-3 grid gap-2.5 sm:grid-cols-2">
           <input type="hidden" name="project" value={projectId} />
           <input name="label" required placeholder="Nombre corto" className={inputClass} />
           <Select name="kind" options={cfg.options("resource_kind")} defaultValue="folder" />
@@ -140,7 +153,7 @@ export async function ResourceMap({
             name="path"
             required
             placeholder="D:\ruta\a\la\carpeta   o   https://…"
-            className={`${inputClass} font-mono text-[12px] sm:col-span-2`}
+            className={`${inputClass} font-mono text-[13px] sm:col-span-2`}
           />
           <input
             name="purpose"
@@ -148,7 +161,7 @@ export async function ResourceMap({
             className={`${inputClass} sm:col-span-2`}
           />
           <Select name="state" options={cfg.options("resource_state")} defaultValue="active" />
-          <button type="submit" className={btn("primary", "sm")}>
+          <button type="submit" className={btn("primary")}>
             Agregar
           </button>
         </form>

@@ -147,6 +147,16 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   sostener las cosas en la cabeza. `lib/offline.ts` (página) y `public/sw.js` (worker)
   duplican el acceso a IndexedDB a propósito — un service worker no puede importar
   módulos de la app sin un paso de bundling.
+- **Quedarse sin red no cambia de pantalla.** El worker guarda la última copia
+  renderizada de cada vista visitada (cache `pages-*`) y la sirve cuando la red no está,
+  así que la app sigue mostrando lo que mostraba. Además precalienta los seis destinos de
+  la barra (`warm-pages`, la lista sale de `lib/nav.ts`) para que el primer toque sin red
+  caiga en una pantalla real. `/offline` quedó como último recurso: solo aparece en una
+  vista que nunca se abrió en ese dispositivo. Lo único que anuncia la desconexión es la
+  píldora de `components/OfflineBadge.tsx`, abajo a la izquierda, con la cola pendiente —
+  una copia vieja sin aviso miente, y un aviso a pantalla completa convierte un momento
+  recuperable en una caída. **Ojo:** lo que sigue sin funcionar sin red son las
+  escrituras que no sean captura (las server actions no tienen outbox).
 - **El service worker precachea `/offline` y sus chunks.** Cachear solo el HTML hace que
   la página renderice sin hidratar: se ve bien y no guarda nada. Es el peor fallo posible
   justo en la pantalla que tiene que funcionar.

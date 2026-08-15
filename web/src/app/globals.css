@@ -78,6 +78,11 @@ body {
 .bottom-fab {
   bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
+/* Same line as the capture button, opposite corner: the connection pill is a
+   report, not an action, so it never competes with the bar or the button. */
+.bottom-badge {
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
 
 /* Rich-text coming out of the `editor` fields */
 .prose-log :is(h1, h2, h3) {

@@ -2,11 +2,14 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { flush, syncToken } from "@/lib/offline";
+import { flush, syncToken, warmPages } from "@/lib/offline";
 
 /**
  * Registers the worker and keeps the queue moving: on load, whenever the
  * connection returns, and whenever the tab is brought back to the foreground.
+ *
+ * It also asks the worker to keep a fresh copy of the tab bar destinations, so
+ * that losing the network keeps showing the app rather than a fallback screen.
  */
 export function ServiceWorkerRegistrar() {
   const router = useRouter();
@@ -36,7 +39,9 @@ export function ServiceWorkerRegistrar() {
           for (const key of await caches.keys()) await caches.delete(key);
         }
       }
-      if (!cancelled) await flush();
+      if (cancelled) return;
+      await flush();
+      if (navigator.onLine) await warmPages();
     }
 
     boot();
@@ -50,6 +55,7 @@ export function ServiceWorkerRegistrar() {
 
     function onOnline() {
       flush();
+      warmPages();
     }
 
     function onVisible() {

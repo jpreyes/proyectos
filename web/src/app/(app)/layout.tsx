@@ -1,6 +1,7 @@
 import { requirePB } from "@/lib/pb.server";
 import { Rail, TabBar } from "@/components/Tabs";
 import { CaptureBar } from "@/components/CaptureBar";
+import { OfflineBadge } from "@/components/OfflineBadge";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const pb = await requirePB();
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </main>
 
       <TabBar open={open} />
+      <OfflineBadge />
     </div>
   );
 }

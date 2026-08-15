@@ -12,6 +12,8 @@
  * module is what the page uses.
  */
 
+import { TABS } from "./nav";
+
 const DB_NAME = "proyectos-offline";
 const DB_VERSION = 1;
 
@@ -95,6 +97,18 @@ export async function syncToken(): Promise<void> {
   } catch {
     // malformed cookie: nothing to mirror
   }
+}
+
+/**
+ * Ask the worker to keep a current copy of the screens reachable from the bar.
+ *
+ * The list comes from here rather than from the worker so `lib/nav.ts` stays
+ * the only place destinations are declared; the worker throttles the sweep, so
+ * calling this on every load is cheap.
+ */
+export async function warmPages(): Promise<void> {
+  const reg = await navigator.serviceWorker?.getRegistration();
+  reg?.active?.postMessage({ type: "warm-pages", urls: TABS.map((t) => t.href) });
 }
 
 /** Ask the service worker to drain the queue; fall back to doing it here. */

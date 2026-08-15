@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { flush, pending, queue } from "@/lib/offline";
+import { flush, queue } from "@/lib/offline";
 import { btn, cx, inputClass } from "./ui";
 
 /**
@@ -20,45 +20,21 @@ export function CaptureBar({ open }: { open: number }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const sheetInputRef = useRef<HTMLInputElement>(null);
-  const [queued, setQueued] = useState(0);
-  const [online, setOnline] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const promptRef = useRef<(Event & { prompt?: () => Promise<void> }) | null>(null);
 
-  const refreshQueued = useCallback(async () => {
-    setQueued((await pending()).length);
-  }, []);
-
   useEffect(() => {
-    setOnline(navigator.onLine);
-    refreshQueued();
-
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    const changed = () => refreshQueued();
-
     function onInstallPrompt(e: Event) {
       e.preventDefault();
       promptRef.current = e as Event & { prompt?: () => Promise<void> };
       setCanInstall(true);
     }
 
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
-    window.addEventListener("outbox-changed", changed);
     window.addEventListener("beforeinstallprompt", onInstallPrompt);
-    const timer = setInterval(refreshQueued, 8000);
-
-    return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
-      window.removeEventListener("outbox-changed", changed);
-      window.removeEventListener("beforeinstallprompt", onInstallPrompt);
-      clearInterval(timer);
-    };
-  }, [refreshQueued]);
+    return () => window.removeEventListener("beforeinstallprompt", onInstallPrompt);
+  }, []);
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -82,12 +58,12 @@ export function CaptureBar({ open }: { open: number }) {
       setTimeout(() => setJustSaved(false), 1200);
 
       await queue("inbox", { text: value, status: "open" });
-      await refreshQueued();
+      window.dispatchEvent(new CustomEvent("outbox-changed"));
       await flush();
-      await refreshQueued();
+      window.dispatchEvent(new CustomEvent("outbox-changed"));
       router.refresh();
     },
-    [refreshQueued, router]
+    [router]
   );
 
   async function install() {
@@ -95,26 +71,9 @@ export function CaptureBar({ open }: { open: number }) {
     setCanInstall(false);
   }
 
-  const status = (
-    <>
-      {!online && (
-        <span
-          className="shrink-0 rounded-full bg-warn/15 px-2.5 py-1 text-[12px] font-semibold text-warn"
-          title="Lo que captures se guarda y se sube al reconectar"
-        >
-          sin conexión
-        </span>
-      )}
-      {queued > 0 && (
-        <span
-          className="shrink-0 rounded-full bg-pill px-2.5 py-1 text-[12px] font-semibold text-muted"
-          title="Capturas esperando subir"
-        >
-          {queued} por subir
-        </span>
-      )}
-    </>
-  );
+  // Connection and queue live in `OfflineBadge`, one pill for the whole app:
+  // repeating them beside the field turned a non-event into a warning on the
+  // busiest row of the screen.
 
   return (
     <>
@@ -143,7 +102,6 @@ export function CaptureBar({ open }: { open: number }) {
               Instalar
             </button>
           )}
-          {status}
         </form>
       </div>
 
@@ -183,12 +141,9 @@ export function CaptureBar({ open }: { open: number }) {
                 placeholder="Anota lo que no quieres perder…"
                 className={inputClass}
               />
-              <div className="flex items-center gap-2">
-                <button type="submit" className={cx(btn("primary"), "flex-1")}>
-                  Capturar
-                </button>
-                {status}
-              </div>
+              <button type="submit" className={cx(btn("primary"), "w-full")}>
+                Capturar
+              </button>
               {open > 0 && (
                 <p className="text-center text-[13px] text-faint">
                   {open} sin triar en la bandeja

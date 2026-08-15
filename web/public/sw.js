@@ -1,24 +1,34 @@
 /* Service worker — hand written, no build step, no dependency.
  *
- * Scope is deliberately narrow. The app is server-rendered, so it cannot run
- * offline as a whole; what must never fail is *capture*. The whole premise of
- * the system is that writing something down costs less than holding it in your
- * head, and that breaks the moment the network does.
+ * The app is server-rendered, so it cannot *run* offline as a whole. But losing
+ * the network should not feel like an outage: every page you open is kept as it
+ * was rendered, so going offline keeps showing the app instead of an error
+ * screen, and captures live in IndexedDB until they can be posted.
  *
- * So: the shell and static assets are cached, navigations fall back to a real
- * offline page that can still capture, and captures live in IndexedDB until
- * they can be posted.
+ * Layers, in order of how much they can be trusted:
+ *   - assets  — content-hashed build output, cache first, never stale.
+ *   - pages   — the last rendered copy of each visited screen. Stale by
+ *               definition; served only when the network is genuinely gone,
+ *               and the UI says so passively (components/OfflineBadge).
+ *   - shell   — /offline, the last resort for a screen never opened before.
+ * API responses are never cached: wrong numbers are worse than no numbers.
  */
 
-// v4: the precached /offline copy stored by v3 and earlier carries a bogus
-// `content-encoding`, so it has to be evicted, not reused. Bumping the version
-// is what evicts it.
-const VERSION = "v4";
+// v5: adds the `pages` cache, which is what removes the offline takeover
+// screen for anything already visited. v4 evicted the /offline copy stored by
+// v3 and earlier, which carried a bogus `content-encoding`.
+const VERSION = "v5";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
+const PAGES = `pages-${VERSION}`;
 const OFFLINE_URL = "/offline";
 
 const PRECACHE = [OFFLINE_URL, "/icons/192", "/icons/512"];
+
+/** At most one warm-up sweep of the tab bar destinations per this interval. */
+const WARM_INTERVAL_MS = 10 * 60 * 1000;
+/** How many rendered screens to keep. Re-putting a page refreshes its slot. */
+const PAGE_LIMIT = 80;
 
 /* ----------------------------------------------------------- lifecycle -- */
 
@@ -80,7 +90,9 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== SHELL && k !== ASSETS).map((k) => caches.delete(k))
+          keys
+            .filter((k) => k !== SHELL && k !== ASSETS && k !== PAGES)
+            .map((k) => caches.delete(k))
         )
       )
       .then(() => self.clients.claim())
@@ -131,34 +143,103 @@ self.addEventListener("fetch", (event) => {
  * answer costs the whole app.
  */
 async function navigate(request) {
+  let res = null;
+
   try {
-    return await fetch(request);
+    res = await fetch(request);
   } catch (_) {
     // A redeploy takes a few seconds to come back up, so give it a beat rather
     // than retrying into the same dead socket.
     await new Promise((resolve) => setTimeout(resolve, 400));
+
+    try {
+      // The request body is already consumed by the first attempt; navigations
+      // are GETs, so a clone is unnecessary, but a fresh Request drops any
+      // connection the failed attempt was pinned to.
+      res = await fetch(request.url, {
+        credentials: "include",
+        headers: request.headers,
+        redirect: "manual",
+      });
+    } catch (_) {
+      res = null;
+    }
   }
 
-  try {
-    // The request body is already consumed by the first attempt; navigations
-    // are GETs, so a clone is unnecessary, but a fresh Request drops any
-    // connection the failed attempt was pinned to.
-    return await fetch(request.url, {
-      credentials: "include",
-      headers: request.headers,
-      redirect: "manual",
-    });
-  } catch (_) {
-    const hit = (await caches.match(request)) || (await caches.match(OFFLINE_URL));
-    // respondWith(undefined) surfaces as a network error, which reads as a
-    // browser crash rather than "you are offline". Never hand back nothing.
-    return (
-      hit ||
-      new Response("<!doctype html><meta charset=utf-8><title>Sin conexión</title>", {
-        status: 503,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      })
-    );
+  if (res) {
+    // Keep the copy, but do not make the user wait for the write.
+    savePage(request.url, res.clone()).catch(() => undefined);
+    return res;
+  }
+
+  const pages = await caches.open(PAGES);
+  const hit = (await pages.match(request.url)) || (await caches.match(OFFLINE_URL));
+
+  // respondWith(undefined) surfaces as a network error, which reads as a
+  // browser crash rather than "you are offline". Never hand back nothing.
+  return (
+    hit ||
+    new Response("<!doctype html><meta charset=utf-8><title>Sin conexión</title>", {
+      status: 503,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    })
+  );
+}
+
+/**
+ * Store a rendered page so the same screen can be opened again with no network.
+ *
+ * The body is re-wrapped rather than stored as it arrived, for the reason in
+ * `decodedHeaders`. Keys are plain URL strings on both sides — put and match —
+ * so no `Vary` header can turn a hit into a miss.
+ *
+ * This holds signed-in HTML, the same way the browser's own back/forward cache
+ * does; the app is single-user per device, so that is the whole exposure.
+ */
+async function savePage(url, res) {
+  if (!res.ok || res.redirected || res.type === "opaqueredirect") return;
+  if (!(res.headers.get("content-type") || "").includes("text/html")) return;
+
+  const path = new URL(url).pathname;
+  // A cached login form served after a session expires is a dead end, and
+  // /offline already lives in the shell cache.
+  if (path === "/login" || path === OFFLINE_URL) return;
+
+  const body = await res.blob();
+  const cache = await caches.open(PAGES);
+  await cache.put(url, new Response(body, { status: 200, headers: decodedHeaders(res) }));
+
+  // Every project, quote and entity you open is a screen; without a ceiling the
+  // cache grows for as long as the app is installed. `keys()` is in insertion
+  // order, so the oldest copies go first.
+  const keys = await cache.keys();
+  if (keys.length > PAGE_LIMIT) {
+    await Promise.all(keys.slice(0, keys.length - PAGE_LIMIT).map((k) => cache.delete(k)));
+  }
+}
+
+/**
+ * Pull the tab bar destinations into the page cache while there is a network,
+ * so the first offline tap lands on a real screen instead of a fallback. The
+ * page sends the list (lib/nav.ts stays the single source of truth); the
+ * throttle lives here because the worker outlives any one page load.
+ */
+async function warmPages(urls) {
+  if (!Array.isArray(urls) || !urls.length) return;
+
+  const db = await openDB();
+  const last = await get(db, "meta", "lastWarm");
+  const now = Date.now();
+  if (last && now - last.value < WARM_INTERVAL_MS) return;
+  await put(db, "meta", { key: "lastWarm", value: now });
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      await savePage(new URL(url, self.location.origin).href, res);
+    } catch (_) {
+      break; // network went away mid-sweep; whatever was stored still counts
+    }
   }
 }
 
@@ -276,7 +357,11 @@ self.addEventListener("sync", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "flush-outbox") {
+  if (!event.data) return;
+  if (event.data.type === "flush-outbox") {
     event.waitUntil(flushOutbox());
+  }
+  if (event.data.type === "warm-pages") {
+    event.waitUntil(warmPages(event.data.urls).catch(() => undefined));
   }
 });

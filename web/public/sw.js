@@ -10,9 +10,10 @@
  * they can be posted.
  */
 
-// v3: the whole UI changed, so the precached /offline shell and its chunks are
-// stale. Bumping the version is what evicts them.
-const VERSION = "v3";
+// v4: the precached /offline copy stored by v3 and earlier carries a bogus
+// `content-encoding`, so it has to be evicted, not reused. Bumping the version
+// is what evicts it.
+const VERSION = "v4";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -27,10 +28,24 @@ const PRECACHE = [OFFLINE_URL, "/icons/192", "/icons/512"];
  * nothing — the worst possible failure for the one screen that has to work.
  * So read the markup and cache whatever it asks for.
  */
+/**
+ * `res.text()` hands back the *decoded* body, but the headers still describe the
+ * encoded one. Cloudflare brotli-compresses this route, so copying them verbatim
+ * caches HTML labelled `content-encoding: br`; the browser then tries to brotli-
+ * decode plain text and the page fails to load at all. Safari happens to tolerate
+ * it, which is what kept this hidden. Content-Length lies the same way.
+ */
+function decodedHeaders(res) {
+  const headers = new Headers(res.headers);
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  return headers;
+}
+
 async function precacheOfflineShell(cache) {
   const res = await fetch(OFFLINE_URL, { cache: "reload" });
   const html = await res.text();
-  await cache.put(OFFLINE_URL, new Response(html, { headers: res.headers }));
+  await cache.put(OFFLINE_URL, new Response(html, { headers: decodedHeaders(res) }));
 
   const refs = new Set();
   const pattern = /(?:src|href)="(\/_next\/[^"]+)"/g;
@@ -102,13 +117,50 @@ self.addEventListener("fetch", (event) => {
 
   // Pages: network first, offline page as the last resort.
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(() =>
-        caches.match(request).then((hit) => hit || caches.match(OFFLINE_URL))
-      )
-    );
+    event.respondWith(navigate(request));
   }
 });
+
+/**
+ * One failed fetch is not the same thing as being offline, and treating it that
+ * way is how you get the offline page on a phone with full signal. A handset
+ * hands off between wifi and cellular, and iCloud Private Relay rotates its
+ * egress node every few minutes; either drops the connection in flight. So a
+ * navigation gets a second attempt on a fresh connection before we conclude
+ * there is no server — the retry costs a moment of blank screen, and the wrong
+ * answer costs the whole app.
+ */
+async function navigate(request) {
+  try {
+    return await fetch(request);
+  } catch (_) {
+    // A redeploy takes a few seconds to come back up, so give it a beat rather
+    // than retrying into the same dead socket.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+
+  try {
+    // The request body is already consumed by the first attempt; navigations
+    // are GETs, so a clone is unnecessary, but a fresh Request drops any
+    // connection the failed attempt was pinned to.
+    return await fetch(request.url, {
+      credentials: "include",
+      headers: request.headers,
+      redirect: "manual",
+    });
+  } catch (_) {
+    const hit = (await caches.match(request)) || (await caches.match(OFFLINE_URL));
+    // respondWith(undefined) surfaces as a network error, which reads as a
+    // browser crash rather than "you are offline". Never hand back nothing.
+    return (
+      hit ||
+      new Response("<!doctype html><meta charset=utf-8><title>Sin conexión</title>", {
+        status: 503,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      })
+    );
+  }
+}
 
 /* ------------------------------------------------------------ outbox ---- */
 /* Mirrors web/src/lib/offline.ts — kept duplicated on purpose, a service

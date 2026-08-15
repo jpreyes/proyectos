@@ -69,12 +69,16 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 
 ### Decisiones que no hay que deshacer
 
-- **Cinco destinos en la barra, no diez.** La app se abre en el teléfono, y un
+- **Seis destinos en la barra, no diez.** La app se abre en el teléfono, y un
   índice de diez secciones con tipografía de 11–13 px se lee como panel de
   control: todo pesa lo mismo y nada invita a entrar. Abajo queda lo que se abre
-  un día cualquiera —Hoy, Bandeja, Trabajo, Calendario— y el resto vive un toque
-  más adentro, en **Yo**. Agregar un sexto tab es volver al problema; lo que
-  aparezca nuevo entra como fila de Yo.
+  un día cualquiera —Hoy, Bandeja, Trabajo, Calendario, Presupuestos— y el resto
+  vive un toque más adentro, en **Yo**. Seis es lo que cabe: con los rótulos
+  completos la barra se sale de un teléfono de 375 px y todos terminan en
+  puntos suspensivos, así que Calendario y Presupuestos van abreviados en la
+  barra (`short` en `lib/nav.ts`) y completos en el riel de escritorio. Un
+  séptimo obligaría a quitar los rótulos; lo que aparezca nuevo entra como fila
+  de Yo.
 - **Las superficies se separan por elevación, no por bordes.** Una fila se
   levanta sobre la página y las filas de un grupo se parten con una hendidura de
   1 px del color del fondo. Esa ranura es lo que hace que un grupo se lea como un
@@ -146,6 +150,17 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 - **El service worker precachea `/offline` y sus chunks.** Cachear solo el HTML hace que
   la página renderice sin hidratar: se ve bien y no guarda nada. Es el peor fallo posible
   justo en la pantalla que tiene que funcionar.
+- **Un `fetch` fallido no es estar sin conexión.** El teléfono cambia de wifi a datos y
+  iCloud Private Relay rota su nodo de salida cada pocos minutos; ambas cosas cortan la
+  conexión en vuelo con la señal completa. Si la primera navegación que falla manda a
+  `/offline`, la app parece caída estando arriba. Va un segundo intento sobre una conexión
+  nueva antes de rendirse.
+- **Al cachear una respuesta ya decodificada hay que borrarle `content-encoding`.**
+  `res.text()` devuelve el cuerpo descomprimido, pero los headers siguen describiendo el
+  comprimido, y Cloudflare comprime con brotli. Guardar `new Response(html, {headers:
+  res.headers})` deja en cache un HTML rotulado `br`: el navegador intenta descomprimir
+  texto plano y la página no carga. Safari lo tolera, así que el fallo solo aparece en
+  Chrome — mira `decodedHeaders()` en `sw.js`.
 - `.next/` y `node_modules/` están marcados con `com.dropbox.ignored`. Si Dropbox los
   sincroniza, el build falla con `EBUSY` al borrar carpetas. Next recrea `.next`, así que
   el atributo se pierde: si vuelve a fallar, borra `.next` y recompila.

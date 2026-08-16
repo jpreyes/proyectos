@@ -51,10 +51,8 @@ export default function InboxPage() {
       />
 
       <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
-        Anotar no cierra el bucle. Una meta pendiente sigue interrumpiendo — con pensamientos
-        intrusivos y peor rendimiento en cosas no relacionadas — hasta que existe un{" "}
-        <span className="font-semibold text-ink">plan concreto</span>, aunque no la hayas hecho. Por
-        eso cada ítem sale de acá convertido en algo con destino y momento.
+        Cada cosa sale de acá con un destino: un plan para retomar, una tarea o una nota en la
+        bitácora. Descartarla también es decidir.
       </p>
 
       {open.length === 0 ? (

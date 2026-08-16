@@ -180,11 +180,8 @@ export default function RoutinesPage() {
       />
 
       <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
-        No hay rachas acá, a propósito. La automaticidad crece siguiendo una curva que se aplana:
-        mediana de <span className="font-semibold text-ink">66 días</span>, pero con un rango real de
-        18 a 254. Y{" "}
-        <span className="font-semibold text-ink">saltarse un día no afecta el proceso</span> — así
-        que un hueco en la grilla es un dato, no un fracaso.
+        Acá no hay rachas que cuidar: saltarse un día no arruina nada. Un hueco en la grilla es un
+        dato, no un fracaso.
       </p>
 
       <div className="space-y-4">

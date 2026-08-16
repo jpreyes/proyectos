@@ -21,12 +21,11 @@ export default function OfflinePage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-5 py-10">
       <div className="w-full max-w-md">
         <h1 className="text-[28px] font-bold leading-tight tracking-tight">
-          De esta sección no hay copia
+          Esta sección no está disponible
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          No hay red y esta sección nunca se abrió en este dispositivo. Las demás siguen
-          funcionando completas —tus datos viven acá, no en el servidor— y lo que anotes en este
-          cuadro se guarda igual y sube apenas vuelva la señal.
+          No hay señal y es la primera vez que abres esta sección acá. El resto de la app sigue
+          funcionando, y lo que anotes ahora se guarda igual.
         </p>
       </div>
 

@@ -59,12 +59,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (authed === false) return <Splash text="Entrando…" />;
-  if (!ready) return <Splash text="Abriendo tu copia local…" />;
+  if (!ready) return <Splash text="Abriendo…" />;
 
-  // Dispositivo nuevo: no hay réplica ni la ha habido nunca. Es el único
-  // momento en que esta app necesita la red para poder mostrarte algo.
+  // Dispositivo nuevo: no hay nada que mostrar todavía. Es el único momento en
+  // que esta app necesita la red, y por eso es lo único que se dice.
   const empty = !store.all("settings").length && !store.all("projects").length;
-  if (empty && !synced) return <Splash text="Bajando tu información por primera vez…" wait />;
+  if (empty && !synced) return <Splash text="Preparando la app…" wait />;
 
   return <>{children}</>;
 }
@@ -74,11 +74,7 @@ function Splash({ text, wait }: { text: string; wait?: boolean }) {
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="text-center">
         <p className="text-[15px] text-muted">{text}</p>
-        {wait && (
-          <p className="mt-2 text-[13px] text-faint">
-            Solo pasa una vez por dispositivo. Después la app abre sin red.
-          </p>
-        )}
+        {wait && <p className="mt-2 text-[13px] text-faint">Solo la primera vez.</p>}
       </div>
     </div>
   );

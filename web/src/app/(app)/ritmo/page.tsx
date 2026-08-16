@@ -94,10 +94,8 @@ export default function RhythmPage() {
       />
 
       <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
-        El cronotipo varía mucho entre personas, y el rango es lo bastante amplio como para que el
-        consejo estándar de “levántate temprano y haz lo difícil primero” esté{" "}
-        <span className="font-semibold text-ink">al revés</span> para buena parte de la gente. Esto
-        no lo decide una regla general: lo decide tu propio registro.
+        Anota el día y con el tiempo aparece cuándo rindes mejor. Eso no lo decide una regla
+        general: lo decide tu propio registro.
       </p>
 
       <div className="mb-6 grid grid-cols-2 gap-3">

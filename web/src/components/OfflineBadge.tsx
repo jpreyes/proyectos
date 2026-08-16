@@ -36,13 +36,14 @@ export function OfflineBadge() {
 
   const tone = rejected > 0 ? "bg-bad" : online ? "bg-faint" : "bg-warn";
 
+  // Se dice cuántas quedan y no "Guardando…": el navegador a veces cree que hay
+  // señal cuando no la hay, y un "guardando" eterno miente sobre lo que está a
+  // salvo. El punto que late ya indica que se está intentando.
   const label = rejected
     ? `${rejected} no se pudo${rejected === 1 ? "" : "n"} guardar`
-    : online
-      ? `${queued} por subir`
-      : queued > 0
-        ? `Sin conexión · ${queued} por subir`
-        : "Sin conexión";
+    : queued > 0
+      ? `${online ? "" : "Sin señal · "}${queued} sin guardar`
+      : "Sin señal";
 
   return (
     <button
@@ -59,7 +60,7 @@ export function OfflineBadge() {
         {label}
       </span>
       {!online && queued > 0 && (
-        <span className="hidden text-faint sm:inline">· sube al volver la red</span>
+        <span className="hidden text-faint sm:inline">· se guarda al volver la señal</span>
       )}
     </button>
   );

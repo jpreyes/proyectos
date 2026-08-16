@@ -4,7 +4,7 @@ import type { TaxGroup, TaxRow } from "@/lib/config";
 import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { Form } from "@/components/form";
-import { Badge, btn, Card, cx, Field, inputClass, PageHeader, Select } from "@/components/ui";
+import { Badge, btn, cx, Field, inputClass, PageHeader, Select } from "@/components/ui";
 import { Title } from "@/components/Title";
 
 const TONES = [
@@ -59,7 +59,7 @@ function TaxRowItem({ row, editableValue }: { row: TaxRow; editableValue: boolea
         ) : (
           <span
             className="w-32 shrink-0 font-mono text-[12px] text-faint"
-            title="Valor fijo: el código calcula sobre él"
+            title="Valor fijo: los cálculos dependen de él"
           >
             {row.value} 🔒
           </span>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
           corta de nombres — que es todo lo que hace falta para encontrar el que
           venías a buscar. */}
       <div className="mb-6 overflow-hidden rounded-2xl bg-bg">
-        <Section title="Números" hint="Antes estaban fijos en el código.">
+        <Section title="Números" hint="Umbrales, impuestos y valores por defecto.">
           <Form action={saveSettings} className="grid gap-3.5 sm:grid-cols-2">
             <input type="hidden" name="id" value={s.id} />
 
@@ -293,9 +293,7 @@ export default function SettingsPage() {
           </Form>
 
           <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-faint">
-            La hora es tuya y aplica de inmediato. El servidor revisa cada 15 minutos, así que el
-            correo puede llegar hasta un cuarto de hora después de la hora elegida — y necesita que
-            el cambio haya subido, claro.
+            El resumen diario puede llegar hasta un cuarto de hora después de la hora elegida.
           </p>
         </Section>
       </div>
@@ -342,11 +340,8 @@ export default function SettingsPage() {
         Estados fijos
       </h2>
       <p className="mb-3 px-1 text-[15px] leading-relaxed text-muted">
-        Estos no son vocabulario: el código <span className="font-semibold text-ink">calcula</span>{" "}
-        sobre ellos. “Por cobrar” es literalmente <code className="text-[13px]">facturado</code> más{" "}
-        <code className="text-[13px]">comprometido</code>, y el margen depende de ingreso contra
-        egreso. Puedes cambiarles el nombre y el color; el valor interno queda fijo para que los
-        números sigan significando lo mismo.
+        Puedes cambiarles el nombre y el color. Lo que no cambia es lo que significan: “Por cobrar”
+        suma lo facturado y lo comprometido, y el margen resta egresos a ingresos.
       </p>
 
       <div className="overflow-hidden rounded-2xl bg-bg">
@@ -361,21 +356,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <Card className="mt-8" title="Esta copia" subtitle="Lo que vive en este dispositivo.">
-        <LocalInfo />
-      </Card>
     </>
-  );
-}
-
-/** Un poco de honestidad sobre la réplica: qué hay, de cuándo, y cómo forzarla. */
-function LocalInfo() {
-  return (
-    <p className="text-[15px] leading-relaxed text-muted">
-      La app guarda una copia completa de tus datos en este dispositivo y la mantiene al día en las
-      dos direcciones. Por eso abre y escribe sin conexión: lo que anotes queda guardado acá y sube
-      cuando haya red. La píldora de abajo a la izquierda dice si hay algo esperando; tocarla fuerza
-      una sincronización. Al salir de la sesión, la copia se borra.
-    </p>
   );
 }

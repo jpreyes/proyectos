@@ -329,9 +329,8 @@ function CalendarPage() {
           En Outlook web: Calendario → Configuración → Calendarios compartidos → Publicar un
           calendario → permiso <span className="text-muted">Puede ver todos los detalles</span> →
           copiar el enlace <span className="text-muted">ICS</span> (no el HTML). Se relee sola cada
-          seis horas, siempre que haya red. Si la UACh tiene bloqueada la publicación, el enlace no
-          se genera: descarga el .ics y usa una URL propia, o carga los exámenes como compromisos
-          manuales.
+          seis horas. Si la UACh tiene bloqueada la publicación no se genera el enlace: en ese caso
+          carga los exámenes como compromisos manuales.
         </p>
       </Card>
     </>

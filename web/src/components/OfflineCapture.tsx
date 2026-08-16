@@ -54,7 +54,7 @@ export function OfflineCapture() {
         ref={inputRef}
         rows={4}
         autoFocus
-        placeholder="Anótalo igual. Se guarda acá y sube solo cuando vuelva la señal."
+        placeholder="Anótalo igual. Se guarda y aparece en tu bandeja."
         className={cx(inputClass, "resize-y")}
       />
 

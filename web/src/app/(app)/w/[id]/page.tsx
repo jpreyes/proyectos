@@ -2,14 +2,18 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type { Entity, Entry, LogEntry, Project, Resource, Task } from "@/lib/types";
+import type { Commitment, Entity, Entry, LogEntry, Project, Quote, Resource, Task } from "@/lib/types";
 import { useConfig } from "@/lib/local/config";
 import { useCollection, useRecord } from "@/lib/local/store";
 import { useRouteId } from "@/lib/local/route";
 import { sortBy } from "@/lib/local/query";
 import { clpOf, formatCLPShort } from "@/lib/money";
 import { fmtDate, fmtRelative } from "@/lib/dates";
-import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
+import { fmtHours } from "@/lib/capacity";
+import { formatAmount } from "@/lib/money";
+import { createCommitment } from "@/lib/local/actions";
+import { Form } from "@/components/form";
+import { Badge, btn, Card, Empty, Field, Group, inputClass, PageHeader, Row, Stat } from "@/components/ui";
 import { NextStep } from "@/components/NextStep";
 import { ResourceMap } from "@/components/ResourceMap";
 import { LogFeed } from "@/components/LogFeed";
@@ -28,6 +32,8 @@ export default function WorkspacePage() {
   const allEntries = useCollection<Entry>("entries");
   const allProjects = useCollection<Project>("projects");
   const entities = useCollection<Entity>("entities");
+  const allCommitments = useCollection<Commitment>("commitments");
+  const allQuotes = useCollection<Quote>("quotes");
 
   const view = useMemo(() => {
     const resources = sortBy(
@@ -67,6 +73,16 @@ export default function WorkspacePage() {
         "name"
       ),
       open: tasks.filter((t) => t.status !== "done"),
+      // Calendario y Presupuestos dejaron de ser pestañas: lo de este proyecto
+      // se ve acá, que es donde uno lo va a buscar.
+      commitments: sortBy(
+        allCommitments.filter((c) => c.project === id && c.status !== "cancelled"),
+        "start_date"
+      ),
+      quotes: sortBy(
+        allQuotes.filter((q) => q.project === id),
+        "-date"
+      ),
       lastLog: logs[0],
       income: paid("income"),
       expense: paid("expense"),
@@ -76,7 +92,7 @@ export default function WorkspacePage() {
         )
         .reduce((s, e) => s + clpOf(e), 0),
     };
-  }, [id, allResources, allLogs, allTasks, allEntries, allProjects]);
+  }, [id, allResources, allLogs, allTasks, allEntries, allProjects, allCommitments, allQuotes]);
 
   if (!project || project.deleted) {
     return (
@@ -165,6 +181,66 @@ export default function WorkspacePage() {
         <TaskList tasks={view.open} projectId={project.id} />
       </Card>
 
+      {/* El calendario visto desde acá: solo lo que este proyecto ocupa de tus
+          semanas, y la forma de comprometer más sin salir de la ficha. */}
+      <Card
+        className="mb-6"
+        title="Horas comprometidas"
+        action={
+          <Link href="/calendario" className="text-[13px] font-semibold text-accent">
+            Calendario ›
+          </Link>
+        }
+      >
+        {view.commitments.length === 0 ? (
+          <Empty>Este proyecto todavía no ocupa horas de ninguna semana.</Empty>
+        ) : (
+          <ul className="space-y-2">
+            {view.commitments.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px]">
+                <span className="min-w-0 flex-1 truncate">{c.title}</span>
+                <span className="shrink-0 tabular-nums text-muted">
+                  {fmtHours(c.hours_per_week)}/sem
+                </span>
+                <span className="shrink-0 text-[13px] tabular-nums text-faint">
+                  {fmtDate(c.start_date)} → {fmtDate(c.end_date)}
+                </span>
+                <Badge tone={cfg.tone("commitment_status", c.status)}>
+                  {cfg.label("commitment_status", c.status)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <details className="mt-4 border-t border-line pt-4">
+          <summary className={`${btn("subtle", "sm")} list-none`}>+ Comprometer horas</summary>
+          <Form action={createCommitment} reset className="mt-3 grid gap-3.5 sm:grid-cols-2">
+            <input type="hidden" name="project" value={project.id} />
+            <Field label="Qué es" className="sm:col-span-2">
+              <input
+                name="title"
+                required
+                defaultValue={project.name}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Horas por semana">
+              <input name="hours_per_week" required placeholder="4" className={inputClass} />
+            </Field>
+            <Field label="Desde">
+              <input type="date" name="start_date" required className={inputClass} />
+            </Field>
+            <Field label="Hasta" className="sm:col-span-2">
+              <input type="date" name="end_date" required className={inputClass} />
+            </Field>
+            <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
+              Agregar
+            </button>
+          </Form>
+        </details>
+      </Card>
+
       <Card
         className="mb-6"
         title="Dónde vive"
@@ -208,6 +284,40 @@ export default function WorkspacePage() {
           </>
         )}
       </Card>
+
+      {view.quotes.length > 0 && (
+        <Card
+          className="mb-6"
+          title="Presupuestos"
+          action={
+            <Link href="/presupuestos" className="text-[13px] font-semibold text-accent">
+              Todos ›
+            </Link>
+          }
+        >
+          <ul className="space-y-2">
+            {view.quotes.map((q) => (
+              <li key={q.id}>
+                <Link
+                  href={`/presupuestos/${q.id}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] hover:text-accent"
+                >
+                  <span className="shrink-0 font-mono text-[12px] text-faint">
+                    {q.number || "s/n"}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{q.title}</span>
+                  <span className="shrink-0 tabular-nums text-muted">
+                    {formatAmount(q.net_total || 0, q.currency || "CLP")}
+                  </span>
+                  <Badge tone={cfg.tone("quote_status", q.status)}>
+                    {cfg.label("quote_status", q.status)}
+                  </Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {(project.start_date || project.due_date || project.budget > 0) && (
         <Card className="mb-6" title="Ficha">

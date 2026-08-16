@@ -13,7 +13,7 @@ import { TABS } from "@/lib/nav";
  * quedó pendiente cuando ya cerraste la app y la señal volvió después, que es
  * exactamente el caso de capturar algo en el ascensor y bloquear el teléfono.
  *
- * También le pide que precaliente las cáscaras de los seis destinos de la
+ * También le pide que precaliente las cáscaras de los cuatro destinos de la
  * barra. Ahora que cada pantalla se dibuja con datos locales, esas cáscaras son
  * casi idénticas entre sí y no envejecen: lo que se ve adentro lo pone la
  * réplica, no el HTML guardado.

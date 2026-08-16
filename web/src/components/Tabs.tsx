@@ -6,17 +6,17 @@ import { isActivePath, TABS } from "@/lib/nav";
 import { cx } from "./ui";
 
 /**
- * Same six destinations at both widths. On a phone they sit in a floating bar
- * within thumb reach; on a wide screen they become a narrow rail, because a
- * bottom bar on a desktop wastes the one axis that screen has to spare.
+ * Los mismos cuatro destinos en ambos anchos. En el teléfono viven en una barra
+ * flotante al alcance del pulgar; en una pantalla ancha se vuelven un riel
+ * angosto, porque una barra inferior en un escritorio desperdicia el único eje
+ * que a esa pantalla le sobra.
  *
- * Six is what fits, and only with the tighter padding and the `short` labels
- * below — at the full label width the bar runs off a 375 px handset and every
- * caption truncates to an ellipsis. A seventh would have to drop the captions.
+ * Con cuatro, los rótulos completos caben en un teléfono de 375 px sin
+ * abreviaturas. El motivo de por qué son cuatro está en lib/nav.ts.
  *
- * The only badge in the app is the inbox count: an uncaptured item is the one
- * thing that should nag, and everything else earning a red dot is how a tool
- * starts feeling like an obligation.
+ * La única insignia de la app es el contador de la bandeja: algo escrito y sin
+ * decidir es lo único que debería insistir. Cualquier otra cosa ganándose un
+ * punto rojo es cómo una herramienta empieza a sentirse como una obligación.
  */
 
 function count(open: number, href: string): number {
@@ -56,7 +56,7 @@ export function TabBar({ open }: { open: number }) {
                 active ? "font-semibold text-ink" : "text-faint"
               )}
             >
-              {t.short ?? t.label}
+              {t.label}
             </span>
             {n > 0 && (
               <span className="absolute right-0.5 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-warn px-1 text-[10px] font-bold leading-none text-bg">

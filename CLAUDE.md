@@ -129,16 +129,18 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 
 ### Decisiones que no hay que deshacer
 
-- **Seis destinos en la barra, no diez.** La app se abre en el teléfono, y un
-  índice de diez secciones con tipografía de 11–13 px se lee como panel de
-  control: todo pesa lo mismo y nada invita a entrar. Abajo queda lo que se abre
-  un día cualquiera —Hoy, Bandeja, Trabajo, Calendario, Presupuestos— y el resto
-  vive un toque más adentro, en **Yo**. Seis es lo que cabe: con los rótulos
-  completos la barra se sale de un teléfono de 375 px y todos terminan en
-  puntos suspensivos, así que Calendario y Presupuestos van abreviados en la
-  barra (`short` en `lib/nav.ts`) y completos en el riel de escritorio. Un
-  séptimo obligaría a quitar los rótulos; lo que aparezca nuevo entra como fila
-  de Yo.
+- **Cuatro destinos en la barra: Hoy, Bandeja, Trabajo, Yo.** La app se abre en el
+  teléfono, y un índice de diez secciones con tipografía de 11–13 px se lee como panel de
+  control: todo pesa lo mismo y nada invita a entrar. Fueron diez, después seis, y seis
+  seguía siendo un mapa que había que memorizar. El criterio que quedó: **en la barra va
+  lo que se abre un día cualquiera sin saber de antemano qué contiene**. Calendario y
+  Presupuestos no cumplen eso — nunca se abren "por sí mismos", se abren *por un encargo*—
+  así que lo de cada proyecto se ve dentro del proyecto (`/w/[id]` muestra sus horas
+  comprometidas y sus presupuestos, y deja comprometer horas ahí mismo) y las dos vistas
+  completas quedan a un toque desde **Yo**. Con cuatro, además, los rótulos completos
+  caben en un teléfono de 375 px: mientras hicieron falta abreviaturas ("Agenda",
+  "Presup.") la barra estaba pidiendo a gritos que sobraba algo. Lo que aparezca nuevo
+  entra como fila de Yo o dentro del proyecto, nunca en la barra.
 - **Las superficies se separan por elevación, no por bordes.** Una fila se
   levanta sobre la página y las filas de un grupo se parten con una hendidura de
   1 px del color del fondo. Esa ranura es lo que hace que un grupo se lea como un

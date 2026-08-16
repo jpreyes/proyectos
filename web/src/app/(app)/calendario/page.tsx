@@ -76,8 +76,8 @@ function CalendarPage() {
   const projects = useCollection<Project>("projects");
   const entities = useCollection<Entity>("entities");
 
-  // Refresco perezoso del .ics. Es lo único de esta pantalla que necesita
-  // servidor —el calendario de la UACh vive afuera— así que se pide y se
+  // Refresco perezoso de los .ics. Es lo único de esta pantalla que necesita
+  // servidor —los calendarios viven en otro origen— así que se pide y se
   // olvida: si no hay red, la grilla igual se dibuja con lo ya replicado.
   useEffect(() => {
     if (navigator.onLine) void refreshStaleFeeds().catch(() => undefined);
@@ -99,7 +99,7 @@ function CalendarPage() {
     };
     // `events` entra en las dependencias aunque no se use directamente: la carga
     // de la ventana los suma, y sin esto la grilla no se redibujaría al llegar
-    // una sincronización de Outlook.
+    // una sincronización de los calendarios.
   }, [cfg.settings, weeks, allCommitments, events, projects, entities]);
 
   /**
@@ -239,8 +239,8 @@ function CalendarPage() {
             </div>
             <WeekGrid weeks={window.weeks} load={window.load} capacity={window.capacity} />
             <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
-              Mantén pulsada una semana para ver qué la llena. Los exámenes y comisiones que llegan
-              de Outlook entran acá como horas ocupadas, igual que cualquier compromiso.
+              Mantén pulsada una semana para ver qué la llena. Los eventos de los calendarios que
+              conectes entran acá como horas ocupadas, igual que cualquier compromiso.
             </p>
           </>
         )}
@@ -349,27 +349,38 @@ function CalendarPage() {
 
       {/* ------------------------------------------------------------- feeds */}
       <Card
-        title="Calendarios externos"
-        subtitle="Solo lectura. Los exámenes de grado y comisiones que programa la UACh."
+        title="Calendarios conectados"
+        subtitle="Cualquier calendario que publique una dirección iCal: el de tu organización, el personal, el de la universidad. Se leen, nunca se escriben, y sus horas se suman a las de tus compromisos."
       >
         {feeds.length === 0 ? (
-          <Empty>Sin calendarios conectados.</Empty>
+          <Empty>Ninguno conectado todavía.</Empty>
         ) : (
           <ul className="divide-y divide-line">
             {feeds.map((f) => (
               <li key={f.id} className="py-3">
                 <Form action={saveCalendarFeed} className="grid gap-2.5 sm:grid-cols-2">
                   <input type="hidden" name="id" value={f.id} />
-                  <input name="label" defaultValue={f.label} className={inputClass} />
+                  {/* Con `title` la explicación solo existía al pasar el mouse,
+                      o sea en ningún teléfono. Va en el marcador de posición. */}
+                  <input
+                    name="label"
+                    defaultValue={f.label}
+                    aria-label="Nombre del calendario"
+                    placeholder="Nombre"
+                    className={inputClass}
+                  />
                   <input
                     name="default_hours"
                     defaultValue={f.default_hours || ""}
-                    title="Horas que se le imputan a un evento de día completo"
+                    aria-label="Horas por evento de día completo"
+                    placeholder="Horas por evento de día completo"
                     className={inputClass}
                   />
                   <input
                     name="url"
                     defaultValue={f.url}
+                    aria-label="Dirección iCal"
+                    placeholder="https://…/calendar.ics"
                     className={cx(inputClass, "font-mono text-[12px] sm:col-span-2")}
                   />
                   <label className="flex items-center gap-2 text-[13px] text-muted">
@@ -415,31 +426,57 @@ function CalendarPage() {
           reset
           className="mt-4 grid gap-2.5 border-t border-line pt-4 sm:grid-cols-2"
         >
-          <input name="label" required placeholder="UACh" className={inputClass} />
-          <input
-            name="default_hours"
-            defaultValue="4"
-            title="Horas por evento de día completo"
-            className={inputClass}
-          />
-          <input
-            name="url"
-            required
-            placeholder="https://outlook.office365.com/owa/calendar/…/calendar.ics"
-            className={cx(inputClass, "font-mono text-[12px] sm:col-span-2")}
-          />
+          <Field label="Nombre" hint="cómo lo vas a reconocer acá">
+            <input name="label" required placeholder="Universidad · Personal · Familia" className={inputClass} />
+          </Field>
+          <Field label="Horas por evento de día completo" hint="cuánto ocupa uno que no trae hora">
+            <input name="default_hours" defaultValue="4" className={inputClass} />
+          </Field>
+          <Field label="Dirección del calendario" className="sm:col-span-2" hint="termina en .ics — sirve http, https o webcal">
+            <input
+              name="url"
+              required
+              placeholder="https://…/basic.ics"
+              className={cx(inputClass, "font-mono text-[12px]")}
+            />
+          </Field>
           <button type="submit" className={`${btn("subtle")} sm:col-span-2`}>
             Conectar
           </button>
         </Form>
 
-        <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-faint">
-          En Outlook web: Calendario → Configuración → Calendarios compartidos → Publicar un
-          calendario → permiso <span className="text-muted">Puede ver todos los detalles</span> →
-          copiar el enlace <span className="text-muted">ICS</span> (no el HTML). Se relee sola cada
-          seis horas. Si la UACh tiene bloqueada la publicación no se genera el enlace: en ese caso
-          carga los exámenes como compromisos manuales.
-        </p>
+        {/* Plegado: quien ya tiene el enlace no necesita leer nada, y quien no
+            lo tiene necesita justo el clic que su proveedor esconde. */}
+        <details className="mt-4 border-t border-line pt-4">
+          <summary className="cursor-pointer list-none text-[13px] font-semibold text-faint">
+            ¿Dónde encuentro esa dirección?
+            <span className="ml-1 inline-block transition-transform">›</span>
+          </summary>
+          <ul className="mt-3 space-y-2.5 text-[13px] leading-relaxed text-faint">
+            <li>
+              <span className="font-semibold text-muted">Google Calendar</span> — Configuración del
+              calendario → Integrar calendario → <span className="text-ink">Dirección secreta en
+              formato iCal</span>. Es privada: quien la tenga ve tu calendario.
+            </li>
+            <li>
+              <span className="font-semibold text-muted">Outlook / Microsoft 365</span> — Calendario →
+              Configuración → Calendarios compartidos → Publicar un calendario → permiso{" "}
+              <span className="text-ink">Puede ver todos los detalles</span> → copiar el enlace{" "}
+              <span className="text-ink">ICS</span>, no el HTML. Si tu organización tiene bloqueada la
+              publicación, el enlace no se genera y hay que pedírselo a quien administra el correo.
+            </li>
+            <li>
+              <span className="font-semibold text-muted">Apple / iCloud</span> — Calendario →
+              Compartir → Calendario público → copiar el enlace{" "}
+              <span className="text-ink">webcal://</span>.
+            </li>
+            <li>
+              <span className="font-semibold text-muted">Cualquier otro</span> — sirve cualquier
+              dirección que entregue un archivo iCal: Nextcloud, Zimbra, Proton, el calendario de un
+              equipo deportivo. Se releen solas cada seis horas y esta app nunca escribe en ellas.
+            </li>
+          </ul>
+        </details>
       </Card>
     </>
   );
@@ -534,7 +571,7 @@ function SyncButton() {
 
   return (
     <button type="button" onClick={run} disabled={state === "busy"} className={btn("subtle", "sm")}>
-      {state === "busy" ? "Leyendo…" : state === "error" ? "Sin conexión — reintentar" : "Sincronizar Outlook"}
+      {state === "busy" ? "Leyendo…" : state === "error" ? "Sin conexión — reintentar" : "Leer calendarios"}
     </button>
   );
 }

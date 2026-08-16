@@ -982,10 +982,21 @@ export async function deleteCommitment(fd: FormData) {
  * de otro origen. Se dispara después de guardar y, si no hay red, queda para
  * cuando la haya: el feed ya está anotado.
  */
+/**
+ * `webcal://` es lo que copian Apple, Outlook y media docena más al compartir
+ * un calendario, y el campo `url` de PocketBase lo rechaza con un escueto "Must
+ * be a valid url". El enlace es correcto —`webcal` es solo el esquema que hace
+ * que el sistema operativo ofrezca suscribirse— así que se normaliza acá, que
+ * es donde entra, y no solo al momento de leerlo.
+ */
+function feedURL(raw: string): string {
+  return raw.trim().replace(/^webcals?:\/\//i, "https://");
+}
+
 export async function saveCalendarFeed(fd: FormData) {
   const id = await upsert("calendar_feeds", str(fd, "id"), {
     label: str(fd, "label"),
-    url: str(fd, "url"),
+    url: feedURL(str(fd, "url")),
     active: !bool(fd, "inactive"),
     default_hours: num(fd, "default_hours"),
   });

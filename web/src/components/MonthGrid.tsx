@@ -11,7 +11,7 @@
  * sigue leyéndose en la columna de la derecha, que es lo que dice qué semana
  * está más cargada.
  *
- * Lo que sí tiene día y hora son los eventos que llegan de Outlook, y por eso
+ * Lo que sí tiene día y hora son los eventos de los calendarios conectados, y por eso
  * son lo único que se dibuja pegado a una fecha concreta.
  *
  * En el teléfono una celda mide unos 50 px: ahí las bandas son color y los
@@ -144,8 +144,8 @@ export function MonthLegend({ capacity }: { capacity: number }) {
   return (
     <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
       Cada banda es un compromiso a lo largo de los días que ocupa; su ritmo semanal está en la
-      columna de la derecha, contra el techo de {fmtHours(capacity)}. Los puntos son lo que llega de
-      Outlook. Toca un día para ver el detalle.
+      columna de la derecha, contra el techo de {fmtHours(capacity)}. Los puntos son eventos de los
+      calendarios que conectaste. Toca un día para ver el detalle.
     </p>
   );
 }

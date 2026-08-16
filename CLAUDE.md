@@ -95,7 +95,7 @@ Decisiones de esta capa que **no hay que deshacer**:
   siempre que quede algo en la cola. La señal vuelve muchas veces sin que el navegador
   emita `online`, y cinco minutos con algo escrito sin subir es justo el rato en que uno
   cierra la app.
-- **Leer el .ics de Outlook es lo único que quedó en el servidor** (`lib/actions.server.ts`):
+- **Leer los .ics es lo único que quedó en el servidor** (`lib/actions.server.ts`):
   es otro origen, no manda CORS, y da igual intentarlo sin red.
 
 ## Comandos
@@ -128,7 +128,7 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 | `daily` | Ventana de sueño y energía por franja. |
 | `quotes`, `quote_items`, `deliverables` | Presupuestos. Cuelgan del cliente, no del proyecto. |
 | `commitments` | **Horas por semana entre dos fechas.** La unidad del calendario. |
-| `calendar_feeds`, `calendar_events` | Espejo de solo lectura del .ics de Outlook. |
+| `calendar_feeds`, `calendar_events` | Espejo de solo lectura de los calendarios iCal conectados. |
 
 ### Decisiones que no hay que deshacer
 
@@ -190,7 +190,7 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   existe porque «¿qué pasa el jueves?» no se responde con barras por semana, pero
   **no** introduce bloques con hora: un compromiso se dibuja como una banda a lo
   largo de los días que cubre y su ritmo semanal sigue en la columna de la
-  derecha. Lo único pegado a una hora son los eventos de Outlook, que son los
+  derecha. Lo único pegado a una hora son los eventos de los calendarios conectados, que son los
   únicos que la tienen. El día de un evento se calcula en `America/Santiago`
   (`eventDayKey`) y no en UTC como todo lo demás: una comisión a las 21:00 es un
   instante real y en UTC cae al día siguiente. Los de día completo son la
@@ -218,11 +218,17 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   presupuesto enviado es una promesa hecha en una fecha: el papel que el cliente tiene
   en la mano no puede cambiar porque hoy ajustaste un porcentaje por defecto. Gastos
   generales y utilidades van **ambos sobre el costo directo**, no en cascada.
-- **Outlook entra en una sola dirección.** Se lee el .ics publicado para que los
-  exámenes de grado ocupen horas de la semana; la app nunca escribe en el calendario de
-  la UACh. `calendar_events` es cache y se rehace en cada sincronización — no lleva
-  borrado suave. El JSVM de PocketBase **no tiene `Intl`**, así que el parseo de zonas
-  horarias vive en Next (`lib/ics.ts`), no en un hook.
+- **Los calendarios entran en una sola dirección, y son genéricos.** Se conecta cualquier
+  dirección iCal —Google, Microsoft 365, iCloud, Nextcloud— y sus eventos ocupan horas de
+  la semana; la app nunca escribe en ninguno. Dos cosas que lo hacían parecer específico de
+  Outlook y no lo son: el `webcal://` que copian Apple y Outlook se normaliza a `https` al
+  guardar (el campo `url` de PocketBase lo rechaza tal cual, con un escueto «Must be a valid
+  url»), y la ayuda de la pantalla explica dónde encuentra cada proveedor esa dirección.
+  Si una organización tiene bloqueada la publicación de calendarios, no hay código que lo
+  arregle: el enlace no existe.
+  `calendar_events` es cache y se rehace en cada sincronización — no lleva borrado suave. El
+  JSVM de PocketBase **no tiene `Intl`**, así que el parseo de zonas horarias vive en Next
+  (`lib/ics.ts`), no en un hook.
 - **`routines` no tiene campo de racha y no debe tenerlo.** Saltarse una repetición no
   afecta la formación del hábito; la grilla muestra huecos sin penalizarlos.
 - **`num()` vs `money()` en `lib/local/actions.ts`.** En Chile el punto es separador de miles,

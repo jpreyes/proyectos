@@ -476,7 +476,7 @@ export default function QuotePage() {
             />
 
             <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
-              Gris: lo que ya tienes comprometido, incluidos los eventos que llegan de Outlook.
+              Gris: lo que ya tienes comprometido, incluidos los eventos de tus calendarios.
               Verde: este trabajo. Rojo: la semana se pasa del techo.
             </p>
           </>

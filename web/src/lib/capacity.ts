@@ -11,8 +11,9 @@
 //   * `commitments` — horas por semana entre dos fechas. Las semanas parciales
 //     del principio y del final se prorratean por días cubiertos, así que un
 //     encargo que arranca un jueves no cobra la semana entera.
-//   * `calendar_events` — eventos con fecha y hora que llegan del .ics de
-//     Outlook. Ya traen sus horas calculadas; se cargan a la semana en que caen.
+//   * `calendar_events` — eventos con fecha y hora que llegan de los .ics
+//     conectados. Ya traen sus horas calculadas; se cargan a la semana en que
+//     caen.
 
 import type { CalendarEvent, Commitment } from "./types";
 

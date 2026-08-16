@@ -53,7 +53,7 @@ export function Group({
 /* No rounding here on purpose: `Group` clips with overflow-hidden, so the corner
    radius survives a row being wrapped in a <button> or a <form>, which
    first:/last: selectors would not. Rows always live inside a Group. */
-const ROW_BASE = "flex w-full items-center gap-3.5 bg-row px-4 text-left transition-colors";
+const ROW_BASE = "flex w-full flex-col bg-row px-4 text-left transition-colors";
 
 /** The icon sits in its own squircle so rows line up whatever the glyph width. */
 function RowIcon({ icon, tone }: { icon?: ReactNode; tone?: Tone }) {
@@ -97,21 +97,47 @@ export function Row({
 }) {
   const showChevron = chevron ?? Boolean(href);
 
+  /**
+   * Una fila con segunda línea se apila; una sin ella se mantiene en una.
+   *
+   * La segunda línea —el plan «cuando… entonces…», la barra de urgencia— vivía
+   * dentro de la columna del título, o sea compartiendo el ancho con la fecha,
+   * las insignias y el chevrón. En un teléfono de 390 px eso no era estrecho:
+   * era roto. Un workspace con dos insignias dejaba la columna en unos 60 px, y
+   * ahí "Ensayos de laboratorio" se leía "En…" y el plan bajaba a una palabra
+   * por línea.
+   *
+   * Apilando, el texto siempre tiene el ancho de la fila y las insignias pasan
+   * abajo, donde además pueden ser tres sin apretar nada. El título recupera de
+   * paso la línea entera.
+   */
+  const stacked = Boolean(children);
+
   const body = (
     <>
-      <RowIcon icon={icon} tone={iconTone} />
-      <span className="min-w-0 flex-1 py-3.5">
-        <span className="block truncate text-[17px] font-semibold leading-tight">{label}</span>
-        {hint && <span className="mt-1 block truncate text-[13px] text-faint">{hint}</span>}
-        {children}
+      <span className="flex w-full items-center gap-3.5">
+        <RowIcon icon={icon} tone={iconTone} />
+        <span className={cx("min-w-0 flex-1", stacked ? "pt-3.5" : "py-3.5")}>
+          <span className="block truncate text-[17px] font-semibold leading-tight">{label}</span>
+          {hint && <span className="mt-1 block truncate text-[13px] text-faint">{hint}</span>}
+        </span>
+        {value && <span className="shrink-0 text-[15px] tabular-nums text-muted">{value}</span>}
+        {!stacked && badge}
+        {showChevron && (
+          <span className="shrink-0 text-[17px] leading-none text-faint" aria-hidden>
+            ›
+          </span>
+        )}
       </span>
-      {value && (
-        <span className="shrink-0 text-[15px] tabular-nums text-muted">{value}</span>
-      )}
-      {badge}
-      {showChevron && (
-        <span className="shrink-0 text-[17px] leading-none text-faint" aria-hidden>
-          ›
+
+      {stacked && (
+        // Alineado con el título cuando hay ícono: la sangría es el ancho del
+        // ícono más su separación.
+        <span className={cx("block w-full pb-3.5", Boolean(icon) && "pl-[3.375rem]")}>
+          {children}
+          {badge && (
+            <span className="mt-2 flex flex-wrap items-center gap-1.5">{badge}</span>
+          )}
         </span>
       )}
     </>

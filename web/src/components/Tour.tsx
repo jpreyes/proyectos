@@ -163,9 +163,12 @@ export function Tour() {
 
   useEffect(() => {
     if (step === null) return;
+    // Enter no está acá a propósito: el botón "Siguiente" tiene el foco, así
+    // que ya lo maneja él. Escucharlo también avanzaría dos pasos de un golpe.
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") finish();
-      if (e.key === "ArrowRight" || e.key === "Enter") next();
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") setStep((s) => (s === null || s === 0 ? s : s - 1));
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

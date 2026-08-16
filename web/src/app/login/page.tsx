@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { pbBrowser } from "@/lib/pb.client";
 import { btn, inputClass, Field } from "@/components/ui";
 
-export default function LoginPage() {
+export default function LoginRoute() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const router = useRouter();
+  // Se llega acá con ?listo=1 después de cambiar la contraseña: sin ese aviso,
+  // la pantalla de entrar se ve igual que si el cambio hubiera fallado.
+  const justReset = useSearchParams().get("listo") === "1";
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,11 +69,23 @@ export default function LoginPage() {
           </Field>
         </div>
 
+        {justReset && !error && (
+          <p className="mt-4 text-[15px] text-accent">
+            Contraseña cambiada. Entra con la nueva.
+          </p>
+        )}
         {error && <p className="mt-4 text-[15px] text-bad">{error}</p>}
 
         <button type="submit" disabled={busy} className={`${btn("primary")} mt-6 w-full`}>
           {busy ? "Entrando…" : "Entrar"}
         </button>
+
+        <Link
+          href="/recuperar"
+          className="mt-4 block text-center text-[13px] text-faint transition-colors hover:text-ink"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
       </form>
     </main>
   );

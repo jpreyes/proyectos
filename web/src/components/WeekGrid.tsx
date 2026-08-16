@@ -18,6 +18,8 @@ export function WeekGrid({
   capacity,
   highlight,
   extraHours = 0,
+  selected,
+  onSelect,
 }: {
   weeks: string[];
   load: Map<string, WeekLoad>;
@@ -26,6 +28,13 @@ export function WeekGrid({
   highlight?: Set<string>;
   /** Horas del calce, dibujadas encima de lo ya comprometido. */
   extraHours?: number;
+  /** Semana abierta abajo, cuando la grilla es navegable. */
+  selected?: string;
+  /**
+   * Abrir una semana. Sin esto la grilla es solo un dibujo: se ve que una
+   * semana está llena y no hay forma de preguntar de qué.
+   */
+  onSelect?: (week: string) => void;
 }) {
   const cap = capacity > 0 ? capacity : 1;
 
@@ -46,15 +55,8 @@ export function WeekGrid({
           ? row.parts.map((p) => `${p.label}: ${fmtHours(p.hours)}`).join("\n")
           : "Sin nada comprometido";
 
-        return (
-          <li
-            key={week}
-            className={cx(
-              "flex items-center gap-2 rounded px-1.5 py-1",
-              marked && "bg-accent/10 ring-1 ring-accent/30"
-            )}
-            title={detail}
-          >
+        const inner = (
+          <>
             <span className="w-8 shrink-0 text-right font-mono text-[11px] text-faint">
               S{isoWeekNumber(week)}
             </span>
@@ -83,6 +85,33 @@ export function WeekGrid({
             >
               {fmtHours(total)}
             </span>
+          </>
+        );
+
+        const shell = cx(
+          "flex w-full items-center gap-2 rounded px-1.5 py-1 text-left",
+          marked && "bg-accent/10 ring-1 ring-accent/30",
+          week === selected && "bg-pill ring-1 ring-accent/50",
+          onSelect && "touch-manipulation transition-colors hover:bg-pill/60 active:bg-pill"
+        );
+
+        return (
+          <li key={week}>
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => onSelect(week)}
+                aria-pressed={week === selected}
+                title={detail}
+                className={shell}
+              >
+                {inner}
+              </button>
+            ) : (
+              <div className={shell} title={detail}>
+                {inner}
+              </div>
+            )}
           </li>
         );
       })}

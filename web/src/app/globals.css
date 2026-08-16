@@ -101,6 +101,13 @@ html {
   color-scheme: dark;
 }
 
+/* Safari pinta un destello gris propio al tocar y lo hace con retraso, lo que
+   compite con el `active:` de cada control en vez de sumarse. Se apaga el suyo
+   y manda el nuestro, que es inmediato. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body {
   background: var(--color-bg);

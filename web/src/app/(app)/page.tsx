@@ -142,6 +142,10 @@ export default function TodayPage() {
     };
   }, [allProjects, allTasks, allEntries, logs, entities, cfg, COLD_DAYS, HORIZON_DAYS]);
 
+  function goToHorizon() {
+    document.getElementById("horizonte")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <>
       <Title>Hoy</Title>
@@ -160,16 +164,20 @@ export default function TodayPage() {
       />
 
       <div data-tour="today-stats" className="mb-6 grid grid-cols-2 gap-3">
+        {/* Estas dos cuentan lo que hay en el horizonte, así que llevan ahí. Un
+            número que se puede tocar y no hace nada se lee como app colgada. */}
         <Stat
           label="Vencido"
           value={view.overdueCount}
           tone={view.overdueCount > 0 ? "bad" : "ok"}
           hint={view.overdueCount === 0 ? "nada atrasado" : "requiere decisión"}
+          onPress={goToHorizon}
         />
         <Stat
           label="Próximos 7 días"
           value={view.weekCount}
           tone={view.weekCount > 0 ? "warn" : "neutral"}
+          onPress={goToHorizon}
         />
         <Stat
           label="Por cobrar"
@@ -181,7 +189,7 @@ export default function TodayPage() {
         <Stat label="Workspaces abiertos" href="/w" value={view.projects.length} />
       </div>
 
-      <Group title={`Horizonte · vencido y próximos ${HORIZON_DAYS} días`}>
+      <Group id="horizonte" title={`Horizonte · vencido y próximos ${HORIZON_DAYS} días`}>
         {view.near.length === 0 ? (
           <Empty>Nada en el horizonte cercano.</Empty>
         ) : (
@@ -215,6 +223,7 @@ export default function TodayPage() {
           view.receivables.map((e) => (
             <Row
               key={e.id}
+              href={`/finanzas/${e.id}`}
               label={e.description}
               hint={[
                 view.entityById.get(e.entity)?.name || "—",
@@ -224,13 +233,13 @@ export default function TodayPage() {
                 .filter(Boolean)
                 .join(" · ")}
               value={formatMoneyShort(homeOf(e))}
-              chevron={false}
               badge={
-                <>
-                  <Badge tone={cfg.tone("entry_status", e.status)}>
-                    {cfg.label("entry_status", e.status)}
-                  </Badge>
-                  <Form action={markEntryPaid} className="shrink-0">
+                <Badge tone={cfg.tone("entry_status", e.status)}>
+                  {cfg.label("entry_status", e.status)}
+                </Badge>
+              }
+              actions={
+                <Form action={markEntryPaid} className="shrink-0">
                     <input type="hidden" name="id" value={e.id} />
                     <button
                       type="submit"
@@ -238,10 +247,9 @@ export default function TodayPage() {
                       title="Marcar pagado"
                       aria-label={`Marcar pagado: ${e.description}`}
                     >
-                      ✓
-                    </button>
-                  </Form>
-                </>
+                    ✓
+                  </button>
+                </Form>
               }
             />
           ))

@@ -151,6 +151,36 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 - **Nada se esconde detrás de `hover`.** En el teléfono no existe: los botones de
   fijar, borrar y quitar estaban en `opacity-0` hasta pasar el mouse, o sea que
   en móvil no se podían tocar. Van atenuados pero presentes.
+- **Todo lo que se puede tocar responde al tocarlo, y lo que se toca lleva a alguna
+  parte.** Corolario del punto anterior y más importante que él: sin `hover`, una fila
+  sin estado `active:` no emite **ninguna** señal hasta que la pantalla siguiente termina
+  de pintarse, y ese silencio hace que uno vuelva a tocar, y otra vez, convencido de que
+  la app se colgó. Por eso `Row`, `Stat`, `Chip` y `btn()` llevan `active:` y
+  `touch-manipulation`, y por eso `-webkit-tap-highlight-color` va en transparente: el
+  destello propio de Safari llega tarde y compite con el nuestro en vez de sumarse. La
+  otra mitad de la regla: **una tarjeta que parece tocable y no hace nada es peor que una
+  que no lo parece**. Si un número resume una lista, lleva a esa lista; si una fila
+  describe un registro, lleva a su ficha.
+- **Una fila puede navegar y tener botón propio, pero no metiendo uno dentro del otro.**
+  Un `<button>` dentro de un `<a>` es HTML inválido y cada navegador improvisa. `Row`
+  acepta `actions`: el enlace se estira invisible sobre la fila y los controles van
+  encima. Es lo que permite que un cobro lleve a su detalle sin perder el «marcar
+  pagado».
+- **Todo lo que se puede tocar responde al tocarlo, y lo que se toca lleva a alguna
+  parte.** Corolario del punto anterior y más importante que él: sin `hover`, una fila
+  sin estado `active:` no emite **ninguna** señal hasta que la pantalla siguiente termina
+  de pintarse, y ese silencio hace que uno vuelva a tocar, y otra vez, convencido de que
+  la app se colgó. Por eso `Row`, `Stat`, `Chip` y `btn()` llevan `active:` y
+  `touch-manipulation`, y por eso `-webkit-tap-highlight-color` va en transparente: el
+  destello propio de Safari llega tarde y compite con el nuestro en vez de sumarse. La
+  otra mitad de la regla: **una tarjeta que parece tocable y no hace nada es peor que una
+  que no lo parece**. Si un número resume una lista, lleva a esa lista; si una fila
+  describe un registro, lleva a su ficha.
+- **Una fila puede navegar y tener botón propio, pero no metiendo uno dentro del otro.**
+  Un `<button>` dentro de un `<a>` es HTML inválido y cada navegador improvisa. `Row`
+  acepta `actions`: el enlace se estira invisible sobre la fila y los controles van
+  encima. Es lo que permite que un cobro lleve a su detalle sin perder el «marcar
+  pagado».
 - **Los formularios largos van plegados.** Configuración, el alta de contacto, el
   de presupuesto, el de rutina y los ocho campos secundarios de la bitácora
   arrancan cerrados. Lo obligatorio queda a la vista; lo demás es un `<details>`.
@@ -201,6 +231,12 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   semanales el semestre»— y la única pregunta que el modelo tiene que responder es si
   algo cabe sin que ninguna semana pase del techo. Eso es una suma, no una grilla.
   Las semanas parciales del principio y del final se prorratean por días cubiertos.
+- **La grilla de semanas se toca y contesta.** Una barra al 90% dice cuánto, no de qué:
+  puede ser un ramo, tres inspecciones o un examen que llegó de un calendario externo.
+  `buildWeekLoad` ya guardaba el desglose y nadie lo mostraba. Tocar una semana lo abre y
+  ofrece comprometer horas **ahí mismo**, con las fechas ya puestas — antes había que
+  mirar el hueco, bajar al formulario y volver a escribir a mano lo que uno acababa de
+  ver. Lo mismo desde un día en la vista de mes.
 - **El buscador de huecos propone un ritmo plano, no llena hasta el tope.** Un ritmo
   plano se puede escribir en un contrato y se puede sostener; el llenado codicioso
   produce semanas al 100% seguidas de semanas vacías. Prefiere empezar antes por sobre

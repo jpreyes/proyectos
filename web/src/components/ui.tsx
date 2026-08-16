@@ -16,18 +16,21 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
  * that genuinely need a label, not for menus.
  */
 export function Group({
+  id,
   title,
   action,
   children,
   className,
 }: {
+  /** Ancla, para las fichas que llevan a la lista que las explica. */
+  id?: string;
   title?: ReactNode;
   action?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
   return (
-    <section className={cx("mb-6", className)}>
+    <section id={id} className={cx("scroll-mt-4", "mb-6", className)}>
       {(title || action) && (
         <header className="mb-2 flex items-end justify-between gap-3 px-1">
           {title && (
@@ -53,7 +56,15 @@ export function Group({
 /* No rounding here on purpose: `Group` clips with overflow-hidden, so the corner
    radius survives a row being wrapped in a <button> or a <form>, which
    first:/last: selectors would not. Rows always live inside a Group. */
-const ROW_BASE = "flex w-full flex-col bg-row px-4 text-left transition-colors";
+/**
+ * `active:` no es decoración: en un teléfono no existe `hover`, así que sin él
+ * tocar una fila no produce **ninguna** señal hasta que la pantalla siguiente
+ * termina de pintarse. Ese silencio es lo que hace que uno vuelva a tocar, y
+ * después otra vez, convencido de que la app se colgó.
+ */
+const ROW_BASE =
+  "flex w-full flex-col bg-row px-4 text-left transition-colors touch-manipulation";
+const ROW_PRESS = "hover:bg-pill/70 active:bg-pill";
 
 /** The icon sits in its own squircle so rows line up whatever the glyph width. */
 function RowIcon({ icon, tone }: { icon?: ReactNode; tone?: Tone }) {
@@ -74,6 +85,7 @@ function RowIcon({ icon, tone }: { icon?: ReactNode; tone?: Tone }) {
 
 export function Row({
   href,
+  onPress,
   icon,
   iconTone,
   label,
@@ -83,8 +95,13 @@ export function Row({
   chevron,
   className,
   children,
+  actions,
 }: {
   href?: string;
+  /** Para filas que hacen algo en la misma pantalla en vez de navegar. */
+  onPress?: () => void;
+  /** Controles propios (un botón, un formulario) que conviven con el enlace. */
+  actions?: ReactNode;
   icon?: ReactNode;
   iconTone?: Tone;
   label: ReactNode;
@@ -95,7 +112,7 @@ export function Row({
   className?: string;
   children?: ReactNode;
 }) {
-  const showChevron = chevron ?? Boolean(href);
+  const showChevron = chevron ?? Boolean((href || onPress) && !actions);
 
   /**
    * Una fila con segunda línea se apila; una sin ella se mantiene en una.
@@ -143,11 +160,41 @@ export function Row({
     </>
   );
 
+  /**
+   * Una fila que navega **y** tiene un botón propio.
+   *
+   * No se puede meter un `<button>` dentro de un `<a>`: es HTML inválido y el
+   * navegador hace lo que quiere con el toque. Por eso el enlace se estira
+   * invisible sobre toda la fila y los controles van por encima. Es lo que
+   * permite que la fila de un cobro lleve a su detalle sin perder el botón de
+   * «marcar pagado» que vive en ella.
+   */
+  if (href && actions) {
+    return (
+      <div className={cx(ROW_BASE, ROW_PRESS, "relative", className)}>
+        <Link
+          href={href}
+          className="absolute inset-0 z-0"
+          aria-label={typeof label === "string" ? label : undefined}
+        />
+        <span className="pointer-events-none relative z-10 flex w-full flex-col">{body}</span>
+        <span className="relative z-10 -mt-1 flex justify-end pb-3">{actions}</span>
+      </div>
+    );
+  }
+
   if (href) {
     return (
-      <Link href={href} className={cx(ROW_BASE, "hover:bg-pill/70", className)}>
+      <Link href={href} className={cx(ROW_BASE, ROW_PRESS, className)}>
         {body}
       </Link>
+    );
+  }
+  if (onPress) {
+    return (
+      <button type="button" onClick={onPress} className={cx(ROW_BASE, ROW_PRESS, className)}>
+        {body}
+      </button>
     );
   }
   return <div className={cx(ROW_BASE, className)}>{body}</div>;
@@ -175,8 +222,8 @@ export function Chip({
   className?: string;
 }) {
   const cls = cx(
-    "flex items-center gap-2.5 rounded-full bg-panel2 px-4 py-3 transition-colors",
-    href && "hover:bg-pill",
+    "flex items-center gap-2.5 rounded-full bg-panel2 px-4 py-3 transition-colors touch-manipulation",
+    href && "hover:bg-pill active:bg-line2",
     className
   );
   const body = (
@@ -284,7 +331,7 @@ export function btn(
   size: "sm" | "md" = "md"
 ): string {
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+    "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all touch-manipulation active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
   const sizes = size === "sm" ? "px-3.5 py-2 text-[13px]" : "px-5 py-2.5 text-[15px]";
   const variants = {
     primary: "bg-accent text-bg hover:bg-accent/85",
@@ -366,12 +413,15 @@ export function Stat({
   hint,
   tone = "neutral",
   href,
+  onPress,
 }: {
   label: ReactNode;
   value: ReactNode;
   hint?: ReactNode;
   tone?: Tone;
   href?: string;
+  /** Una ficha que actúa acá mismo — desplazar a la lista que la explica. */
+  onPress?: () => void;
 }) {
   const body = (
     <>
@@ -382,14 +432,25 @@ export function Stat({
       {hint && <div className="mt-1.5 text-[12px] text-faint">{hint}</div>}
     </>
   );
-  const cls = cx("rounded-2xl bg-row px-4 py-4", href && "transition-colors hover:bg-pill/70");
-  return href ? (
-    <Link href={href} className={cls}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
+  const cls = cx(
+    "block rounded-2xl bg-row px-4 py-4 text-left",
+    (href || onPress) && "transition-colors touch-manipulation hover:bg-pill/70 active:bg-pill"
   );
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {body}
+      </Link>
+    );
+  }
+  if (onPress) {
+    return (
+      <button type="button" onClick={onPress} className={cx(cls, "w-full")}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={cls}>{body}</div>;
 }
 
 export function PageHeader({

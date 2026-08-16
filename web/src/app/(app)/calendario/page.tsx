@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { CalendarEvent, CalendarFeed, Commitment, Entity, Project } from "@/lib/types";
@@ -13,6 +13,9 @@ import { eventDayKey, fmtClock, fmtDate, fmtDayLong, inputDate } from "@/lib/dat
 import {
   buildWeekLoad,
   fmtHours,
+  type WeekLoad,
+  weekEnd,
+  weekSpanLabel,
   monthTitle,
   monthWeeks,
   shiftMonth,
@@ -69,6 +72,25 @@ function CalendarPage() {
   const monthView = sp.get("vista") === "mes";
   const month = sp.get("mes") || new Date().toISOString().slice(0, 7);
   const [pickedDay, setPickedDay] = useState("");
+  const [pickedWeek, setPickedWeek] = useState("");
+  /** Fechas con las que se abre el formulario de comprometer horas. */
+  const [prefill, setPrefill] = useState<{ start: string; end: string } | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const formRef = useRef<HTMLDetailsElement>(null);
+
+  /**
+   * Abrir el formulario ya rellenado con un tramo del calendario.
+   *
+   * Es la mitad que faltaba: la grilla decía dónde hay hueco y después había
+   * que bajar, abrir el formulario y volver a escribir a mano las fechas que
+   * uno acababa de mirar.
+   */
+  function commitRange(start: string, end: string) {
+    setPrefill({ start, end });
+    setFormOpen(true);
+    // El navegador necesita el cuadro ya abierto para saber dónde está.
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+  }
 
   const allCommitments = useCollection<Commitment>("commitments");
   const events = useCollection<CalendarEvent>("calendar_events");
@@ -219,6 +241,7 @@ function CalendarPage() {
                 events={events}
                 tone={(c: Commitment) => cfg.tone("commitment_status", c.status)}
                 statusLabel={(c: Commitment) => cfg.label("commitment_status", c.status)}
+                onCommit={() => commitRange(pickedDay, pickedDay)}
               />
             )}
 
@@ -237,11 +260,28 @@ function CalendarPage() {
                 </Link>
               ))}
             </div>
-            <WeekGrid weeks={window.weeks} load={window.load} capacity={window.capacity} />
-            <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
-              Mantén pulsada una semana para ver qué la llena. Los eventos de los calendarios que
-              conectes entran acá como horas ocupadas, igual que cualquier compromiso.
-            </p>
+            <WeekGrid
+              weeks={window.weeks}
+              load={window.load}
+              capacity={window.capacity}
+              selected={pickedWeek}
+              onSelect={(w) => setPickedWeek((prev) => (prev === w ? "" : w))}
+            />
+
+            {pickedWeek ? (
+              <WeekDetail
+                week={pickedWeek}
+                load={window.load}
+                capacity={window.capacity}
+                onCommit={() => commitRange(pickedWeek, weekEnd(pickedWeek))}
+                onMonth={`/calendario?vista=mes&mes=${pickedWeek.slice(0, 7)}`}
+              />
+            ) : (
+              <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
+                Toca una semana para ver qué la llena y comprometer horas ahí mismo. Los eventos de
+                los calendarios que conectes cuentan como horas ocupadas, igual que un compromiso.
+              </p>
+            )}
           </>
         )}
       </Card>
@@ -274,9 +314,22 @@ function CalendarPage() {
         {/* Cuatro campos a la vista, no ocho: son los únicos que la semana
             necesita para ocuparse. Tipo, workspace, contraparte y notas se
             agregan después, si es que hacen falta. */}
-        <details className="mt-5 border-t border-line pt-4">
+        <details
+          ref={formRef}
+          open={formOpen}
+          onToggle={(e) => setFormOpen((e.target as HTMLDetailsElement).open)}
+          className="mt-5 border-t border-line pt-4"
+        >
           <summary className={`${btn("subtle")} list-none`}>+ Comprometer horas</summary>
-          <Form action={createCommitment} reset className="mt-3 grid gap-3.5 sm:grid-cols-2">
+          <Form
+            action={createCommitment}
+            reset
+            // Remontar al cambiar el tramo: son campos no controlados, así que
+            // sin esto el segundo "comprometer esta semana" mostraría las fechas
+            // del primero.
+            key={prefill ? `${prefill.start}-${prefill.end}` : "libre"}
+            className="mt-3 grid gap-3.5 sm:grid-cols-2"
+          >
             <Field label="Qué es" className="sm:col-span-2">
               <input
                 name="title"
@@ -289,10 +342,22 @@ function CalendarPage() {
               <input name="hours_per_week" required placeholder="4" className={inputClass} />
             </Field>
             <Field label="Desde">
-              <input type="date" name="start_date" required className={inputClass} />
+              <input
+                type="date"
+                name="start_date"
+                required
+                defaultValue={prefill?.start || ""}
+                className={inputClass}
+              />
             </Field>
             <Field label="Hasta" className="sm:col-span-2">
-              <input type="date" name="end_date" required className={inputClass} />
+              <input
+                type="date"
+                name="end_date"
+                required
+                defaultValue={prefill?.end || ""}
+                className={inputClass}
+              />
             </Field>
 
             <details className="group sm:col-span-2">
@@ -482,6 +547,76 @@ function CalendarPage() {
   );
 }
 
+/* ---------------------------------------------------------- semana suelta --- */
+
+/**
+ * Qué hay dentro de una semana.
+ *
+ * La grilla respondía "cuánto" y no "de qué": una barra al 90% no dice si es un
+ * ramo, tres inspecciones o un examen de grado que llegó de un calendario
+ * externo. `buildWeekLoad` ya guardaba ese desglose y nadie lo mostraba.
+ */
+function WeekDetail({
+  week,
+  load,
+  capacity,
+  onCommit,
+  onMonth,
+}: {
+  week: string;
+  load: Map<string, WeekLoad>;
+  capacity: number;
+  onCommit: () => void;
+  onMonth: string;
+}) {
+  const row = load.get(week);
+  const total = row?.total || 0;
+  const free = capacity - total;
+
+  return (
+    <div className="mt-4 border-t border-line pt-4">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-[17px] font-semibold">{weekSpanLabel(week)}</h3>
+        <span
+          className={cx(
+            "text-[13px] tabular-nums",
+            free < 0 ? "font-semibold text-bad" : "text-muted"
+          )}
+        >
+          {fmtHours(total)} de {fmtHours(capacity)}
+          {free >= 0 ? ` · quedan ${fmtHours(free)}` : ` · te pasas por ${fmtHours(-free)}`}
+        </span>
+      </div>
+
+      {row && row.parts.length > 0 ? (
+        <ul className="space-y-1.5 text-[13px]">
+          {row.parts.map((p, i) => (
+            <li key={`${p.id}-${i}`} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 flex-1 truncate">
+                {p.label}
+                {p.source === "event" && <span className="ml-2 text-faint">calendario</span>}
+                {p.status === "tentative" && <span className="ml-2 text-warn">tentativo</span>}
+              </span>
+              <span className="shrink-0 tabular-nums text-muted">{fmtHours(p.hours)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[13px] text-faint">Esta semana está libre.</p>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onCommit} className={btn("primary", "sm")}>
+          Comprometer horas acá
+        </button>
+        <Link href={onMonth} className={btn("subtle", "sm")}>
+          Ver el mes
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ día suelto --- */
 
 /**
@@ -502,12 +637,14 @@ function DayDetail({
   events,
   tone,
   statusLabel,
+  onCommit,
 }: {
   day: string;
   commitments: Commitment[];
   events: CalendarEvent[];
   tone: (c: Commitment) => Tone;
   statusLabel: (c: Commitment) => string;
+  onCommit: () => void;
 }) {
   const active = commitments.filter(
     (c) =>
@@ -548,6 +685,10 @@ function DayDetail({
           ))}
         </ul>
       )}
+
+      <button type="button" onClick={onCommit} className={`${btn("subtle", "sm")} mt-3`}>
+        Comprometer horas desde este día
+      </button>
     </div>
   );
 }

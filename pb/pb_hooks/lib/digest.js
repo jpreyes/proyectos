@@ -118,9 +118,33 @@ function esc(s) {
     .replace(/>/g, "&gt;");
 }
 
+/**
+ * "$1.234.567" — los miles con punto, como se escribe en Chile.
+ *
+ * Escrito a mano y no con `toLocaleString("es-CL")` porque en goja el primer
+ * argumento de `toLocaleString` **no es un idioma sino una base numérica**: le
+ * llega "es-CL", no logra leerlo como número entre 2 y 36 y revienta con
+ * `RangeError: toString() radix argument must be between 2 and 36`.
+ *
+ * Y esa excepción no se quedaba en la cifra: subía hasta el cron y se llevaba
+ * la ejecución entera. O sea que el resumen diario llevaba **desde siempre**
+ * cayéndose cada quince minutos, sin mandar nada y sin que nadie lo notara,
+ * porque el correo tampoco estaba configurado y su ausencia se explicaba sola.
+ *
+ * La lección que conviene recordar: acá no hay `Intl` ni nada que se le
+ * parezca. Todo formato de número, fecha o moneda en un hook se escribe a mano.
+ */
 function money(n) {
   const v = Math.round(Number(n) || 0);
-  return "$" + v.toLocaleString("es-CL");
+  const sign = v < 0 ? "-" : "";
+  const digits = String(Math.abs(v));
+
+  let out = "";
+  for (let i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 === 0) out += ".";
+    out += digits[i];
+  }
+  return sign + "$" + out;
 }
 
 function section(title, items) {

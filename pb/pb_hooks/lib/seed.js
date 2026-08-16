@@ -1,6 +1,6 @@
 /// <reference path="../../pb_data/types.d.ts" />
 
-// Siembra el catálogo y unas tareas de arranque para una cuenta.
+// Siembra el catálogo de una cuenta, y con él los datos de ejemplo (demo.js).
 //
 // Con la taxonomía scopeada por dueño (1770001400), una cuenta recién creada
 // no vería ninguna categoría, ninguna cuenta contable ni ningún tipo de
@@ -21,40 +21,32 @@ const CATALOG = ["taxonomy", "categories", "accounts", "settings"];
 // Campos que nunca se copian de la fila plantilla.
 const SKIP = { id: 1, owner: 1, created: 1, updated: 1, collectionId: 1, collectionName: 1 };
 
-/** Tareas de arranque: qué hacer al entrar por primera vez. */
-const STARTER_TASKS = [
-  {
-    title: "Crear tu primer workspace en Proyectos",
-    notes:
-      "Un workspace es cualquier frente de trabajo: un encargo, un ramo, un paper. " +
-      "El trabajo real sigue viviendo en tus carpetas y repos; acá guardas el índice " +
-      "y el punto de reentrada.",
-  },
-  {
-    title: "Escribir el siguiente paso de ese workspace",
-    notes:
-      "Son dos campos, «cuando…» y «entonces…», y esa forma no es capricho: un plan " +
-      "si-entonces automatiza el inicio, que es el paso donde de verdad se falla.",
-  },
-  {
-    title: "Anotar dónde vive cada cosa (Recursos)",
-    notes:
-      "Carpeta, repo, planilla, Overleaf. Llena el campo «para qué era»: es la línea " +
-      "que te va a explicar en tres semanas por qué guardaste eso.",
-  },
-  {
-    title: "Registrar un ingreso o un egreso en Finanzas",
-    notes:
-      "Con eso el ledger empieza a servir: lo por cobrar sale de los documentos en " +
-      "estado comprometido o facturado.",
-  },
-  {
-    title: "Revisar Configuración y borrar estas tareas",
-    notes:
-      "Ahí ajustas moneda por defecto, IVA, retención y la hora del resumen diario. " +
-      "Estas cinco tareas son de bienvenida: bórralas cuando ya no te sirvan.",
-  },
-];
+/**
+ * Campos que se copian en blanco, por colección.
+ *
+ * El catálogo se hereda de la cuenta plantilla, y eso está bien para el
+ * vocabulario y los umbrales. Lo que **no** puede heredarse son los datos del
+ * emisor: nombre, RUT, correo y dirección son de una persona, y salen impresos
+ * en el encabezado de cada presupuesto. Una cuenta nueva que arranca emitiendo
+ * documentos con el RUT de otro es un error que nadie va a notar hasta que el
+ * documento ya se mandó.
+ *
+ * Las dos banderas van con ellos por otra razón: heredarlas en true dejaría a
+ * la cuenta nueva sin datos de ejemplo y sin la guía de primer ingreso.
+ */
+const BLANK = {
+  settings: [
+    "issuer_name",
+    "issuer_role",
+    "issuer_tax_id",
+    "issuer_email",
+    "issuer_phone",
+    "issuer_address",
+    "issuer_web",
+    "demo_seeded",
+    "tour_done",
+  ],
+};
 
 /**
  * Grupos de taxonomía que llegaron DESPUÉS de la siembra original.
@@ -135,6 +127,7 @@ function copyRows(collection, fromOwner, toUserId) {
   }
 
   const col = $app.findCollectionByNameOrId(collection);
+  const blank = BLANK[collection] || [];
   let n = 0;
 
   for (const src of rows) {
@@ -144,6 +137,7 @@ function copyRows(collection, fromOwner, toUserId) {
       if (SKIP[key]) continue;
       copy.set(key, data[key]);
     }
+    for (const key of blank) copy.set(key, key.indexOf("issuer_") === 0 ? "" : false);
     copy.set("owner", toUserId);
     try {
       $app.save(copy);
@@ -211,25 +205,6 @@ function ensureGroups(userId) {
   return created;
 }
 
-function seedTasks(userId) {
-  const col = $app.findCollectionByNameOrId("tasks");
-  let n = 0;
-  for (const t of STARTER_TASKS) {
-    const r = new Record(col);
-    r.set("title", t.title);
-    r.set("notes", t.notes);
-    r.set("status", "todo");
-    r.set("owner", userId);
-    try {
-      $app.save(r);
-      n++;
-    } catch (err) {
-      console.log("seed: could not create starter task: " + err);
-    }
-  }
-  return n;
-}
-
 /**
  * Deja una cuenta lista para usar.
  *
@@ -238,14 +213,13 @@ function seedTasks(userId) {
  * siembra que quedó a medias —por ejemplo la que chocaba con los índices únicos
  * globales, antes de 1770001500— se repara sola en el siguiente reinicio.
  *
- * Las tareas de bienvenida son la excepción: van solo cuando la cuenta es nueva
- * de verdad (todavía sin `settings`). Si no, volverían a aparecer cada vez que
- * alguien termine de borrarlas.
+ * Los datos de ejemplo son la excepción: los lleva su propia marca en
+ * `settings` (ver demo.js), porque ahí lo que hay que recordar no es "ya están"
+ * sino "ya se sembraron una vez" — si la persona los borra, no deben volver.
  */
-function seedUser(userId) {
+function seedUser(userId, demo) {
   if (!userId) return false;
 
-  const isNew = ownedCount("settings", userId) === 0;
   const template = templateOwner(userId);
   const summary = [];
 
@@ -280,15 +254,30 @@ function seedUser(userId) {
   const groups = ensureGroups(userId);
   if (groups) summary.push("taxonomy:" + groups + " (grupos nuevos)");
 
-  if (isNew) summary.push("tasks:" + seedTasks(userId));
+  // Va al final: el ejemplo referencia categorías y cuentas contables, así que
+  // el catálogo tiene que estar puesto antes.
+  if (demo) {
+    try {
+      if (demo.seedDemo(userId)) summary.push("ejemplos");
+    } catch (err) {
+      console.log("seed: falló la siembra de ejemplos: " + err);
+    }
+  }
 
   if (!summary.length) return false; // no hacía falta nada
   console.log("seed: cuenta " + userId + " → " + summary.join(", "));
   return true;
 }
 
-/** Siembra cualquier cuenta que se haya quedado sin catálogo. */
-function seedMissing() {
+/**
+ * Siembra cualquier cuenta que se haya quedado sin catálogo.
+ *
+ * `demo` llega como argumento en vez de resolverse acá con un require: este
+ * archivo ya vive dentro de un handler, y encadenar un require desde adentro
+ * depende de que `__hooks` siga visible a esa profundidad. El hook, que sí lo
+ * tiene garantizado, hace el require y pasa el módulo.
+ */
+function seedMissing(demo) {
   let users = [];
   try {
     users = $app.findRecordsByFilter("users", "id != ''", "created", 500, 0);
@@ -296,7 +285,7 @@ function seedMissing() {
     console.log("seed: could not list users: " + err);
     return;
   }
-  for (const u of users) seedUser(u.id);
+  for (const u of users) seedUser(u.id, demo);
 }
 
-module.exports = { seedUser, seedMissing, ensureGroups, STARTER_TASKS };
+module.exports = { seedUser, seedMissing, ensureGroups };

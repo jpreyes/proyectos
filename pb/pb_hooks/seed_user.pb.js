@@ -4,8 +4,9 @@
 //
 // La taxonomía es de cada dueño (1770001400), así que una cuenta recién creada
 // abriría la app en blanco: sin categorías, sin cuentas contables, sin tipos de
-// proyecto y sin fila de `settings`. Acá se le copia el catálogo y se le dejan
-// unas tareas explicando qué hacer.
+// proyecto y sin fila de `settings`. Acá se le copia el catálogo y, encima, un
+// encargo completo de ejemplo (lib/demo.js) para que la primera pantalla
+// muestre de qué se trata la app en vez de una lista vacía.
 //
 // Dos disparadores, y el segundo importa: el hook de creación cubre las cuentas
 // nuevas, y el de arranque repara las que hayan quedado a medias — cuentas
@@ -18,7 +19,8 @@
 onRecordAfterCreateSuccess(function (e) {
   e.next();
   try {
-    require(`${__hooks}/lib/seed.js`).seedUser(e.record.id);
+    const demo = require(`${__hooks}/lib/demo.js`);
+    require(`${__hooks}/lib/seed.js`).seedUser(e.record.id, demo);
   } catch (err) {
     // Que falle la siembra no puede invalidar la cuenta ya creada: se registra
     // y el onBootstrap del próximo arranque lo reintenta.
@@ -29,7 +31,8 @@ onRecordAfterCreateSuccess(function (e) {
 onBootstrap(function (e) {
   e.next();
   try {
-    require(`${__hooks}/lib/seed.js`).seedMissing();
+    const demo = require(`${__hooks}/lib/demo.js`);
+    require(`${__hooks}/lib/seed.js`).seedMissing(demo);
   } catch (err) {
     console.log("seed: falló la revisión de arranque: " + err);
   }

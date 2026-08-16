@@ -109,9 +109,22 @@ con reglas `owner = @request.auth.id`; el campo lo escribe el hook `owner.pb.js`
 creación, así que el cliente no lo elige y no puede falsearlo.
 
 **Cada cuenta nueva se siembra sola** (`pb_hooks/seed_user.pb.js`): recibe su propia
-copia del catálogo — taxonomía, categorías, cuentas y `settings` — más cinco tareas de
-bienvenida que explican por dónde empezar. Sin eso, con el catálogo scopeado la app
-abriría en blanco y el ledger no tendría dónde imputar.
+copia del catálogo — taxonomía, categorías, cuentas y `settings` — más un **encargo
+completo de ejemplo** (`pb_hooks/lib/demo.js`). Sin lo primero, con el catálogo scopeado
+la app abriría en blanco y el ledger no tendría dónde imputar; sin lo segundo abriría
+vacía, que enseña igual de poco: no se ve qué es un workspace, cómo se lee un presupuesto
+ni de dónde sale el número de "por cobrar".
+
+Los ejemplos son dos encargos —uno con su subproyecto— con bitácora, pendientes,
+movimientos en los cuatro estados del ledger, un presupuesto aprobado y otro enviado,
+horas comprometidas, bandeja por triar, rutinas y días de ritmo. Cada fila lleva
+`demo = true`, y **Configuración → Datos de ejemplo** las borra todas de un toque. La
+siembra ocurre una sola vez por cuenta (`settings.demo_seeded`): si los borras, no
+vuelven en el próximo arranque.
+
+Lo que la siembra **no** copia de la cuenta plantilla son los datos del emisor
+(`issuer_*`): nombre, RUT y correo salen impresos en cada presupuesto, y heredarlos haría
+que una cuenta nueva emitiera documentos a nombre de otra persona.
 
 El catálogo no está hardcodeado: se copia de la cuenta más antigua, que es la que quedó
 con las filas de las migraciones originales. Una sola fuente de verdad — si curas tu
@@ -120,14 +133,14 @@ En una instalación nueva no hay de quién copiar, así que la primera cuenta **
 filas sin dueño que dejaron las migraciones.
 
 La siembra es idempotente y por colección: corre también en cada arranque y solo llena lo
-que falte, así que una siembra a medias se repara sola. Las tareas de bienvenida son la
-excepción — van solo cuando la cuenta es nueva de verdad, para que no reaparezcan cada
-vez que termines de borrarlas.
+que falte, así que una siembra a medias se repara sola.
 
-> Los índices únicos tienen que incluir a `owner` (`1770001500`). `taxonomy(group,value)`
-> y `accounts(name)` eran únicos a nivel de tabla: con catálogo por cuenta, eso impide que
-> la segunda cuenta tenga su propia "Cuenta corriente". Se manifiesta como una siembra a
-> medias con "Value must be unique" en el log.
+> Los índices únicos tienen que incluir a `owner` (`1770001500` y `1770002200`).
+> `taxonomy(group,value)`, `accounts(name)`, `daily(date)` y `projects(code)` eran únicos
+> a nivel de tabla: con datos por cuenta, eso impide que la segunda persona tenga su
+> propia "Cuenta corriente", anote el mismo día en Ritmo o use el mismo código de
+> proyecto. Se manifiesta como una siembra a medias con "Value must be unique" en el log,
+> o —peor— como un formulario que no guarda y no explica por qué.
 
 No hay registro público: las cuentas las crea un superusuario desde `/_/`
 (`users.createRule` es `null`).

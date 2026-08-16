@@ -80,17 +80,22 @@ function QuotesPage() {
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3">
+        {/* Cada ficha cuenta un subconjunto de la lista de abajo, así que cada
+            una filtra por él. La tasa de cierre resume los respondidos y lleva
+            al listado completo. */}
         <Stat
           label="Pendiente de respuesta"
           value={formatMoneyShort(view.pendingTotal)}
           hint={`${view.pending.length} esperando`}
           tone={view.pending.length ? "warn" : "neutral"}
+          href="/presupuestos?status=pending"
         />
         <Stat
           label="Aprobado"
           value={formatMoneyShort(view.approvedTotal)}
           hint={`${view.approved.length} con el sí puesto`}
           tone="ok"
+          href="/presupuestos?status=approved"
         />
         <Stat
           label="Tasa de cierre"
@@ -100,6 +105,7 @@ function QuotesPage() {
               ? "todavía sin respuestas"
               : `${view.approved.length} de ${view.decided.length} respondidos`
           }
+          href="/presupuestos"
         />
       </div>
 

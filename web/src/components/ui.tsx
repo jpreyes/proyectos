@@ -254,6 +254,7 @@ export function Chip({
 
 /** A plain slab for content that is not a list of rows: forms, charts, prose. */
 export function Card({
+  id,
   title,
   subtitle,
   action,
@@ -261,6 +262,7 @@ export function Card({
   className,
   bodyClassName,
 }: {
+  id?: string;
   title?: ReactNode;
   subtitle?: ReactNode;
   action?: ReactNode;
@@ -269,7 +271,7 @@ export function Card({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cx("overflow-hidden rounded-2xl bg-row", className)}>
+    <section id={id} className={cx("scroll-mt-4 overflow-hidden rounded-2xl bg-row", className)}>
       {(title || action) && (
         <header className="flex items-start justify-between gap-3 px-4 pb-1 pt-4">
           <div className="min-w-0">

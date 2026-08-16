@@ -123,6 +123,19 @@ function FinancePage() {
   const years = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
   const filtering = Boolean(project || direction || sp.get("year"));
 
+  /** El mismo filtro que ya está puesto, más lo que se le agregue. */
+  function withFilter(extra: Record<string, string>): string {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries({ year: sp.get("year") || "", project, ...extra })) {
+      if (value) params.set(key, value);
+    }
+    return params.size ? `/finanzas?${params}` : "/finanzas";
+  }
+
+  function scrollTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function filter(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -185,18 +198,37 @@ function FinancePage() {
         </form>
       </details>
 
+      {/* Cada ficha resume una lista, así que cada ficha lleva a esa lista: las
+          dos primeras filtran el listado, las otras dos bajan al bloque que las
+          explica. Un número que se puede tocar y no responde se lee como app
+          trabada, y uno vuelve a tocar. */}
       <div className="mb-6 grid grid-cols-2 gap-3">
-        <Stat label="Recibido" value={formatMoneyShort(view.income)} tone="ok" hint={`en ${year}`} />
-        <Stat label="Gastado" value={formatMoneyShort(view.expense)} hint={`en ${year}`} />
+        <Stat
+          label="Recibido"
+          value={formatMoneyShort(view.income)}
+          tone="ok"
+          hint={`en ${year}`}
+          href={withFilter({ direction: "income" })}
+        />
+        <Stat
+          label="Gastado"
+          value={formatMoneyShort(view.expense)}
+          hint={`en ${year}`}
+          href={withFilter({ direction: "expense" })}
+        />
         <Stat
           label="Margen"
           value={formatMoneyShort(view.income - view.expense)}
           tone={view.income - view.expense >= 0 ? "ok" : "bad"}
+          hint="por workspace"
+          onPress={() => scrollTo("margen")}
         />
         <Stat
           label="Por cobrar"
           value={formatMoneyShort(view.receivable)}
           tone={view.receivable > 0 ? "warn" : "neutral"}
+          hint={view.receivable > 0 ? "marcar pagados" : "nada pendiente"}
+          onPress={view.receivable > 0 ? () => scrollTo("por-cobrar") : undefined}
         />
       </div>
 
@@ -212,7 +244,7 @@ function FinancePage() {
         <Bars months={months} income={view.incomeByMonth} expense={view.expenseByMonth} />
       </Card>
 
-      <Group title={`Margen por workspace · ${year}`}>
+      <Group id="margen" title={`Margen por workspace · ${year}`}>
         {view.projectRows.length === 0 ? (
           <Empty>Sin movimientos asociados a un workspace.</Empty>
         ) : (
@@ -313,7 +345,7 @@ function FinancePage() {
       {/* Fuera de las filas de arriba: un enlace que además escribe volvería
           ambigua la fila entera al tocarla. */}
       {view.receivable > 0 && (
-        <Group title="Marcar como pagado">
+        <Group id="por-cobrar" title="Marcar como pagado">
           {view.entries
             .filter((e) => e.direction === "income" && e.status !== "paid")
             .map((e) => (
@@ -327,6 +359,10 @@ function FinancePage() {
                     hint={e.due_date ? `vence ${fmtRelative(e.due_date)}` : undefined}
                     value={formatMoneyShort(homeOf(e))}
                     chevron={false}
+                    // La fila entera ES el botón, así que tiene que hundirse
+                    // como un botón: es un `div` dentro de un `<button>` y no
+                    // hereda el `active:` de las filas que navegan.
+                    className="transition-colors active:bg-pill"
                   />
                 </button>
               </Form>

@@ -85,6 +85,15 @@ function CalendarPage() {
    * que bajar, abrir el formulario y volver a escribir a mano las fechas que
    * uno acababa de mirar.
    */
+  /** Abre una semana en la grilla y deja la vista puesta encima. */
+  function openWeek(week: string) {
+    setPickedWeek(week);
+    setTimeout(
+      () => document.getElementById("grilla")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      60
+    );
+  }
+
   function commitRange(start: string, end: string) {
     setPrefill({ start, end });
     setFormOpen(true);
@@ -157,28 +166,36 @@ function CalendarPage() {
         action={<SyncButton />}
       />
 
+      {/* Las tres fichas abren lo que resumen: la semana en curso, el mes, y
+          —la más útil— la primera semana que se pasó del techo. Un número que
+          señala un problema y no lleva a él obliga a buscarlo a mano en la
+          grilla. */}
       <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Esta semana"
           value={fmtHours(nowLoad)}
           hint={`de ${fmtHours(window.capacity)}`}
           tone={nowLoad > window.capacity ? "bad" : nowLoad > window.capacity * 0.85 ? "warn" : "ok"}
+          onPress={() => openWeek(view.thisWeek)}
         />
         <Stat
           label="Próximo mes"
           value={fmtHours(committedNext)}
-          hint="comprometido en cuatro semanas"
+          hint="ver el mes día a día"
+          href={`/calendario?vista=mes&mes=${new Date().toISOString().slice(0, 7)}`}
         />
         <Stat
           label="Semanas pasadas de techo"
           value={overloaded.length}
-          hint={overloaded.length ? "revisa dónde apretaste" : "todo dentro de capacidad"}
+          hint={overloaded.length ? "abrir la primera" : "todo dentro de capacidad"}
           tone={overloaded.length ? "bad" : "ok"}
+          onPress={overloaded.length ? () => openWeek(overloaded[0]) : undefined}
         />
       </div>
 
       {/* ---------------------------------------------------------- la grilla */}
       <Card
+        id="grilla"
         className="mb-5"
         title={monthView ? "Mes" : "Carga semanal"}
         action={

@@ -269,6 +269,18 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   moverse cuando cambia la UF de hoy.
 - Las fechas se formatean en **UTC** (`lib/dates.ts`). Los campos de solo-fecha caen en
   medianoche UTC; renderizarlos en `America/Santiago` los correría un día hacia atrás.
+- **El panel de la base no sale a internet y el registro está cerrado.** `vps/nginx.conf`
+  devuelve 404 a `/_/` y a `/api/collections/_superusers/` —bloquear solo el panel no sirve,
+  porque el panel es un cliente de esa API— y `users.createRule` vuelve a ser `null` por
+  migración (1770002300) y no por un clic, que es como se abrió sin que nadie se enterara.
+  Para administrar: `ssh -L 8095:127.0.0.1:8095 root@srv1134838.hstgr.cloud` y abrir
+  `http://127.0.0.1:8095/_/`. Cuentas nuevas, desde ahí.
+- **Respaldo: diario adentro, catorce afuera, y probado.** PocketBase respalda solo a las
+  03:00 y guarda siete en `pb_data`; `/root/vps-admin/backup-proyectos.sh` (cron 07:30 UTC)
+  saca la copia del volumen a `/root/vps-admin/backups/proyectos`. Lo que todavía falta es
+  salir del servidor: mismo disco, misma máquina. La restauración se probó de verdad —zip
+  extraído, contenedor limpio, sesión y datos completos— porque un respaldo que nunca se
+  restauró no es un respaldo.
 - `pb_data/` **nunca** entra al repo ni a Dropbox. SQLite + sincronización de archivos
   corrompe la base.
 - **Toda escritura pasa por la réplica local, siempre.** No hay rama por conectividad.

@@ -11,6 +11,19 @@
 # Público en https://tda.jpreyes.cl
 
 services:
+  # El panel de administración salió de internet (ver vps/nginx.conf), así que
+  # necesita una puerta que no sea pública. Este puerto queda atado a la interfaz
+  # de loopback del host: solo se llega por un túnel SSH.
+  #
+  # El 8090 del host ya lo ocupa `pb-proj1`, otro proyecto de este box, así que
+  # este stack asoma por el 8095.
+  #
+  #     ssh -L 8095:127.0.0.1:8095 root@srv1134838.hstgr.cloud
+  #     → http://127.0.0.1:8095/_/
+  pocketbase:
+    ports:
+      - "127.0.0.1:8095:8090"
+
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped

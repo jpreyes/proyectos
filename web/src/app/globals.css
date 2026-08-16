@@ -6,7 +6,13 @@
    panel rather than something you reach for. Surfaces are separated by
    elevation, never by borders — a row sits on a lighter plane than the page,
    and rows within a group are split by a hairline of the page colour showing
-   through. That groove is what makes a group read as one object. */
+   through. That groove is what makes a group read as one object.
+
+   Every colour in the app is one of these tokens: no component hardcodes a
+   hex, a `black/40` shadow or a `white` text. That is what makes the light
+   theme below a palette swap and not a rewrite — and it is a rule worth
+   keeping, because the first hardcoded colour is invisible in whichever theme
+   the author happened to be using. */
 @theme {
   --color-bg: #040a18;
   --color-panel: #151d2d;
@@ -23,8 +29,76 @@
   --color-warn: #e0a33a;
   --color-bad: #e07c70;
 
+  /* Sombra de lo que flota y velo de lo que cubre. Son tokens y no `black/40`
+     porque en claro una sombra negra al 40% se ve como suciedad. */
+  --color-shade: rgb(0 0 0 / 0.5);
+  --color-scrim: rgb(2 6 15 / 0.72);
+
   --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+/* ---------------------------------------------------------------- claro --- */
+
+/* La misma jerarquía, invertida: la página es el plano de abajo y las filas se
+   levantan sobre ella. En oscuro la fila es más clara que el fondo; en claro es
+   blanca sobre un gris tenue. La hendidura de 1 px sigue siendo el fondo
+   asomándose, así que un grupo se sigue leyendo como un solo objeto.
+
+   Los verdes cambian de valor, no de identidad: el acento de la app en claro
+   tiene que ser oscuro para que el texto blanco de un botón se lea encima, y
+   para que el mismo verde sirva como color de texto sobre blanco. */
+html[data-theme="light"] {
+  --color-bg: #eceef2;
+  --color-panel: #ffffff;
+  --color-panel2: #e6e9ef;
+  --color-row: #ffffff;
+  --color-pill: #dde1e9;
+  --color-line: #dcdfe6;
+  --color-line2: #c3c8d4;
+  --color-ink: #0f1420;
+  --color-muted: #4b5364;
+  --color-faint: #6c7484;
+  --color-accent: #0a6b3d;
+  --color-ok: #1c7a4d;
+  --color-warn: #9a6208;
+  --color-bad: #b3261e;
+
+  --color-shade: rgb(15 20 32 / 0.16);
+  --color-scrim: rgb(15 20 32 / 0.45);
+
+  color-scheme: light;
+}
+
+/* Sin elección explícita se sigue al sistema. `html:not([data-theme="dark"])`
+   y no `html:not([data-theme])`: quien eligió claro a mano ya está cubierto
+   arriba, y quien eligió oscuro tiene que ganarle a su sistema en claro. */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) {
+    --color-bg: #eceef2;
+    --color-panel: #ffffff;
+    --color-panel2: #e6e9ef;
+    --color-row: #ffffff;
+    --color-pill: #dde1e9;
+    --color-line: #dcdfe6;
+    --color-line2: #c3c8d4;
+    --color-ink: #0f1420;
+    --color-muted: #4b5364;
+    --color-faint: #6c7484;
+    --color-accent: #0a6b3d;
+    --color-ok: #1c7a4d;
+    --color-warn: #9a6208;
+    --color-bad: #b3261e;
+
+    --color-shade: rgb(15 20 32 / 0.16);
+    --color-scrim: rgb(15 20 32 / 0.45);
+
+    color-scheme: light;
+  }
+}
+
+html {
+  color-scheme: dark;
 }
 
 html,
@@ -33,6 +107,19 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Lo que flota sobre la página: la barra de pestañas, el botón de captura, la
+   píldora de conexión y las hojas del teléfono. */
+.float {
+  box-shadow: 0 10px 30px -12px var(--color-shade);
+}
+.float-strong {
+  box-shadow: 0 18px 40px -14px var(--color-shade);
+}
+/* El velo bajo una hoja o bajo la guía. */
+.scrim {
+  background: var(--color-scrim);
 }
 
 * {
@@ -115,9 +202,10 @@ body {
 }
 
 /* Hoja imprimible.
-   Toda la app es oscura porque se mira 20 veces al día; un presupuesto, en
-   cambio, se manda. Sale en blanco, con márgenes de carta y sin nada de la
-   interfaz. `.no-print` marca lo que existe solo en pantalla. */
+   La app cambia de tema; el documento no. Un presupuesto se manda, y sale en
+   blanco con márgenes de carta y sin nada de la interfaz, venga de una pantalla
+   clara o de una oscura. Por eso estos dos colores son fijos y no tokens.
+   `.no-print` marca lo que existe solo en pantalla. */
 .sheet {
   background: #fff;
   color: #111827;

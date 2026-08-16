@@ -61,7 +61,7 @@ export default function InboxPage() {
       {open.length === 0 ? (
         <Empty>Nada pendiente de clasificar.</Empty>
       ) : (
-        <div className="space-y-3">
+        <div data-tour="inbox-open" className="space-y-3">
           {open.map((item) => (
             <InboxCard key={item.id} item={item} projects={projects} />
           ))}

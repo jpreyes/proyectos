@@ -50,7 +50,7 @@ export function OfflineBadge() {
       type="button"
       onClick={() => void syncNow()}
       title="Sincronizar ahora"
-      className="bottom-badge fixed left-4 z-30 flex items-center gap-2 rounded-full bg-panel/90 px-3 py-1.5 text-[11px] leading-none text-muted shadow-md shadow-black/30 backdrop-blur md:bottom-4"
+      className="bottom-badge float fixed left-4 z-30 flex items-center gap-2 rounded-full bg-panel/90 px-3 py-1.5 text-[11px] leading-none text-muted backdrop-blur md:bottom-4"
     >
       <span
         aria-hidden

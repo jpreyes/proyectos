@@ -133,35 +133,37 @@ function WorkspacesPage() {
 
       {projects.length === 0 && <Empty>No hay workspaces que coincidan.</Empty>}
 
-      {[...byKind.entries()].map(([kindKey, list]) => (
-        <Group key={kindKey} title={`${cfg.label("project_kind", kindKey)} · ${list.length}`}>
-          {list.map((p) => {
-            const seen = lastSeen.get(p.id);
-            return (
-              <Row
-                key={p.id}
-                href={`/w/${p.id}`}
-                label={p.name}
-                value={seen ? fmtRelative(seen) : "sin bitácora"}
-                badge={
-                  <>
-                    <Badge tone={cfg.tone("project_status", p.status)}>
-                      {cfg.label("project_status", p.status)}
-                    </Badge>
-                    {p.health && p.health !== "ok" && (
-                      <Badge tone={cfg.tone("health", p.health)}>
-                        {cfg.label("health", p.health)}
+      <div data-tour="work-list">
+        {[...byKind.entries()].map(([kindKey, list]) => (
+          <Group key={kindKey} title={`${cfg.label("project_kind", kindKey)} · ${list.length}`}>
+            {list.map((p) => {
+              const seen = lastSeen.get(p.id);
+              return (
+                <Row
+                  key={p.id}
+                  href={`/w/${p.id}`}
+                  label={p.name}
+                  value={seen ? fmtRelative(seen) : "sin bitácora"}
+                  badge={
+                    <>
+                      <Badge tone={cfg.tone("project_status", p.status)}>
+                        {cfg.label("project_status", p.status)}
                       </Badge>
-                    )}
-                  </>
-                }
-              >
-                <NextStepLine cue={p.next_cue} step={p.next_step} />
-              </Row>
-            );
-          })}
-        </Group>
-      ))}
+                      {p.health && p.health !== "ok" && (
+                        <Badge tone={cfg.tone("health", p.health)}>
+                          {cfg.label("health", p.health)}
+                        </Badge>
+                      )}
+                    </>
+                  }
+                >
+                  <NextStepLine cue={p.next_cue} step={p.next_step} />
+                </Row>
+              );
+            })}
+          </Group>
+        ))}
+      </div>
     </>
   );
 }

@@ -73,6 +73,17 @@ export interface Settings {
   quote_profit_pct: number;
   quote_validity_days: number;
   quote_prefix: string;
+
+  /**
+   * Los datos de ejemplo ya se sembraron alguna vez. No dice que sigan estando:
+   * dice que no hay que volver a ponerlos. Borrarlos tiene que ser definitivo.
+   */
+  demo_seeded: boolean;
+  /**
+   * La guía de primer ingreso ya se vio. Va con la cuenta y no con el
+   * navegador: verla una vez en el teléfono también vale en el escritorio.
+   */
+  tour_done: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -104,6 +115,9 @@ export const DEFAULT_SETTINGS: Settings = {
   quote_profit_pct: 0.1,
   quote_validity_days: 30,
   quote_prefix: "P",
+
+  demo_seeded: false,
+  tour_done: false,
 };
 
 /** Mapas compilados, usados solo si la taxonomía todavía no bajó. */

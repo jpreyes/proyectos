@@ -65,18 +65,22 @@ export default function YoPage() {
         />
       </div>
 
-      {YO_GROUPS.map((group) => (
-        <Group key={group[0].href}>
-          {group.map((item) => (
-            <Row key={item.href} href={item.href} icon={item.icon} label={item.label} />
-          ))}
-        </Group>
-      ))}
+      <div data-tour="yo-menu">
+        {YO_GROUPS.map((group) => (
+          <Group key={group[0].href}>
+            {group.map((item) => (
+              <Row key={item.href} href={item.href} icon={item.icon} label={item.label} />
+            ))}
+          </Group>
+        ))}
+      </div>
 
+      {/* Acá vivía un acceso directo al panel de administración de la base. Era
+          una puerta de servicio útil mientras esto tenía un solo usuario, y deja
+          de serlo en cuanto tiene varios: ofrece a cualquiera una pantalla que
+          no es de la app, con el vocabulario de la base y sin sus reglas de
+          presentación. El panel sigue donde siempre para quien lo administra. */}
       <Group>
-        <a href="/_/" target="_blank" rel="noreferrer" className="block">
-          <Row icon="▤" label="Admin PocketBase" hint="Esquema y datos crudos" chevron />
-        </a>
         <LogoutRow />
       </Group>
     </>

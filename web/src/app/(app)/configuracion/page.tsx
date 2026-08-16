@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { TaxGroup, TaxRow } from "@/lib/config";
 import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
+import { deleteDemoData, useDemoCount } from "@/lib/local/demo";
+import { startTour } from "@/lib/tour";
 import { Form } from "@/components/form";
+import { ThemePicker } from "@/components/ThemePicker";
 import { Badge, btn, cx, Field, inputClass, PageHeader, Select } from "@/components/ui";
 import { Title } from "@/components/Title";
 
@@ -40,7 +44,15 @@ const LOCKED_GROUPS: { group: TaxGroup; title: string }[] = [
   { group: "commitment_status", title: "Estados de compromiso" },
 ];
 
-/** Una entrada del vocabulario editable. */
+/**
+ * Una entrada del vocabulario editable.
+ *
+ * El `value` —el nombre con el que la fila viaja por la base— ya no se muestra.
+ * Era una columna monoespaciada con "invoiced 🔒" al lado de "Facturado": un
+ * detalle de implementación puesto en la pantalla de alguien que solo quería
+ * renombrar una etiqueta. Se sigue generando solo a partir del rótulo (ver
+ * `createTaxonomy`), y las filas fijas se marcan con un candado y basta.
+ */
 function TaxRowItem({ row, editableValue }: { row: TaxRow; editableValue: boolean }) {
   return (
     <li className="flex flex-wrap items-center gap-2 border-b border-line py-2.5 last:border-0">
@@ -49,19 +61,9 @@ function TaxRowItem({ row, editableValue }: { row: TaxRow; editableValue: boolea
 
         <input name="label" defaultValue={row.label} className={cx(inputClass, "min-w-32 flex-1")} />
 
-        {editableValue ? (
-          <input
-            name="value"
-            defaultValue={row.value}
-            className={cx(inputClass, "w-32 font-mono text-[12px]")}
-            title="Valor interno"
-          />
-        ) : (
-          <span
-            className="w-32 shrink-0 font-mono text-[12px] text-faint"
-            title="Valor fijo: los cálculos dependen de él"
-          >
-            {row.value} 🔒
+        {!editableValue && (
+          <span className="shrink-0 text-[13px] text-faint" title="Su significado es fijo">
+            🔒
           </span>
         )}
 
@@ -131,6 +133,57 @@ function Section({
   );
 }
 
+/** Una fila que no se pliega: título, explicación corta y un control. */
+function Plain({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-px bg-row px-4 py-4 first:rounded-t-2xl last:rounded-b-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[17px] font-semibold leading-tight">{title}</h3>
+          {hint && <p className="mt-1 text-[13px] leading-relaxed text-faint">{hint}</p>}
+        </div>
+        <div className="shrink-0">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** El botón que borra los ejemplos. Pide confirmación y dice cuántos son. */
+function DemoRow() {
+  const count = useDemoCount();
+  const [busy, setBusy] = useState(false);
+
+  if (count === 0) return null;
+
+  async function wipe() {
+    if (!confirm(`¿Borrar las ${count} filas de ejemplo? Lo que hayas escrito tú no se toca.`)) {
+      return;
+    }
+    setBusy(true);
+    await deleteDemoData();
+    setBusy(false);
+  }
+
+  return (
+    <Plain
+      title="Datos de ejemplo"
+      hint={`${count} filas sembradas para que la app no abriera en blanco: dos encargos con su bitácora, sus cobros y sus presupuestos. Se borran de una vez y no vuelven.`}
+    >
+      <button type="button" onClick={wipe} disabled={busy} className={btn("danger", "sm")}>
+        {busy ? "Borrando…" : "Borrar ejemplos"}
+      </button>
+    </Plain>
+  );
+}
+
 export default function SettingsPage() {
   const cfg = useConfig();
   const s = cfg.settings;
@@ -142,6 +195,23 @@ export default function SettingsPage() {
         title="Configuración"
         subtitle="Tu vocabulario y los números que la app usa para decidir qué mostrarte."
       />
+
+      <div data-tour="settings-start" className="mb-6 overflow-hidden rounded-2xl bg-bg">
+        <Plain
+          title="Tema"
+          hint="Automático sigue al sistema y cambia solo al anochecer, si tu teléfono lo hace. La elección es de este dispositivo."
+        >
+          <ThemePicker />
+        </Plain>
+
+        <Plain title="Guía de la app" hint="Los ocho pasos del primer ingreso, otra vez.">
+          <button type="button" onClick={() => startTour()} className={btn("subtle", "sm")}>
+            Ver la guía
+          </button>
+        </Plain>
+
+        <DemoRow />
+      </div>
 
       {/* Todo esto estaba abierto a la vez: veinte campos numéricos seguidos de
           quince tablas de vocabulario. Plegado, la pantalla abre como una lista
@@ -236,10 +306,10 @@ export default function SettingsPage() {
               <input name="quote_prefix" defaultValue={s.quote_prefix} className={inputClass} />
             </Field>
 
-            <Field label="Digest: hora">
+            <Field label="Resumen diario: hora">
               <input name="digest_hour" defaultValue={s.digest_hour} className={inputClass} />
             </Field>
-            <Field label="Digest: minuto">
+            <Field label="Resumen diario: minuto">
               <input name="digest_minute" defaultValue={s.digest_minute} className={inputClass} />
             </Field>
             <label className="flex items-center gap-2 text-[15px] text-muted sm:col-span-2">

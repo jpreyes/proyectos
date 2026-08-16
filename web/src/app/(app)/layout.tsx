@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { Rail, TabBar } from "@/components/Tabs";
 import { CaptureBar } from "@/components/CaptureBar";
 import { OfflineBadge } from "@/components/OfflineBadge";
+import { Tour } from "@/components/Tour";
 
 /**
  * La cáscara. Es lo único que el servidor manda para cualquier pantalla de la
@@ -38,6 +39,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <TabBar open={open} />
         <OfflineBadge />
+        {/* Solo aparece la primera vez, y se salta con un toque. */}
+        <Tour />
       </div>
     </AppShell>
   );

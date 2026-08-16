@@ -73,7 +73,7 @@ export function CaptureBar({ open }: { open: number }) {
   return (
     <>
       {/* --------------------------------------------------- wide screens --- */}
-      <div className="mb-6 hidden md:block">
+      <div data-tour="capture" className="mb-6 hidden md:block">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -105,7 +105,8 @@ export function CaptureBar({ open }: { open: number }) {
         type="button"
         onClick={() => setSheetOpen(true)}
         aria-label="Capturar"
-        className="bottom-fab fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-accent text-[26px] font-light leading-none text-bg shadow-lg shadow-black/50 md:hidden"
+        data-tour="capture"
+        className="bottom-fab float fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-accent text-[26px] font-light leading-none text-bg md:hidden"
       >
         ＋
       </button>
@@ -116,9 +117,9 @@ export function CaptureBar({ open }: { open: number }) {
             type="button"
             aria-label="Cerrar"
             onClick={() => setSheetOpen(false)}
-            className="absolute inset-0 bg-black/70"
+            className="scrim absolute inset-0"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shadow-2xl">
+          <div className="float-strong absolute inset-x-0 bottom-0 rounded-t-3xl bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line2" />
             <form
               onSubmit={(e) => {

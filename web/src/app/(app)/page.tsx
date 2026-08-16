@@ -159,7 +159,7 @@ export default function TodayPage() {
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3">
+      <div data-tour="today-stats" className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Vencido"
           value={view.overdueCount}

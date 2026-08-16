@@ -29,7 +29,8 @@ export function TabBar({ open }: { open: number }) {
   return (
     <nav
       aria-label="Principal"
-      className="bottom-tabbar fixed inset-x-0 z-40 mx-auto flex w-fit max-w-[calc(100vw-1.5rem)] items-center rounded-full bg-panel/95 p-1 shadow-lg shadow-black/40 backdrop-blur md:hidden"
+      data-tour="nav"
+      className="bottom-tabbar float fixed inset-x-0 z-40 mx-auto flex w-fit max-w-[calc(100vw-1.5rem)] items-center rounded-full bg-panel/95 p-1 backdrop-blur md:hidden"
     >
       {TABS.map((t) => {
         const active = isActivePath(pathname, t);
@@ -74,7 +75,7 @@ export function Rail({ open }: { open: number }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Principal" className="flex h-full flex-col gap-1">
+    <nav aria-label="Principal" data-tour="nav" className="flex h-full flex-col gap-1">
       <div className="px-3 pb-6 pt-2 text-[17px] font-bold tracking-tight">Proyectos</div>
 
       {TABS.map((t) => {

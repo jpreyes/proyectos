@@ -521,7 +521,10 @@ export async function updateTaxonomy(fd: FormData) {
     position: num(fd, "position"),
     active: current.locked ? true : !bool(fd, "inactive"),
   };
-  if (!current.locked) payload.value = str(fd, "value");
+  // El formulario ya no muestra el `value` —es un detalle interno, no algo que
+  // alguien venga a editar— así que solo se toca si de verdad viene uno.
+  const value = str(fd, "value");
+  if (!current.locked && value) payload.value = value;
 
   await update("taxonomy", id, payload);
 }
@@ -565,6 +568,19 @@ export async function saveSettings(fd: FormData) {
   };
 
   await upsert("settings", str(fd, "id"), payload);
+}
+
+/**
+ * La guía de primer ingreso ya se vio.
+ *
+ * Se escribe aparte de `saveSettings` —que manda la fila entera— porque esto
+ * ocurre sin que nadie haya abierto un formulario: reusar aquella acción
+ * borraría todos los ajustes con los valores en blanco de un FormData vacío.
+ */
+export async function completeTour() {
+  const id = settings().id;
+  if (!id) return;
+  await update("settings", id, { tour_done: true });
 }
 
 /* --------------------------------------------------------------- daily ---- */

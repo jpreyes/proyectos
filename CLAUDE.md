@@ -2,7 +2,10 @@
 
 ## Qué es
 
-Gestor personal de proyectos de **un solo usuario**, desplegado en `proyectos.jpreyes.cl`.
+Gestor personal de proyectos, desplegado en `proyectos.jpreyes.cl`. **Una cuenta por
+persona, y cada una ve solo lo suyo** — no hay registro público: las cuentas las crea un
+superusuario. Cada cuenta nueva llega con su catálogo y con un encargo de ejemplo
+sembrados (ver «Primer ingreso», más abajo).
 No es una plataforma para *hacer* el trabajo: el trabajo vive afuera (carpetas, repos,
 Overleaf, planillas). Esta app es el **índice y el punto de reentrada** — el lugar donde
 recuperas el contexto de cualquier proyecto en 30 segundos, y donde viven la gestión,
@@ -217,6 +220,28 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   (`components/Due.tsx`). Un plazo lejano no genera señal por sí solo.
 - **Sin gamificación**: nada de rachas, puntos, insignias ni badges rojos. Aumentan la
   carga extrínseca y el agobio.
+- **Ningún componente escribe un color.** Todo sale de los tokens de `globals.css`
+  (`bg`, `panel`, `row`, `pill`, `ink`, `muted`, `faint`, `accent`, `ok`, `warn`, `bad`,
+  más `shade` y `scrim`), y por eso el tema claro es un cambio de paleta y no una
+  reescritura. Las sombras y los velos van por las clases `float`, `float-strong` y
+  `scrim`: un `shadow-black/40` se ve como suciedad sobre blanco, y el primero que se
+  cuele es invisible para quien lo escribió en el tema que estaba usando. La única
+  excepción es la hoja imprimible, fija en blanco porque el documento se manda.
+- **El tema vive en el dispositivo, no en la cuenta** (`lib/theme.ts`). El teléfono de
+  noche y el monitor de la oficina no quieren lo mismo; sincronizarlo apagaría uno al
+  elegir en el otro. Se aplica con un script bloqueante al principio del `<body>`, antes
+  del primer píxel: si esperara a React, cada carga empezaría con un destello del tema
+  equivocado. En "Automático" se **quita** el atributo en vez de escribir el tema
+  resuelto, así manda la media query y seguir al sistema no cuesta ningún listener.
+- **Primer ingreso: datos de ejemplo + guía, y las dos se van con un toque.** Una cuenta
+  vacía no enseña nada, y una app con cuatro destinos inventados tampoco se adivina. El
+  servidor siembra un encargo completo marcado con `demo` (`pb_hooks/lib/demo.js`,
+  `settings.demo_seeded`) y la app corre ocho pasos que iluminan elementos reales
+  (`lib/tour.ts`, `components/Tour.tsx`, `settings.tour_done`). Las dos reglas que las
+  mantienen honestas: **se borran/saltan de un toque y no vuelven**, y la marca de "ya
+  ocurrió" es independiente de que los datos sigan ahí — si no, borrarlos los repondría
+  en el próximo arranque. Los pasos apuntan a `data-tour="…"`; si el elemento no está, el
+  paso se muestra centrado en vez de quedarse esperando.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
   moverse cuando cambia la UF de hoy.

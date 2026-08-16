@@ -155,7 +155,7 @@ function CalendarPage() {
       <Card
         className="mb-5"
         title="Compromisos vigentes"
-        subtitle="Horas por semana entre dos fechas. Las clases, las inspecciones, la investigación."
+        subtitle="Lo que ya tienes tomado: un ramo, unas inspecciones, una investigación. Cada uno ocupa unas horas de cada semana entre dos fechas."
       >
         {view.active.length === 0 ? (
           <Empty>Nada comprometido todavía.</Empty>
@@ -176,8 +176,11 @@ function CalendarPage() {
           </ul>
         )}
 
+        {/* Cuatro campos a la vista, no ocho: son los únicos que la semana
+            necesita para ocuparse. Tipo, workspace, contraparte y notas se
+            agregan después, si es que hacen falta. */}
         <details className="mt-5 border-t border-line pt-4">
-          <summary className={`${btn("subtle")} list-none`}>+ Nuevo compromiso</summary>
+          <summary className={`${btn("subtle")} list-none`}>+ Comprometer horas</summary>
           <Form action={createCommitment} reset className="mt-3 grid gap-3.5 sm:grid-cols-2">
             <Field label="Qué es" className="sm:col-span-2">
               <input
@@ -187,27 +190,37 @@ function CalendarPage() {
                 className={inputClass}
               />
             </Field>
-            <Field label="Tipo">
-              <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
-            </Field>
-            <Field label="Horas por semana">
+            <Field label="Horas por semana" hint="cuánto le vas a dedicar cada semana">
               <input name="hours_per_week" required placeholder="4" className={inputClass} />
             </Field>
             <Field label="Desde">
               <input type="date" name="start_date" required className={inputClass} />
             </Field>
-            <Field label="Hasta">
+            <Field label="Hasta" className="sm:col-span-2">
               <input type="date" name="end_date" required className={inputClass} />
             </Field>
-            <Field label="Workspace">
-              <Select name="project" placeholder="—" options={view.projectOptions} />
-            </Field>
-            <Field label="Contraparte">
-              <Select name="entity" placeholder="—" options={view.entityOptions} />
-            </Field>
-            <Field label="Notas" className="sm:col-span-2">
-              <input name="notes" className={inputClass} />
-            </Field>
+
+            <details className="group sm:col-span-2">
+              <summary className="cursor-pointer list-none text-[13px] font-semibold text-faint">
+                Detalles
+                <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+              </summary>
+              <div className="mt-2.5 grid gap-3.5 sm:grid-cols-2">
+                <Field label="Tipo">
+                  <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
+                </Field>
+                <Field label="Workspace">
+                  <Select name="project" placeholder="—" options={view.projectOptions} />
+                </Field>
+                <Field label="Contraparte">
+                  <Select name="entity" placeholder="—" options={view.entityOptions} />
+                </Field>
+                <Field label="Notas">
+                  <input name="notes" className={inputClass} />
+                </Field>
+              </div>
+            </details>
+
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Agregar
             </button>

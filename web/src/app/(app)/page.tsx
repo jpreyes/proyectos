@@ -10,9 +10,10 @@ import { index, sortBy } from "@/lib/local/query";
 import { clpOf, formatCLPShort } from "@/lib/money";
 import { daysUntil, fmtRelative } from "@/lib/dates";
 import { Form } from "@/components/form";
-import { Badge, btn, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
+import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
 import { Due } from "@/components/Due";
 import { NextStepLine } from "@/components/NextStep";
+import { TaskList } from "@/components/TaskList";
 import { Title } from "@/components/Title";
 
 const ACTIVE = ["idea", "active", "paused", "waiting"];
@@ -128,6 +129,10 @@ export default function TodayPage() {
       near,
       withoutPlan,
       cooling,
+      // Sin esto, una tarea sin fecha no aparece en ninguna parte: el horizonte
+      // solo muestra lo que tiene plazo, y una tarea sin proyecto tampoco vive
+      // en la ficha de ningún workspace. Sería anotar algo para perderlo.
+      loose: tasks.filter((t) => !t.due_date),
       overdueCount: near.filter((h) => (daysUntil(h.date) ?? 0) < 0).length,
       weekCount: near.filter((h) => {
         const n = daysUntil(h.date) ?? 99;
@@ -189,6 +194,12 @@ export default function TodayPage() {
           ))
         )}
       </Group>
+
+      {view.loose.length > 0 && (
+        <Card className="mb-6" title="Pendientes sin fecha">
+          <TaskList tasks={view.loose} showProject showForm={false} />
+        </Card>
+      )}
 
       <Group
         title="Por cobrar"

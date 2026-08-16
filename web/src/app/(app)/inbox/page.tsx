@@ -1,30 +1,34 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { InboxItem, Project } from "@/lib/types";
-import { deleteInboxItem, dropInboxItem, triage } from "@/lib/local/actions";
-import { useConfig } from "@/lib/local/config";
+import {
+  deleteInboxItem,
+  dropInboxItem,
+  inboxToNote,
+  inboxToProject,
+  inboxToQuote,
+  inboxToTask,
+  inboxToToday,
+  triage,
+} from "@/lib/local/actions";
 import { useCollection } from "@/lib/local/store";
 import { index, sortBy } from "@/lib/local/query";
+import { parseWhen } from "@/lib/local/parse";
 import { fmtRelative } from "@/lib/dates";
 import { Form } from "@/components/form";
-import { btn, Card, Empty, Group, inputClass, PageHeader, Row, Select } from "@/components/ui";
+import { btn, Card, cx, Empty, Group, inputClass, PageHeader, Row } from "@/components/ui";
 import { Title } from "@/components/Title";
 
 const ACTIVE = ["idea", "active", "paused", "waiting"];
 
 export default function InboxPage() {
-  const cfg = useConfig();
   const items = useCollection<InboxItem>("inbox");
   const allProjects = useCollection<Project>("projects");
 
-  const { open, recent, projectOptions, projectById } = useMemo(() => {
-    const projects = sortBy(
-      allProjects.filter((p) => ACTIVE.includes(p.status)),
-      "name"
-    );
-    return {
+  const { open, recent, projects, projectById } = useMemo(
+    () => ({
       open: sortBy(
         items.filter((i) => i.status === "open"),
         "created"
@@ -33,10 +37,14 @@ export default function InboxPage() {
         items.filter((i) => i.status !== "open"),
         "-updated"
       ).slice(0, 15),
-      projectOptions: projects.map((p) => ({ value: p.id, label: p.name })),
+      projects: sortBy(
+        allProjects.filter((p) => ACTIVE.includes(p.status)),
+        "name"
+      ),
       projectById: index(allProjects),
-    };
-  }, [items, allProjects]);
+    }),
+    [items, allProjects]
+  );
 
   return (
     <>
@@ -50,86 +58,12 @@ export default function InboxPage() {
         }
       />
 
-      <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
-        Cada cosa sale de acá con un destino: un plan para retomar, una tarea o una nota en la
-        bitácora. Descartarla también es decidir.
-      </p>
-
       {open.length === 0 ? (
         <Empty>Nada pendiente de clasificar.</Empty>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {open.map((item) => (
-            <Card key={item.id}>
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <p className="text-[17px] font-semibold leading-snug">{item.text}</p>
-                <span className="shrink-0 text-[12px] text-faint">{fmtRelative(item.created)}</span>
-              </div>
-
-              {/* Los dos botones secundarios usan `data-action` en vez del
-                  `formAction` de antes: un formulario que no viaja al servidor
-                  ya no tiene a dónde apuntar. */}
-              <Form
-                action={triage}
-                alt={{ drop: dropInboxItem, delete: deleteInboxItem }}
-                className="grid gap-2.5 sm:grid-cols-2"
-              >
-                <input type="hidden" name="id" value={item.id} />
-                <input type="hidden" name="text" value={item.text} />
-
-                <Select
-                  name="dest"
-                  defaultValue="task"
-                  options={[
-                    { value: "plan", label: "Plan si-entonces" },
-                    { value: "task", label: "Tarea" },
-                    { value: "log", label: "Bitácora" },
-                  ]}
-                />
-                <Select
-                  name="project"
-                  placeholder="¿En qué workspace?"
-                  options={projectOptions}
-                  required
-                />
-
-                <input
-                  name="next_cue"
-                  placeholder="Cuando… (solo para plan)"
-                  className={inputClass}
-                />
-                <input
-                  name="next_step"
-                  placeholder="entonces… (vacío = usa el texto de arriba)"
-                  className={inputClass}
-                />
-
-                <Select name="priority" options={cfg.options("priority")} defaultValue="normal" />
-                <input type="date" name="due_date" className={inputClass} />
-
-                <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
-                  <button type="submit" className={btn("primary")}>
-                    Darle destino
-                  </button>
-                  <button
-                    type="submit"
-                    data-action="drop"
-                    className={btn("ghost")}
-                    title="Decidir que no se hace"
-                  >
-                    Descartar
-                  </button>
-                  <button
-                    type="submit"
-                    data-action="delete"
-                    className={btn("ghost")}
-                    aria-label="Borrar"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </Form>
-            </Card>
+            <InboxCard key={item.id} item={item} projects={projects} />
           ))}
         </div>
       )}
@@ -142,7 +76,9 @@ export default function InboxPage() {
                 key={i.id}
                 href={i.project && projectById.get(i.project) ? `/w/${i.project}` : undefined}
                 label={i.text}
-                hint={[i.outcome || "—", projectById.get(i.project)?.name].filter(Boolean).join(" · ")}
+                hint={[i.outcome || "—", projectById.get(i.project)?.name]
+                  .filter(Boolean)
+                  .join(" · ")}
               />
             ))}
           </Group>
@@ -151,12 +87,129 @@ export default function InboxPage() {
 
       {open.length === 0 && recent.length === 0 && (
         <p className="mt-6 text-center text-[13px] text-faint">
-          Captura con el botón ＋ y vuelve acá a darle destino.{" "}
+          Escribe con el botón ＋ y vuelve acá a decidir qué es.{" "}
           <Link href="/" className="text-accent">
             Ir a Hoy
           </Link>
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * Una cosa escrita y lo que puede llegar a ser.
+ *
+ * Antes esto era un formulario de seis campos con el workspace obligatorio, así
+ * que algo tan común como "responder correos" no tenía salida: no pertenece a
+ * ningún proyecto. Ahora el camino corto es un botón, el proyecto es opcional y
+ * lo demás vive plegado para cuando de verdad haga falta.
+ *
+ * Los destinos que necesitan un proyecto —la bitácora y el plan para retomar—
+ * aparecen recién cuando eliges uno, en vez de estar ahí apagados: una bitácora
+ * sin proyecto no se lee en ninguna parte.
+ */
+function InboxCard({ item, projects }: { item: InboxItem; projects: Project[] }) {
+  const [project, setProject] = useState("");
+  const when = useMemo(() => parseWhen(item.text), [item.text]);
+
+  return (
+    <Card>
+      <div className="mb-3.5 flex items-start justify-between gap-3">
+        <p className="text-[17px] font-semibold leading-snug">{item.text}</p>
+        <span className="shrink-0 text-[12px] text-faint">{fmtRelative(item.created)}</span>
+      </div>
+
+      <Form
+        action={inboxToTask}
+        alt={{
+          hoy: inboxToToday,
+          nota: inboxToNote,
+          plan: triage,
+          descartar: dropInboxItem,
+          borrar: deleteInboxItem,
+          workspace: inboxToProject,
+          presupuesto: inboxToQuote,
+        }}
+      >
+        <input type="hidden" name="id" value={item.id} />
+        <input type="hidden" name="text" value={item.text} />
+        <input type="hidden" name="project" value={project} />
+        <input type="hidden" name="due_date" value={when?.date || ""} />
+        <input type="hidden" name="dest" value="plan" />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="submit" className={btn("primary")}>
+            Tarea{when ? ` · ${when.label}` : ""}
+          </button>
+          {when?.label !== "hoy" && (
+            <button type="submit" data-action="hoy" className={btn("subtle")}>
+              Para hoy
+            </button>
+          )}
+          {project && (
+            <button type="submit" data-action="nota" className={btn("subtle")}>
+              Bitácora
+            </button>
+          )}
+          <button type="submit" data-action="descartar" className={btn("ghost")}>
+            Descartar
+          </button>
+          <button
+            type="submit"
+            data-action="borrar"
+            className={btn("ghost")}
+            aria-label="Borrar"
+            title="Borrar"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-[13px] text-faint">En</span>
+          <select
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            className={cx(inputClass, "max-w-[15rem] py-2 text-[13px]")}
+          >
+            <option value="">ningún proyecto</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <details className="group mt-3">
+          <summary className="cursor-pointer list-none text-[13px] font-semibold text-faint">
+            Otra cosa
+            <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+          </summary>
+
+          <div className="mt-2.5 space-y-2.5">
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" data-action="workspace" className={btn("subtle", "sm")}>
+                Crear workspace con esto
+              </button>
+              <button type="submit" data-action="presupuesto" className={btn("subtle", "sm")}>
+                Empezar un presupuesto
+              </button>
+            </div>
+
+            {project && (
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <input name="next_cue" placeholder="Cuando…" className={inputClass} />
+                <input name="next_step" placeholder="entonces…" className={inputClass} />
+                <button type="submit" data-action="plan" className={btn("subtle")}>
+                  Dejarlo como plan
+                </button>
+              </div>
+            )}
+          </div>
+        </details>
+      </Form>
+    </Card>
   );
 }

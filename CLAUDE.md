@@ -155,9 +155,25 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   de la acción. Si esto se colapsa a un campo de texto libre, se pierde el mecanismo.
   El disparador puede ser una situación **o una hora**: el ECA que comparó ambos no
   encontró diferencia, así que la UI no debe insistir en uno de los dos.
-- **La bandeja obliga a triar.** Capturar no libera la carga; el plan sí. Un ítem no
-  sale de `inbox` hasta convertirse en plan, tarea o bitácora — o en un descarte
-  explícito, que también es una decisión.
+- **La bandeja obliga a triar, pero triar cuesta un toque.** Capturar no libera la carga;
+  el plan sí. Un ítem no sale de `inbox` hasta convertirse en algo — o en un descarte
+  explícito, que también es una decisión. Lo que **no** puede hacer es exigir nada para
+  lograrlo: el formulario pedía destino, workspace (obligatorio), disparador, siguiente
+  paso, prioridad y fecha, así que algo tan corriente como "responder correos" —que no
+  pertenece a ningún proyecto— no tenía salida y se quedaba ahí para siempre. Ahora son
+  botones: Tarea, Para hoy, Descartar. El proyecto es opcional (la base siempre lo
+  permitió; era el formulario el que no) y desbloquea los destinos que sí lo necesitan,
+  bitácora y plan, porque una bitácora sin proyecto no se lee en ninguna parte.
+- **Nada puede quedar sin un lugar donde se vea.** Corolario de lo anterior: si se pueden
+  crear tareas sin fecha y sin proyecto, Hoy tiene que mostrarlas ("Pendientes sin
+  fecha"), porque el horizonte solo lista lo que tiene plazo y la ficha de un workspace
+  solo lo suyo. Permitir crear algo invisible es peor que no dejar crearlo.
+- **La fecha se lee de lo que escribiste** (`lib/local/parse.ts`). "Llamar al mandante el
+  viernes" ofrece «Tarea · vie 21». Es deliberadamente corto y conservador: reconoce un
+  puñado de formas inequívocas y ante la duda no devuelve nada, porque una fecha inventada
+  se descubre el día que no llegaste. Siempre se muestra en el botón lo que entendió — no
+  hay fechas puestas a espaldas de nadie — y el texto no se recorta: la tarea conserva la
+  frase completa.
 - **El calendario mide horas por semana, no bloques con hora.** Una agenda de días y
   horas exige mantenerla al día o queda mintiendo en una semana. Lo que llena un año
   se contrata en la otra unidad —«4 h semanales durante 30 meses», «un ramo, 10 h

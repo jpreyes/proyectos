@@ -103,44 +103,22 @@ function QuotesPage() {
         />
       </div>
 
-      {/* Ocho campos que antes estaban abiertos sobre la lista de presupuestos. */}
-      <details className="group mb-6">
-        <summary className={`${btn("primary")} list-none`}>+ Nuevo presupuesto</summary>
-        <Card className="mt-3" subtitle="Lo demás se llena adentro.">
-          <Form action={createQuote} className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Título" className="sm:col-span-2">
-              <input
-                name="title"
-                required
-                placeholder="Revisión estructural galpón…"
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Cliente">
-              <Select name="client" placeholder="—" options={view.clientOptions} />
-            </Field>
-            <Field label="Tipo">
-              <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
-            </Field>
-            <Field label="Horas de trabajo" hint="tangible, para buscar el hueco">
-              <input name="work_hours" placeholder="60" className={inputClass} />
-            </Field>
-            <Field label="Ritmo máximo" hint="horas por semana">
-              <input name="max_hours_week" placeholder="12" className={inputClass} />
-            </Field>
-            <Field label="Moneda" className="sm:col-span-2">
-              <Select
-                name="currency"
-                defaultValue={cfg.settings.default_currency}
-                options={cfg.options("currency")}
-              />
-            </Field>
-            <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
-              Crear
-            </button>
-          </Form>
-        </Card>
-      </details>
+      {/* Un campo, no seis. Cliente, tipo, horas y moneda se eligen adentro, con
+          el presupuesto ya delante; pedirlos antes de que exista obligaba a
+          decidirlo todo en el peor momento, que es antes de empezar. */}
+      <Card className="mb-6" bodyClassName="px-4 py-3.5">
+        <Form action={createQuote} className="flex flex-wrap items-center gap-2">
+          <input
+            name="title"
+            required
+            placeholder="¿Qué hay que cotizar?"
+            className={`${inputClass} min-w-0 flex-1`}
+          />
+          <button type="submit" className={btn("primary")}>
+            Empezar
+          </button>
+        </Form>
+      </Card>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Link href="/presupuestos" className={cx(btn(status ? "ghost" : "subtle", "sm"))}>

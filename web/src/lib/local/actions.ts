@@ -352,6 +352,97 @@ export async function triage(fd: FormData) {
   await update("inbox", id, { status: outcome ? "planned" : "open", project, outcome });
 }
 
+/**
+ * Los destinos de un toque.
+ *
+ * El triaje pedía seis controles y exigía un workspace, así que una nota como
+ * "responder correos" —que no pertenece a ningún proyecto— no tenía forma de
+ * salir de la bandeja. Estas funciones son el camino corto: una decisión, un
+ * toque, nada obligatorio. El proyecto es opcional en todas; la base siempre lo
+ * permitió, era el formulario el que no.
+ */
+async function settle(fd: FormData, outcome: string) {
+  await update("inbox", str(fd, "id"), {
+    status: "planned",
+    project: str(fd, "project"),
+    outcome,
+  });
+}
+
+/** Lo más común: una tarea. Con fecha si el texto la mencionaba. */
+export async function inboxToTask(fd: FormData) {
+  const due = str(fd, "due_date");
+  await create("tasks", {
+    title: str(fd, "text"),
+    project: str(fd, "project"),
+    status: "todo",
+    priority: "normal",
+    due_date: due,
+  });
+  await settle(fd, due ? "Tarea con fecha" : "Tarea");
+}
+
+/** Lo mismo, pero para hoy. */
+export async function inboxToToday(fd: FormData) {
+  await create("tasks", {
+    title: str(fd, "text"),
+    project: str(fd, "project"),
+    status: "todo",
+    priority: "normal",
+    due_date: today(),
+  });
+  await settle(fd, "Tarea para hoy");
+}
+
+/** Ya pasó: se anota en la bitácora del proyecto en vez de quedar pendiente. */
+export async function inboxToNote(fd: FormData) {
+  await create("log", {
+    project: str(fd, "project"),
+    date: today(),
+    kind: "note",
+    body: str(fd, "text"),
+  });
+  await settle(fd, "Bitácora");
+}
+
+/** Lo escrito era el nombre de algo más grande. */
+export async function inboxToProject(fd: FormData) {
+  const id = await create("projects", {
+    name: str(fd, "text"),
+    kind: "research",
+    status: "idea",
+    priority: "normal",
+    health: "ok",
+  });
+  await update("inbox", str(fd, "id"), {
+    status: "planned",
+    project: id,
+    outcome: "Workspace nuevo",
+  });
+  return `/w/${id}`;
+}
+
+/** Era un encargo que hay que cotizar. */
+export async function inboxToQuote(fd: FormData) {
+  const s = settings();
+  const validity = s.quote_validity_days || 30;
+
+  const id = await create("quotes", {
+    title: str(fd, "text"),
+    status: "draft",
+    date: today(),
+    valid_until: new Date(Date.now() + validity * 86_400_000).toISOString().slice(0, 10),
+    currency: s.default_currency || "CLP",
+    fx_rate: 1,
+    overhead_pct: s.quote_overhead_pct || 0,
+    profit_pct: s.quote_profit_pct || 0,
+    number: nextQuoteNumber(s.quote_prefix),
+  });
+
+  await settle(fd, "Presupuesto");
+  return `/presupuestos/${id}`;
+}
+
 export async function dropInboxItem(fd: FormData) {
   await update("inbox", str(fd, "id"), { status: "dropped", outcome: "Descartado" });
 }

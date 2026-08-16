@@ -3,14 +3,21 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { CalendarFeed, Commitment, Entity, Project } from "@/lib/types";
+import type { CalendarEvent, CalendarFeed, Commitment, Entity, Project } from "@/lib/types";
 import type { Tone } from "@/lib/labels";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { day, sortBy } from "@/lib/local/query";
 import { calendarWindow } from "@/lib/local/schedule";
-import { fmtDate, inputDate } from "@/lib/dates";
-import { fmtHours, weekStart } from "@/lib/capacity";
+import { eventDayKey, fmtClock, fmtDate, fmtDayLong, inputDate } from "@/lib/dates";
+import {
+  buildWeekLoad,
+  fmtHours,
+  monthTitle,
+  monthWeeks,
+  shiftMonth,
+  weekStart,
+} from "@/lib/capacity";
 import {
   createCommitment,
   deleteCalendarFeed,
@@ -34,6 +41,7 @@ import {
   Stat,
 } from "@/components/ui";
 import { WeekGrid } from "@/components/WeekGrid";
+import { MonthGrid, MonthLegend } from "@/components/MonthGrid";
 import { Title } from "@/components/Title";
 
 const VIEWS = [
@@ -55,8 +63,15 @@ function CalendarPage() {
   const sp = useSearchParams();
   const weeks = Number(sp.get("weeks")) || 26;
 
+  // Dos maneras de mirar lo mismo. La de semanas responde "¿cuánto me queda
+  // libre?"; la de mes, "¿qué pasa el jueves?". Ninguna reemplaza a la otra, y
+  // cuál estabas mirando va en la URL para que volver no te devuelva a la otra.
+  const monthView = sp.get("vista") === "mes";
+  const month = sp.get("mes") || new Date().toISOString().slice(0, 7);
+  const [pickedDay, setPickedDay] = useState("");
+
   const allCommitments = useCollection<Commitment>("commitments");
-  const events = useCollection("calendar_events");
+  const events = useCollection<CalendarEvent>("calendar_events");
   const feeds = useCollection<CalendarFeed>("calendar_feeds");
   const projects = useCollection<Project>("projects");
   const entities = useCollection<Entity>("entities");
@@ -75,6 +90,7 @@ function CalendarPage() {
 
     return {
       window,
+      today,
       thisWeek: weekStart(today),
       active: commitments.filter((c) => c.status !== "cancelled" && day(c.end_date) >= today),
       past: commitments.filter((c) => c.status === "cancelled" || day(c.end_date) < today),
@@ -85,6 +101,19 @@ function CalendarPage() {
     // de la ventana los suma, y sin esto la grilla no se redibujaría al llegar
     // una sincronización de Outlook.
   }, [cfg.settings, weeks, allCommitments, events, projects, entities]);
+
+  /**
+   * La carga del mes se calcula aparte, no se saca de `window`.
+   *
+   * `window` arranca en la semana actual y mira hacia adelante, así que un mes
+   * pasado —o uno más allá del horizonte— vendría con todas sus semanas en
+   * cero, y una columna de horas en cero es peor que no tenerla: parece un mes
+   * libre.
+   */
+  const monthLoad = useMemo(
+    () => buildWeekLoad(monthWeeks(month), allCommitments, events),
+    [month, allCommitments, events]
+  );
 
   const { window } = view;
   const nowLoad = window.load.get(view.thisWeek)?.total || 0;
@@ -129,26 +158,92 @@ function CalendarPage() {
       {/* ---------------------------------------------------------- la grilla */}
       <Card
         className="mb-5"
-        title="Carga semanal"
+        title={monthView ? "Mes" : "Carga semanal"}
         action={
           <span className="flex gap-1.5">
-            {VIEWS.map((v) => (
-              <Link
-                key={v.weeks}
-                href={`/calendario?weeks=${v.weeks}`}
-                className={btn(weeks === v.weeks ? "subtle" : "ghost", "sm")}
-              >
-                {v.label}
-              </Link>
-            ))}
+            <Link href="/calendario" className={btn(monthView ? "ghost" : "subtle", "sm")}>
+              Semanas
+            </Link>
+            <Link
+              href={`/calendario?vista=mes&mes=${month}`}
+              className={btn(monthView ? "subtle" : "ghost", "sm")}
+            >
+              Mes
+            </Link>
           </span>
         }
       >
-        <WeekGrid weeks={window.weeks} load={window.load} capacity={window.capacity} />
-        <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
-          Mantén pulsada una semana para ver qué la llena. Los exámenes y comisiones que llegan de
-          Outlook entran acá como horas ocupadas, igual que cualquier compromiso.
-        </p>
+        {monthView ? (
+          <>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              {/* `capitalize` pondría "Agosto De 2026": solo la primera letra. */}
+              <span className="text-[17px] font-semibold first-letter:uppercase">
+                {monthTitle(month)}
+              </span>
+              <span className="flex gap-1">
+                <Link
+                  href={`/calendario?vista=mes&mes=${shiftMonth(month, -1)}`}
+                  aria-label="Mes anterior"
+                  className={btn("ghost", "sm")}
+                >
+                  ‹
+                </Link>
+                <Link href="/calendario?vista=mes" className={btn("ghost", "sm")}>
+                  Hoy
+                </Link>
+                <Link
+                  href={`/calendario?vista=mes&mes=${shiftMonth(month, 1)}`}
+                  aria-label="Mes siguiente"
+                  className={btn("ghost", "sm")}
+                >
+                  ›
+                </Link>
+              </span>
+            </div>
+
+            <MonthGrid
+              month={month}
+              commitments={allCommitments}
+              events={events}
+              load={monthLoad}
+              capacity={window.capacity}
+              today={view.today}
+              selected={pickedDay}
+              onSelect={setPickedDay}
+            />
+
+            {pickedDay && (
+              <DayDetail
+                day={pickedDay}
+                commitments={allCommitments}
+                events={events}
+                tone={(c: Commitment) => cfg.tone("commitment_status", c.status)}
+                statusLabel={(c: Commitment) => cfg.label("commitment_status", c.status)}
+              />
+            )}
+
+            <MonthLegend capacity={window.capacity} />
+          </>
+        ) : (
+          <>
+            <div className="mb-3 flex gap-1.5">
+              {VIEWS.map((v) => (
+                <Link
+                  key={v.weeks}
+                  href={`/calendario?weeks=${v.weeks}`}
+                  className={btn(weeks === v.weeks ? "subtle" : "ghost", "sm")}
+                >
+                  {v.label}
+                </Link>
+              ))}
+            </div>
+            <WeekGrid weeks={window.weeks} load={window.load} capacity={window.capacity} />
+            <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
+              Mantén pulsada una semana para ver qué la llena. Los exámenes y comisiones que llegan
+              de Outlook entran acá como horas ocupadas, igual que cualquier compromiso.
+            </p>
+          </>
+        )}
       </Card>
 
       {/* ------------------------------------------------------- compromisos */}
@@ -347,6 +442,76 @@ function CalendarPage() {
         </p>
       </Card>
     </>
+  );
+}
+
+/* ------------------------------------------------------------ día suelto --- */
+
+/**
+ * Lo que ocupa un día concreto.
+ *
+ * En la cuadrícula una celda del teléfono mide unos 50 px: ahí no cabe un
+ * título, así que las bandas son color y los eventos son puntos. En vez de
+ * achicar el texto hasta volverlo decorativo, el detalle se lee acá abajo al
+ * tocar el día.
+ *
+ * Del compromiso se muestra su ritmo semanal y no una fracción diaria inventada:
+ * «12 h/sem» es lo que se contrató; repartirlo en 1,7 h el martes sería precisión
+ * falsa sobre un dato que nadie prometió así.
+ */
+function DayDetail({
+  day,
+  commitments,
+  events,
+  tone,
+  statusLabel,
+}: {
+  day: string;
+  commitments: Commitment[];
+  events: CalendarEvent[];
+  tone: (c: Commitment) => Tone;
+  statusLabel: (c: Commitment) => string;
+}) {
+  const active = commitments.filter(
+    (c) =>
+      c.status !== "cancelled" &&
+      String(c.start_date).slice(0, 10) <= day &&
+      String(c.end_date).slice(0, 10) >= day
+  );
+  const dayEvents = events
+    .filter((e) => eventDayKey(e.start, e.all_day) === day)
+    .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+
+  return (
+    <div className="mt-4 border-t border-line pt-4">
+      <h3 className="mb-2 text-[15px] font-semibold first-letter:uppercase">{fmtDayLong(day)}</h3>
+
+      {active.length === 0 && dayEvents.length === 0 ? (
+        <p className="text-[13px] text-faint">Nada ocupa este día.</p>
+      ) : (
+        <ul className="space-y-2">
+          {dayEvents.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+              <span className="w-12 shrink-0 tabular-nums text-warn">
+                {e.all_day ? "todo" : fmtClock(e.start)}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-ink">{e.title || "(sin título)"}</span>
+              <span className="tabular-nums text-faint">{fmtHours(e.hours || 0)}</span>
+            </li>
+          ))}
+          {active.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+              <span className="w-12 shrink-0 text-faint">—</span>
+              <span className="min-w-0 flex-1 truncate text-ink">{c.title}</span>
+              <span className="tabular-nums text-muted">
+                {fmtHours(c.hours_per_week || 0)}/sem
+              </span>
+              <Badge tone={tone(c)}>{statusLabel(c)}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

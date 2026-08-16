@@ -179,6 +179,22 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   se descubre el día que no llegaste. Siempre se muestra en el botón lo que entendió — no
   hay fechas puestas a espaldas de nadie — y el texto no se recorta: la tarea conserva la
   frase completa.
+- **Una fila con segunda línea se apila; las insignias bajan.** El plan «cuando…
+  entonces…» y la barra de urgencia comparten fila con la fecha, las insignias y
+  el chevrón. En un teléfono de 390 px un workspace con dos insignias dejaba esa
+  columna en unos 60 px: el título se leía "En…" y el plan bajaba a una palabra
+  por línea. Por eso `Row` pone la segunda línea a ancho completo y manda las
+  insignias abajo. Si alguna vez vuelve a meterse todo en una línea, el síntoma
+  aparece recién con dos insignias, que es lo que lo hizo pasar desapercibido.
+- **El calendario tiene dos vistas y una sola unidad.** La cuadrícula de mes
+  existe porque «¿qué pasa el jueves?» no se responde con barras por semana, pero
+  **no** introduce bloques con hora: un compromiso se dibuja como una banda a lo
+  largo de los días que cubre y su ritmo semanal sigue en la columna de la
+  derecha. Lo único pegado a una hora son los eventos de Outlook, que son los
+  únicos que la tienen. El día de un evento se calcula en `America/Santiago`
+  (`eventDayKey`) y no en UTC como todo lo demás: una comisión a las 21:00 es un
+  instante real y en UTC cae al día siguiente. Los de día completo son la
+  excepción de la excepción — su fecha ya es el dato y se lee en UTC.
 - **El calendario mide horas por semana, no bloques con hora.** Una agenda de días y
   horas exige mantenerla al día o queda mintiendo en una semana. Lo que llena un año
   se contrata en la otra unidad —«4 h semanales durante 30 meses», «un ramo, 10 h

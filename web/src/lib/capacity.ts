@@ -56,6 +56,60 @@ export function addWeeks(key: string, n: number): string {
   return new Date(ms + n * WEEK_MS).toISOString().slice(0, 10);
 }
 
+export function addDays(key: string, n: number): string {
+  const ms = dayStart(key);
+  if (ms === null) return "";
+  return new Date(ms + n * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Los siete días de la semana `key`, de lunes a domingo. */
+export function weekDays(key: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < 7; i++) out.push(addDays(key, i));
+  return out;
+}
+
+/**
+ * Las semanas que cubre la cuadrícula de un mes "YYYY-MM".
+ *
+ * Vive acá y no en el componente porque la vista de mes necesita **las mismas**
+ * semanas para dos cosas: dibujar la cuadrícula y sumar su carga. Calcularlas
+ * dos veces es cómo la columna de horas termina desalineada con los días.
+ */
+export function monthWeeks(month: string): string[] {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return [];
+  const first = new Date(Date.UTC(y, m - 1, 1)).toISOString().slice(0, 10);
+  const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+
+  const out: string[] = [];
+  let week = weekStart(first);
+  while (week <= last) {
+    out.push(week);
+    week = addWeeks(week, 1);
+  }
+  return out;
+}
+
+/** "agosto de 2026", para el encabezado de la vista de mes. */
+export function monthTitle(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return month;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-CL", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** El mes "YYYY-MM" desplazado `n` meses. */
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return month;
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 /** `count` semanas consecutivas a partir de la que contiene `from`. */
 export function weekRange(from: string | null | undefined, count: number): string[] {
   const first = weekStart(from || new Date().toISOString().slice(0, 10));

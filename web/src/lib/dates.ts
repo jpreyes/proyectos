@@ -82,6 +82,49 @@ export function fmtRelative(value: string | null | undefined): string {
   return past ? `hace ${unit}` : `en ${unit}`;
 }
 
+/**
+ * El día al que pertenece un evento del calendario externo.
+ *
+ * Es la única fecha de la app que NO se lee en UTC, y por una razón: un evento
+ * con hora es un instante real, guardado en UTC a partir de la hora de pared de
+ * Santiago (ver lib/ics.ts). Una comisión a las 21:00 cae en el día siguiente
+ * en UTC, así que leerla en UTC la mostraría un día corrida en una cuadrícula
+ * de días.
+ *
+ * Los de día completo son al revés: ahí la fecha ya *es* el dato y viene a
+ * medianoche UTC, así que convertirla a Santiago la correría un día hacia atrás.
+ */
+export function eventDayKey(start: string | null | undefined, allDay?: boolean): string {
+  const raw = String(start || "");
+  if (!raw) return "";
+  if (allDay) return raw.slice(0, 10);
+  const d = toDate(raw);
+  return d ? d.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" }) : raw.slice(0, 10);
+}
+
+/** "14:30" en hora de Santiago, para los eventos que sí tienen hora. */
+export function fmtClock(start: string | null | undefined): string {
+  const d = toDate(start);
+  if (!d) return "";
+  return d.toLocaleTimeString("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** "miércoles 19 de agosto", para el detalle de un día. */
+export function fmtDayLong(day: string | null | undefined): string {
+  const d = toDate(day);
+  if (!d) return "—";
+  return d.toLocaleDateString("es-CL", {
+    timeZone: ZONE,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
 /** "2026-08" bucket key, used by the cash-flow chart. */
 export function monthKey(value: string | null | undefined): string {
   const d = toDate(value);

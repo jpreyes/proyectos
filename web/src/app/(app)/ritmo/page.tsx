@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Daily } from "@/lib/types";
 import { saveDaily } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
@@ -38,6 +38,16 @@ export default function RhythmPage() {
 
   const all = useCollection<Daily>("daily");
   const today = todayISO();
+
+  /**
+   * El día que está abierto en el formulario. Vacío = hoy.
+   *
+   * La lista de abajo mostraba catorce días y ninguno se podía tocar: para
+   * corregir el sueño de anteayer había que escribir su fecha a mano en el
+   * campo de arriba y confiar en que la app entendería que es una edición y no
+   * un registro nuevo. Ahora se toca el día y el formulario se pone en él.
+   */
+  const [picked, setPicked] = useState("");
 
   const view = useMemo(() => {
     const days = sortBy(all, "-date").slice(0, WINDOW_DAYS);
@@ -83,6 +93,21 @@ export default function RhythmPage() {
   const enough = view.rated >= MIN_SAMPLE;
   const { todayRow } = view;
 
+  const editing = picked
+    ? view.days.find((d) => String(d.date).slice(0, 10) === picked)
+    : todayRow;
+  const editingDate = picked || today;
+  const isToday = editingDate === today;
+
+  function scrollTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openDay(date: string) {
+    setPicked(date === today ? "" : date);
+    setTimeout(() => scrollTo("registro"), 60);
+  }
+
   return (
     <>
       <Title>Ritmo</Title>
@@ -99,11 +124,15 @@ export default function RhythmPage() {
       </p>
 
       <div className="mb-6 grid grid-cols-2 gap-3">
+        {/* Los cuatro números salen de los mismos registros, así que los cuatro
+            llevan a donde están: el de energía al desglose por franja, los de
+            sueño y foco a los días que los promedian. */}
         <Stat
           label="Franja peak"
           value={enough && view.best?.avg ? view.best.label : "—"}
           tone={enough ? "accent" : "neutral"}
           hint={enough ? `${view.best?.avg?.toFixed(1)} de 5` : `faltan ${MIN_SAMPLE - view.rated} días`}
+          onPress={() => scrollTo("energia")}
         />
         <Stat
           label="Sueño promedio"
@@ -112,28 +141,54 @@ export default function RhythmPage() {
               ? `${Math.floor(view.avgDuration / 60)}h ${Math.round(view.avgDuration % 60)}m`
               : "—"
           }
+          hint={`de ${view.days.length} día${view.days.length === 1 ? "" : "s"}`}
+          onPress={() => scrollTo("dias")}
         />
         <Stat
           label="Punto medio de sueño"
           value={view.avgMidpoint !== null ? fmtMinutes(view.avgMidpoint) : "—"}
           hint="proxy de cronotipo"
+          onPress={() => scrollTo("dias")}
         />
-        <Stat label="Foco promedio" value={view.focus?.toFixed(1) ?? "—"} hint="horas al día" />
+        <Stat
+          label="Foco promedio"
+          value={view.focus?.toFixed(1) ?? "—"}
+          hint="horas al día"
+          onPress={() => scrollTo("dias")}
+        />
       </div>
 
       <div className="space-y-6">
-        <Card title={todayRow ? "Editar hoy" : "Registrar hoy"}>
+        <Card
+          id="registro"
+          title={
+            isToday
+              ? todayRow
+                ? "Editar hoy"
+                : "Registrar hoy"
+              : `${editing ? "Editar" : "Registrar"} ${fmtDate(editingDate)}`
+          }
+          action={
+            !isToday && (
+              <button type="button" onClick={() => setPicked("")} className={btn("ghost", "sm")}>
+                Volver a hoy
+              </button>
+            )
+          }
+        >
           <Form
             action={saveDaily}
-            key={todayRow?.updated || "nuevo"}
+            // Remontar al cambiar de día: los campos no son controlados, así que
+            // sin esto abrir otro día mostraría los valores del anterior.
+            key={`${editingDate}-${editing?.updated || "nuevo"}`}
             className="grid gap-3.5 sm:grid-cols-2"
           >
-            {todayRow && <input type="hidden" name="id" value={todayRow.id} />}
+            {editing && <input type="hidden" name="id" value={editing.id} />}
             <Field label="Fecha" className="sm:col-span-2">
               <input
                 type="date"
                 name="date"
-                defaultValue={todayRow ? String(todayRow.date).slice(0, 10) : today}
+                defaultValue={editingDate}
                 className={inputClass}
               />
             </Field>
@@ -141,7 +196,7 @@ export default function RhythmPage() {
               <input
                 name="sleep_start"
                 placeholder="01:30"
-                defaultValue={todayRow?.sleep_start}
+                defaultValue={editing?.sleep_start}
                 className={inputClass}
               />
             </Field>
@@ -149,7 +204,7 @@ export default function RhythmPage() {
               <input
                 name="sleep_end"
                 placeholder="09:15"
-                defaultValue={todayRow?.sleep_end}
+                defaultValue={editing?.sleep_end}
                 className={inputClass}
               />
             </Field>
@@ -160,7 +215,7 @@ export default function RhythmPage() {
                 min={0}
                 max={5}
                 name="energy_morning"
-                defaultValue={todayRow?.energy_morning || ""}
+                defaultValue={editing?.energy_morning || ""}
                 className={inputClass}
               />
             </Field>
@@ -170,7 +225,7 @@ export default function RhythmPage() {
                 min={0}
                 max={5}
                 name="energy_afternoon"
-                defaultValue={todayRow?.energy_afternoon || ""}
+                defaultValue={editing?.energy_afternoon || ""}
                 className={inputClass}
               />
             </Field>
@@ -180,7 +235,7 @@ export default function RhythmPage() {
                 min={0}
                 max={5}
                 name="energy_evening"
-                defaultValue={todayRow?.energy_evening || ""}
+                defaultValue={editing?.energy_evening || ""}
                 className={inputClass}
               />
             </Field>
@@ -188,7 +243,7 @@ export default function RhythmPage() {
               <input
                 name="focus_hours"
                 inputMode="decimal"
-                defaultValue={todayRow?.focus_hours || ""}
+                defaultValue={editing?.focus_hours || ""}
                 className={inputClass}
               />
             </Field>
@@ -197,7 +252,7 @@ export default function RhythmPage() {
               <textarea
                 name="notes"
                 rows={2}
-                defaultValue={todayRow?.notes}
+                defaultValue={editing?.notes}
                 className={`${inputClass} resize-y`}
               />
             </Field>
@@ -211,6 +266,7 @@ export default function RhythmPage() {
         </Card>
 
         <Card
+          id="energia"
           title="Energía por franja"
           subtitle={`Promedio de ${view.rated} día${view.rated === 1 ? "" : "s"}`}
         >
@@ -248,7 +304,7 @@ export default function RhythmPage() {
       {/* La tabla de cuatro columnas se fue: en un teléfono se desplazaba de
           lado, y la ventana de sueño más las tres notas caben en una línea. */}
       <div className="mt-6">
-        <Group title="Últimos días">
+        <Group id="dias" title="Últimos días">
           {view.days.length === 0 ? (
             <Empty>Sin registros.</Empty>
           ) : (
@@ -256,7 +312,12 @@ export default function RhythmPage() {
               <Row
                 key={d.id}
                 label={fmtDate(d.date)}
-                chevron={false}
+                onPress={() => openDay(String(d.date).slice(0, 10))}
+                className={
+                  String(d.date).slice(0, 10) === editingDate
+                    ? "ring-1 ring-inset ring-accent/40"
+                    : undefined
+                }
                 hint={[
                   d.sleep_start && d.sleep_end ? `${d.sleep_start}–${d.sleep_end}` : null,
                   `M/T/N ${[d.energy_morning, d.energy_afternoon, d.energy_evening]

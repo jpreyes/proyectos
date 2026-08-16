@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { flush, queue } from "@/lib/offline";
+import { create } from "@/lib/local/mutate";
 import { btn, cx, inputClass } from "./ui";
 
 /**
- * One field, one tap, and the write goes to IndexedDB first — the same path
- * online and offline. Anything else would make capture fail exactly when it
- * matters most, and a capture box you cannot trust is worse than none.
+ * One field, one tap, and the write lands in the local replica — the same path
+ * online and offline. Every write in the app works this way now; capture was
+ * simply the first one that could not afford to fail, and the rest caught up.
  *
  * The permanent bar is gone from the phone, where it cost a row of screen on
  * every view; it is now a button beside the tab bar that opens an autofocused
@@ -17,7 +16,6 @@ import { btn, cx, inputClass } from "./ui";
  * stays inline and capture still costs zero.
  */
 export function CaptureBar({ open }: { open: number }) {
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const sheetInputRef = useRef<HTMLInputElement>(null);
   const [justSaved, setJustSaved] = useState(false);
@@ -57,13 +55,10 @@ export function CaptureBar({ open }: { open: number }) {
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 1200);
 
-      await queue("inbox", { text: value, status: "open" });
-      window.dispatchEvent(new CustomEvent("outbox-changed"));
-      await flush();
-      window.dispatchEvent(new CustomEvent("outbox-changed"));
-      router.refresh();
+      // Aparece en la bandeja en el mismo instante: la réplica ya lo tiene.
+      await create("inbox", { text: value, status: "open" });
     },
-    [router]
+    []
   );
 
   async function install() {

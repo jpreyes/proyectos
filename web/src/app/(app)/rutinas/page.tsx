@@ -1,14 +1,22 @@
+"use client";
+
+import { useMemo } from "react";
 import type { Routine, RoutineLog } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { archiveRoutine, createRoutine, deleteRoutine, toggleRoutineDay } from "@/lib/actions";
-import { getConfig } from "@/lib/config";
-import { alive, ALIVE } from "@/lib/filters";
+import {
+  archiveRoutine,
+  createRoutine,
+  deleteRoutine,
+  toggleRoutineDay,
+} from "@/lib/local/actions";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { groupBy, sortBy } from "@/lib/local/query";
 import { daysUntil, fmtDate, todayISO } from "@/lib/dates";
+import { Form } from "@/components/form";
 import { btn, Card, cx, Empty, Field, inputClass, PageHeader } from "@/components/ui";
+import { Title } from "@/components/Title";
 
-export const metadata = { title: "Rutinas · Proyectos" };
-
-/** Last N calendar days, oldest first, as YYYY-MM-DD. */
+/** Los últimos N días corridos, del más viejo al más nuevo, como YYYY-MM-DD. */
 function lastDays(n: number): string[] {
   const out: string[] = [];
   const now = new Date();
@@ -29,7 +37,7 @@ function RoutineCard({
   gridDays: number;
 }) {
   const byDay = new Map<string, RoutineLog>();
-  for (const l of logs) byDay.set(l.date.slice(0, 10), l);
+  for (const l of logs) byDay.set(String(l.date).slice(0, 10), l);
 
   const days = lastDays(gridDays);
   const today = todayISO();
@@ -38,10 +46,10 @@ function RoutineCard({
   const reps = logs.length;
   const elapsed = routine.started ? Math.abs(daysUntil(routine.started) ?? 0) : 0;
 
-  // Self-rated automaticity over repetitions, if any ratings exist.
+  // Automaticidad autoevaluada a lo largo de las repeticiones, si hay notas.
   const rated = logs
     .filter((l) => l.automaticity > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   return (
     <Card
@@ -57,7 +65,7 @@ function RoutineCard({
         ) : undefined
       }
       action={
-        <form action={toggleRoutineDay} className="flex items-center gap-2">
+        <Form action={toggleRoutineDay} className="flex items-center gap-2">
           <input type="hidden" name="routine" value={routine.id} />
           <input type="hidden" name="date" value={today} />
           <input type="hidden" name="log_id" value={todayLog?.id || ""} />
@@ -70,7 +78,7 @@ function RoutineCard({
           >
             {todayLog ? "✓ hecho hoy" : "marcar hoy"}
           </button>
-        </form>
+        </Form>
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-muted">
@@ -90,7 +98,7 @@ function RoutineCard({
         )}
       </div>
 
-      {/* Dot grid, not a streak. Gaps are information, not failure. */}
+      {/* Grilla de puntos, no una racha. Los huecos son información, no fracaso. */}
       <div className="flex flex-wrap gap-1">
         {days.map((d) => {
           const hit = byDay.has(d);
@@ -118,7 +126,7 @@ function RoutineCard({
             {rated.map((l) => (
               <span
                 key={l.id}
-                title={`${l.date.slice(0, 10)}: ${l.automaticity}`}
+                title={`${String(l.date).slice(0, 10)}: ${l.automaticity}`}
                 className="min-w-[3px] flex-1 rounded-t-[2px] bg-accent/60"
                 style={{ height: `${(l.automaticity / 7) * 100}%` }}
               />
@@ -128,50 +136,48 @@ function RoutineCard({
       )}
 
       <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
-        <form action={archiveRoutine}>
+        <Form action={archiveRoutine}>
           <input type="hidden" name="id" value={routine.id} />
           <button type="submit" className={btn("ghost", "sm")}>
             Archivar
           </button>
-        </form>
-        <form action={deleteRoutine}>
+        </Form>
+        <Form action={deleteRoutine} confirm={`¿Eliminar la rutina "${routine.name}"?`}>
           <input type="hidden" name="id" value={routine.id} />
           <button type="submit" className={btn("ghost", "sm")}>
             Eliminar
           </button>
-        </form>
+        </Form>
       </div>
     </Card>
   );
 }
 
-export default async function RoutinesPage() {
-  const pb = await requirePB();
-  const cfg = await getConfig();
+export default function RoutinesPage() {
+  const cfg = useConfig();
   const gridDays = cfg.settings.routine_grid_days;
 
-  const routines = await pb
-    .collection("routines")
-    .getFullList<Routine>({ filter: alive("active = true"), sort: "name" });
+  const allRoutines = useCollection<Routine>("routines");
+  const allLogs = useCollection<RoutineLog>("routine_log");
 
-  const logs =
-    routines.length > 0
-      ? await pb.collection("routine_log").getFullList<RoutineLog>({
-          filter: routines.map((r) => `routine = "${r.id}"`).join(" || "),
-          sort: "date",
-        })
-      : [];
-
-  const byRoutine = new Map<string, RoutineLog[]>();
-  for (const l of logs) {
-    const list = byRoutine.get(l.routine) || [];
-    list.push(l);
-    byRoutine.set(l.routine, list);
-  }
+  const { routines, byRoutine } = useMemo(
+    () => ({
+      routines: sortBy(
+        allRoutines.filter((r) => r.active),
+        "name"
+      ),
+      byRoutine: groupBy(sortBy(allLogs, "date"), (l) => l.routine),
+    }),
+    [allRoutines, allLogs]
+  );
 
   return (
     <>
-      <PageHeader title="Rutinas" subtitle={`${routines.length} activa${routines.length === 1 ? "" : "s"}`} />
+      <Title>Rutinas</Title>
+      <PageHeader
+        title="Rutinas"
+        subtitle={`${routines.length} activa${routines.length === 1 ? "" : "s"}`}
+      />
 
       <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
         No hay rachas acá, a propósito. La automaticidad crece siguiendo una curva que se aplana:
@@ -191,7 +197,7 @@ export default async function RoutinesPage() {
       <details className="group mt-6">
         <summary className={`${btn("subtle")} list-none`}>+ Nueva rutina</summary>
         <Card className="mt-3">
-          <form action={createRoutine} className="grid gap-3.5 sm:grid-cols-2">
+          <Form action={createRoutine} reset className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Nombre" className="sm:col-span-2">
               <input name="name" required className={inputClass} />
             </Field>
@@ -211,7 +217,7 @@ export default async function RoutinesPage() {
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Crear
             </button>
-          </form>
+          </Form>
         </Card>
       </details>
     </>

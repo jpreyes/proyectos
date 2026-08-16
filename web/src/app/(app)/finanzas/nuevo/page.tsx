@@ -1,37 +1,34 @@
-import type { Account, Category, Entity, Project } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { createEntry } from "@/lib/actions";
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { createEntry } from "@/lib/local/actions";
+import { useLedgerLists } from "@/lib/local/lists";
 import { PageHeader } from "@/components/ui";
 import { EntryForm } from "@/components/EntryForm";
+import { Title } from "@/components/Title";
 
-export const metadata = { title: "Nuevo movimiento · Proyectos" };
+export default function NewEntryRoute() {
+  return (
+    <Suspense fallback={null}>
+      <NewEntryPage />
+    </Suspense>
+  );
+}
 
-export default async function NewEntryPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ project?: string; return_to?: string }>;
-}) {
-  const sp = await searchParams;
-  const pb = await requirePB();
-
-  const [projects, entities, accounts, categories] = await Promise.all([
-    pb.collection("projects").getFullList<Project>({ filter: "deleted != true", sort: "name" }),
-    pb.collection("entities").getFullList<Entity>({ filter: "deleted != true", sort: "name" }),
-    pb.collection("accounts").getFullList<Account>({ sort: "name" }),
-    pb.collection("categories").getFullList<Category>({ sort: "direction,name" }),
-  ]);
+function NewEntryPage() {
+  const sp = useSearchParams();
+  const lists = useLedgerLists();
 
   return (
     <>
+      <Title>Nuevo movimiento</Title>
       <PageHeader title="Nuevo movimiento" />
       <EntryForm
         action={createEntry}
-        projects={projects}
-        entities={entities}
-        accounts={accounts}
-        categories={categories}
-        defaultProject={sp.project}
-        returnTo={sp.return_to}
+        {...lists}
+        defaultProject={sp.get("project") || undefined}
+        returnTo={sp.get("return_to") || undefined}
       />
     </>
   );

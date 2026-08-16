@@ -1,7 +1,11 @@
+"use client";
+
 import type { Resource } from "@/lib/types";
 import { RESOURCE_KIND_ICON } from "@/lib/labels";
-import { getConfig, type Config } from "@/lib/config";
-import { addResource, deleteResource, toggleResourcePin } from "@/lib/actions";
+import type { Config } from "@/lib/config";
+import { useConfig } from "@/lib/local/config";
+import { addResource, deleteResource, toggleResourcePin } from "@/lib/local/actions";
+import { Form } from "./form";
 import { Badge, btn, cx, Empty, inputClass, Select } from "./ui";
 import { CopyButton } from "./CopyButton";
 
@@ -34,7 +38,7 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
           )}
         </div>
 
-        {/* The whole point of the collection: the note your past self left. */}
+        {/* El punto entero de la colección: la nota que dejó tu yo anterior. */}
         {r.purpose && <p className="mt-1 text-[13px] leading-snug text-muted">{r.purpose}</p>}
 
         <div className="mt-1.5 flex items-center gap-2">
@@ -56,12 +60,11 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
         </div>
       </div>
 
-      {/* Was opacity-0 until hover: on a phone these two controls simply were
-          not reachable. Dimmed and permanent instead. */}
+      {/* Estaban en opacity-0 hasta el hover: en un teléfono simplemente no se
+          podían tocar. Atenuados y permanentes. */}
       <div className="flex shrink-0 items-center gap-0.5">
-        <form action={toggleResourcePin}>
+        <Form action={toggleResourcePin}>
           <input type="hidden" name="id" value={r.id} />
-          <input type="hidden" name="project" value={r.project} />
           <input type="hidden" name="pinned" value={r.pinned ? "0" : "1"} />
           <button
             type="submit"
@@ -73,10 +76,9 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
           >
             ★
           </button>
-        </form>
-        <form action={deleteResource}>
+        </Form>
+        <Form action={deleteResource}>
           <input type="hidden" name="id" value={r.id} />
-          <input type="hidden" name="project" value={r.project} />
           <button
             type="submit"
             aria-label={`Eliminar ${r.label}`}
@@ -84,20 +86,20 @@ function ResourceRow({ r, cfg }: { r: Resource; cfg: Config }) {
           >
             ✕
           </button>
-        </form>
+        </Form>
       </div>
     </li>
   );
 }
 
-export async function ResourceMap({
+export function ResourceMap({
   projectId,
   resources,
 }: {
   projectId: string;
   resources: Resource[];
 }) {
-  const cfg = await getConfig();
+  const cfg = useConfig();
   const pinned = resources.filter((r) => r.pinned);
   const current = resources.filter(
     (r) => !r.pinned && r.state !== "archived" && r.state !== "deprecated"
@@ -145,7 +147,7 @@ export async function ResourceMap({
 
       <details className="mt-4">
         <summary className={`${btn("subtle", "sm")} list-none`}>+ Agregar ubicación</summary>
-        <form action={addResource} className="mt-3 grid gap-2.5 sm:grid-cols-2">
+        <Form action={addResource} reset className="mt-3 grid gap-2.5 sm:grid-cols-2">
           <input type="hidden" name="project" value={projectId} />
           <input name="label" required placeholder="Nombre corto" className={inputClass} />
           <Select name="kind" options={cfg.options("resource_kind")} defaultValue="folder" />
@@ -164,7 +166,7 @@ export async function ResourceMap({
           <button type="submit" className={btn("primary")}>
             Agregar
           </button>
-        </form>
+        </Form>
       </details>
     </div>
   );

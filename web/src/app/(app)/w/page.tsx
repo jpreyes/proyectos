@@ -1,57 +1,87 @@
+"use client";
+
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { LogEntry, Project, ProjectKind } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { getConfig } from "@/lib/config";
-import { alive, ALIVE } from "@/lib/filters";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { groupBy, matches, sortBy } from "@/lib/local/query";
 import { fmtRelative } from "@/lib/dates";
 import { Badge, btn, Empty, Group, inputClass, PageHeader, Row } from "@/components/ui";
 import { NextStepLine } from "@/components/NextStep";
-
-export const metadata = { title: "Trabajo · Proyectos" };
+import { Title } from "@/components/Title";
 
 const ACTIVE = ["idea", "active", "paused", "waiting"];
 
-export default async function WorkspacesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; kind?: string; todos?: string }>;
-}) {
-  const sp = await searchParams;
-  const pb = await requirePB();
-  const cfg = await getConfig();
+/**
+ * `useSearchParams` obliga a un límite de Suspense: sin él Next no puede
+ * prerenderizar la cáscara, y la cáscara es justo lo que hace que esta pantalla
+ * abra sin red.
+ */
+export default function WorkspacesRoute() {
+  return (
+    <Suspense fallback={null}>
+      <WorkspacesPage />
+    </Suspense>
+  );
+}
 
-  const filters: string[] = [ALIVE];
-  if (sp.q) filters.push(pb.filter("(name ~ {:q} || code ~ {:q} || summary ~ {:q})", { q: sp.q }));
-  if (sp.kind) filters.push(pb.filter("kind = {:k}", { k: sp.kind }));
-  if (!sp.todos) filters.push(`(${ACTIVE.map((s) => `status = "${s}"`).join(" || ")})`);
+function WorkspacesPage() {
+  const cfg = useConfig();
+  const router = useRouter();
+  const sp = useSearchParams();
 
-  const projects = await pb.collection("projects").getFullList<Project>({
-    filter: filters.join(" && "),
-    sort: "kind,name",
-    expand: "client",
-  });
+  const q = sp.get("q") || "";
+  const kind = sp.get("kind") || "";
+  const todos = sp.get("todos") || "";
 
-  // Last journal entry per project, so the list can show how cold each one is.
-  const recent = await pb
-    .collection("log")
-    .getList<LogEntry>(1, 400, { filter: ALIVE, sort: "-date", fields: "project,date" });
-  const lastSeen = new Map<string, string>();
-  for (const l of recent.items) if (!lastSeen.has(l.project)) lastSeen.set(l.project, l.date);
+  const allProjects = useCollection<Project>("projects");
+  const logs = useCollection<LogEntry>("log");
 
-  const byKind = new Map<ProjectKind, Project[]>();
-  for (const p of projects) {
-    const list = byKind.get(p.kind) || [];
-    list.push(p);
-    byKind.set(p.kind, list);
+  const { byKind, projects, lastSeen } = useMemo(() => {
+    const filtered = allProjects.filter((p) => {
+      if (q && !matches([p.name, p.code, p.summary], q)) return false;
+      if (kind && p.kind !== kind) return false;
+      if (!todos && !ACTIVE.includes(p.status)) return false;
+      return true;
+    });
+
+    const ordered = sortBy(filtered, "kind", "name");
+
+    // La última entrada de bitácora por proyecto, para poder mostrar cuán frío
+    // está cada uno.
+    const seen = new Map<string, string>();
+    for (const l of sortBy(logs, "-date")) {
+      if (!seen.has(l.project)) seen.set(l.project, l.date);
+    }
+
+    return {
+      projects: ordered,
+      lastSeen: seen,
+      byKind: groupBy(ordered, (p) => p.kind) as Map<ProjectKind, Project[]>,
+    };
+  }, [allProjects, logs, q, kind, todos]);
+
+  const filtering = Boolean(q || kind || todos);
+
+  function search(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const params = new URLSearchParams();
+    for (const key of ["q", "kind", "todos"]) {
+      const value = String(fd.get(key) || "").trim();
+      if (value) params.set(key, value);
+    }
+    router.replace(params.size ? `/w?${params}` : "/w");
   }
-
-  const filtering = Boolean(sp.q || sp.kind || sp.todos);
 
   return (
     <>
+      <Title>Trabajo</Title>
       <PageHeader
         title="Trabajo"
-        subtitle={`${projects.length} ${sp.todos ? "en total" : "abiertos"}`}
+        subtitle={`${projects.length} ${todos ? "en total" : "abiertos"}`}
         action={
           <Link href="/w/nuevo" className={btn("primary", "sm")}>
             + Nuevo
@@ -59,13 +89,15 @@ export default async function WorkspacesPage({
         }
       />
 
-      {/* Search stays inline and always visible; the two refinements collapse
-          into a <details> so the default view is one field, not four controls. */}
-      <form className="mb-6 space-y-2.5">
+      {/* La búsqueda queda siempre a la vista; los dos refinamientos se pliegan
+          en un <details> para que la vista por defecto sea un campo, no cuatro
+          controles. Ahora filtra sobre la réplica, así que responde al teclear
+          incluso sin red. */}
+      <form onSubmit={search} className="mb-6 space-y-2.5">
         <div className="flex gap-2">
           <input
             name="q"
-            defaultValue={sp.q || ""}
+            defaultValue={q}
             placeholder="Buscar…"
             className={`${inputClass} min-w-0 flex-1`}
           />
@@ -80,11 +112,7 @@ export default async function WorkspacesPage({
             <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
           </summary>
           <div className="mt-2.5 flex flex-wrap gap-2">
-            <select
-              name="kind"
-              defaultValue={sp.kind || ""}
-              className={`${inputClass} max-w-[13rem]`}
-            >
+            <select name="kind" defaultValue={kind} className={`${inputClass} max-w-[13rem]`}>
               <option value="">Todos los tipos</option>
               {cfg.options("project_kind").map((o) => (
                 <option key={o.value} value={o.value}>
@@ -93,7 +121,7 @@ export default async function WorkspacesPage({
               ))}
             </select>
             <label className="flex items-center gap-2 rounded-xl bg-panel2 px-3.5 text-[15px] text-muted">
-              <input type="checkbox" name="todos" value="1" defaultChecked={!!sp.todos} />
+              <input type="checkbox" name="todos" value="1" defaultChecked={!!todos} />
               Incluir cerrados
             </label>
             <button type="submit" className={btn("subtle")}>
@@ -105,8 +133,8 @@ export default async function WorkspacesPage({
 
       {projects.length === 0 && <Empty>No hay workspaces que coincidan.</Empty>}
 
-      {[...byKind.entries()].map(([kind, list]) => (
-        <Group key={kind} title={`${cfg.label("project_kind", kind)} · ${list.length}`}>
+      {[...byKind.entries()].map(([kindKey, list]) => (
+        <Group key={kindKey} title={`${cfg.label("project_kind", kindKey)} · ${list.length}`}>
           {list.map((p) => {
             const seen = lastSeen.get(p.id);
             return (

@@ -1,71 +1,66 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { pending } from "@/lib/offline";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { getSyncState, subscribeSync, syncNow } from "@/lib/local/sync";
 
 /**
- * The only thing losing the network is allowed to do to the screen.
+ * Lo único que la conexión puede hacerle a la pantalla.
  *
- * Before this, a failed navigation replaced the app with a full-page "Sin
- * conexión". That reads as an outage even when nothing is lost: the service
- * worker keeps the last rendered copy of every screen and captures already go
- * to IndexedDB first, so the honest report is not "you are down", it is "this
- * is what you had, and what you write now goes up later".
+ * Ahora que las escrituras se aplican en el dispositivo, quedarse sin red dejó
+ * de ser un evento: no se pierde nada, no falla nada, solo hay una cola que
+ * espera. Por eso esto es una píldora en la esquina y no un aviso — visible si
+ * la buscas, ignorable si no.
  *
- * So it stays a pill in the corner: visible if you look for it, ignorable if
- * you don't, never in the way of the content. It also carries the outbox count,
- * because a queue draining is the one part of this the user may want to watch.
+ * Lo que sí merece decirse fuerte es lo contrario: si el servidor **rechazó**
+ * algo, ya no va a subir solo, y callarlo sería mentir sobre lo que está
+ * guardado. Ese es el único estado que insiste.
  */
 export function OfflineBadge() {
+  const sync = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
   const [online, setOnline] = useState(true);
-  const [queued, setQueued] = useState(0);
-
-  const refresh = useCallback(async () => {
-    setQueued((await pending()).length);
-  }, []);
 
   useEffect(() => {
     setOnline(navigator.onLine);
-    refresh();
-
     const on = () => setOnline(true);
     const off = () => setOnline(false);
-
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
-    window.addEventListener("outbox-changed", refresh);
-    // The queue also drains from the worker, which reports back through
-    // `outbox-changed`; the timer is for the flushes it cannot announce.
-    const timer = setInterval(refresh, 8000);
-
     return () => {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
-      window.removeEventListener("outbox-changed", refresh);
-      clearInterval(timer);
     };
-  }, [refresh]);
+  }, []);
 
-  if (online && queued === 0) return null;
+  const { queued, rejected } = sync;
+  if (online && queued === 0 && rejected === 0) return null;
 
-  const label = online
-    ? `${queued} por subir`
-    : queued > 0
-      ? `Sin conexión · ${queued} por subir`
-      : "Sin conexión";
+  const tone = rejected > 0 ? "bg-bad" : online ? "bg-faint" : "bg-warn";
+
+  const label = rejected
+    ? `${rejected} no se pudo${rejected === 1 ? "" : "n"} guardar`
+    : online
+      ? `${queued} por subir`
+      : queued > 0
+        ? `Sin conexión · ${queued} por subir`
+        : "Sin conexión";
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="bottom-badge pointer-events-none fixed left-4 z-30 flex items-center gap-2 rounded-full bg-panel/90 px-3 py-1.5 text-[11px] leading-none text-muted shadow-md shadow-black/30 backdrop-blur md:bottom-4"
+    <button
+      type="button"
+      onClick={() => void syncNow()}
+      title="Sincronizar ahora"
+      className="bottom-badge fixed left-4 z-30 flex items-center gap-2 rounded-full bg-panel/90 px-3 py-1.5 text-[11px] leading-none text-muted shadow-md shadow-black/30 backdrop-blur md:bottom-4"
     >
       <span
         aria-hidden
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${online ? "bg-faint" : "bg-warn"}`}
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone} ${sync.syncing ? "animate-pulse" : ""}`}
       />
-      <span className="truncate">{label}</span>
-      {!online && <span className="hidden text-faint sm:inline">· sube al volver la red</span>}
-    </div>
+      <span className="truncate" role="status" aria-live="polite">
+        {label}
+      </span>
+      {!online && queued > 0 && (
+        <span className="hidden text-faint sm:inline">· sube al volver la red</span>
+      )}
+    </button>
   );
 }

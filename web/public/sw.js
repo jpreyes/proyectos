@@ -1,49 +1,80 @@
-/* Service worker — hand written, no build step, no dependency.
+/* Service worker — escrito a mano, sin build y sin dependencias.
  *
- * The app is server-rendered, so it cannot *run* offline as a whole. But losing
- * the network should not feel like an outage: every page you open is kept as it
- * was rendered, so going offline keeps showing the app instead of an error
- * screen, and captures live in IndexedDB until they can be posted.
+ * Desde que la app es local-first, el papel de este archivo cambió y se
+ * simplificó. Antes tenía que guardar cada pantalla *renderizada*, porque el
+ * HTML traía los datos; ahora el HTML es una cáscara vacía y los datos salen de
+ * la réplica en IndexedDB. O sea:
  *
- * Layers, in order of how much they can be trusted:
- *   - assets  — content-hashed build output, cache first, never stale.
- *   - pages   — the last rendered copy of each visited screen. Stale by
- *               definition; served only when the network is genuinely gone,
- *               and the UI says so passively (components/OfflineBadge).
- *   - shell   — /offline, the last resort for a screen never opened before.
- * API responses are never cached: wrong numbers are worse than no numbers.
+ *   - assets — salida de build con hash en el nombre, cache primero.
+ *   - shells — **una** cáscara por forma de ruta, no una por URL. La de
+ *              /w/:id sirve para cualquier proyecto, incluido uno que este
+ *              dispositivo nunca abrió. Eso funciona porque las pantallas leen
+ *              el id de la barra de direcciones (ver lib/local/route.ts) y no
+ *              del árbol que mandó el servidor.
+ *   - /offline — último recurso, para una forma de ruta nunca vista.
+ *
+ * Nada de /api se cachea: los datos ya están en la réplica, y una respuesta
+ * vieja del servidor solo podría contradecirla.
+ *
+ * La otra mitad del trabajo es la cola de escrituras. La app la vacía mientras
+ * está abierta; acá se vacía cuando ya la cerraste y la señal volvió después
+ * —capturar algo en el ascensor y bloquear el teléfono— que es el único caso
+ * que la pestaña no puede cubrir.
  */
 
-// v5: adds the `pages` cache, which is what removes the offline takeover
-// screen for anything already visited. v4 evicted the /offline copy stored by
-// v3 and earlier, which carried a bogus `content-encoding`.
-const VERSION = "v5";
+// v6: cáscaras por forma de ruta en vez de copias por URL, y la cola pasa a
+// llevar operaciones (crear/actualizar/borrar) en vez de solo capturas.
+const VERSION = "v6";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const PAGES = `pages-${VERSION}`;
+const SHELLS = `shells-${VERSION}`;
 const OFFLINE_URL = "/offline";
 
 const PRECACHE = [OFFLINE_URL, "/icons/192", "/icons/512"];
 
-/** At most one warm-up sweep of the tab bar destinations per this interval. */
+/** Como mucho un barrido de precalentamiento cada este intervalo. */
 const WARM_INTERVAL_MS = 10 * 60 * 1000;
-/** How many rendered screens to keep. Re-putting a page refreshes its slot. */
-const PAGE_LIMIT = 80;
+
+/* ------------------------------------------------------------- rutas ----- */
+
+/**
+ * La forma de una ruta: /w/abc123 -> /w/:id.
+ *
+ * Es la clave con la que se guarda y se busca una cáscara. La lista es corta y
+ * explícita a propósito: adivinar qué segmento es un id a partir de su forma
+ * confundiría /finanzas/nuevo con /finanzas/:id, y serviría el formulario de
+ * edición en lugar del de creación.
+ */
+const ROUTE_SHAPES = [
+  [/^\/w\/[^/]+\/editar$/, "/w/:id/editar"],
+  [/^\/w\/nuevo$/, "/w/nuevo"],
+  [/^\/w\/[^/]+$/, "/w/:id"],
+  [/^\/finanzas\/nuevo$/, "/finanzas/nuevo"],
+  [/^\/finanzas\/[^/]+$/, "/finanzas/:id"],
+  [/^\/presupuestos\/[^/]+\/imprimir$/, "/presupuestos/:id/imprimir"],
+  [/^\/presupuestos\/[^/]+$/, "/presupuestos/:id"],
+];
+
+function routeShape(pathname) {
+  for (const [pattern, shape] of ROUTE_SHAPES) {
+    if (pattern.test(pathname)) return shape;
+  }
+  return pathname; // rutas fijas: /, /inbox, /calendario…
+}
+
+/** La clave de cache. Se usa una URL sintética porque Cache API exige una. */
+function shellKey(pathname) {
+  return `${self.location.origin}/__shell${routeShape(pathname)}`;
+}
 
 /* ----------------------------------------------------------- lifecycle -- */
 
 /**
- * Caching the offline HTML is not enough: without its own JavaScript the page
- * renders but never hydrates, so the capture box looks fine and silently does
- * nothing — the worst possible failure for the one screen that has to work.
- * So read the markup and cache whatever it asks for.
- */
-/**
- * `res.text()` hands back the *decoded* body, but the headers still describe the
- * encoded one. Cloudflare brotli-compresses this route, so copying them verbatim
- * caches HTML labelled `content-encoding: br`; the browser then tries to brotli-
- * decode plain text and the page fails to load at all. Safari happens to tolerate
- * it, which is what kept this hidden. Content-Length lies the same way.
+ * `res.text()` entrega el cuerpo ya decodificado, pero las cabeceras siguen
+ * describiendo el comprimido. Cloudflare comprime con brotli, así que copiarlas
+ * tal cual guarda un HTML rotulado `content-encoding: br`: el navegador intenta
+ * descomprimir texto plano y la página no carga. Safari lo tolera, que es lo que
+ * mantuvo esto escondido. Content-Length miente igual.
  */
 function decodedHeaders(res) {
   const headers = new Headers(res.headers);
@@ -52,6 +83,12 @@ function decodedHeaders(res) {
   return headers;
 }
 
+/**
+ * Cachear solo el HTML de /offline no basta: sin su JavaScript la página se
+ * dibuja pero nunca hidrata, así que el cuadro de captura se ve bien y no
+ * guarda nada — el peor fallo posible justo en la pantalla que tiene que
+ * funcionar. Se lee el marcado y se cachea lo que pida.
+ */
 async function precacheOfflineShell(cache) {
   const res = await fetch(OFFLINE_URL, { cache: "reload" });
   const html = await res.text();
@@ -62,9 +99,7 @@ async function precacheOfflineShell(cache) {
   let match;
   while ((match = pattern.exec(html)) !== null) refs.add(match[1]);
 
-  await Promise.all(
-    [...refs].map((url) => cache.add(url).catch(() => undefined))
-  );
+  await Promise.all([...refs].map((url) => cache.add(url).catch(() => undefined)));
 }
 
 self.addEventListener("install", (event) => {
@@ -76,8 +111,8 @@ self.addEventListener("install", (event) => {
         try {
           await precacheOfflineShell(cache);
         } catch (_) {
-          // offline page unreachable at install time; the plain copy above
-          // is still cached and will be refreshed on the next activation
+          // /offline inalcanzable al instalar; la copia simple de arriba queda
+          // cacheada y se refresca en la próxima activación
         }
       })
       .then(() => self.skipWaiting())
@@ -91,7 +126,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== SHELL && k !== ASSETS && k !== PAGES)
+            .filter((k) => k !== SHELL && k !== ASSETS && k !== SHELLS)
             .map((k) => caches.delete(k))
         )
       )
@@ -108,10 +143,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never serve stale API data: wrong numbers are worse than no numbers.
+  // PocketBase nunca se cachea. La réplica local ya tiene los datos; una
+  // respuesta guardada solo podría contradecirla, y el SSE de /api/realtime
+  // no puede pasar por acá.
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_/")) return;
 
-  // Immutable build output: cache first.
+  // Salida de build inmutable: cache primero.
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
     event.respondWith(
       caches.match(request).then(
@@ -127,20 +164,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Pages: network first, offline page as the last resort.
+  // Las peticiones RSC de la navegación interna se dejan pasar sin tocar: si
+  // fallan, el enrutador de Next cae en una navegación completa, que sí entra
+  // por acá y encuentra la cáscara.
   if (request.mode === "navigate") {
     event.respondWith(navigate(request));
   }
 });
 
 /**
- * One failed fetch is not the same thing as being offline, and treating it that
- * way is how you get the offline page on a phone with full signal. A handset
- * hands off between wifi and cellular, and iCloud Private Relay rotates its
- * egress node every few minutes; either drops the connection in flight. So a
- * navigation gets a second attempt on a fresh connection before we conclude
- * there is no server — the retry costs a moment of blank screen, and the wrong
- * answer costs the whole app.
+ * Un fetch fallido no es lo mismo que estar sin conexión, y tratarlo así es
+ * como se termina viendo la pantalla de "sin conexión" en un teléfono con
+ * señal completa. El aparato salta entre wifi y datos, y iCloud Private Relay
+ * rota su nodo de salida cada pocos minutos; ambas cosas cortan la conexión en
+ * vuelo. Va un segundo intento sobre una conexión nueva antes de concluir que
+ * no hay servidor.
  */
 async function navigate(request) {
   let res = null;
@@ -148,14 +186,11 @@ async function navigate(request) {
   try {
     res = await fetch(request);
   } catch (_) {
-    // A redeploy takes a few seconds to come back up, so give it a beat rather
-    // than retrying into the same dead socket.
+    // Un redespliegue tarda unos segundos en volver: mejor esperar un momento
+    // que reintentar contra el mismo socket muerto.
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     try {
-      // The request body is already consumed by the first attempt; navigations
-      // are GETs, so a clone is unnecessary, but a fresh Request drops any
-      // connection the failed attempt was pinned to.
       res = await fetch(request.url, {
         credentials: "include",
         headers: request.headers,
@@ -167,16 +202,17 @@ async function navigate(request) {
   }
 
   if (res) {
-    // Keep the copy, but do not make the user wait for the write.
-    savePage(request.url, res.clone()).catch(() => undefined);
+    saveShell(request.url, res.clone()).catch(() => undefined);
     return res;
   }
 
-  const pages = await caches.open(PAGES);
-  const hit = (await pages.match(request.url)) || (await caches.match(OFFLINE_URL));
+  const shells = await caches.open(SHELLS);
+  const hit =
+    (await shells.match(shellKey(new URL(request.url).pathname))) ||
+    (await caches.match(OFFLINE_URL));
 
-  // respondWith(undefined) surfaces as a network error, which reads as a
-  // browser crash rather than "you are offline". Never hand back nothing.
+  // respondWith(undefined) se ve como un error de red, que se lee como si el
+  // navegador se hubiera caído. Nunca devolver nada vacío.
   return (
     hit ||
     new Response("<!doctype html><meta charset=utf-8><title>Sin conexión</title>", {
@@ -187,42 +223,32 @@ async function navigate(request) {
 }
 
 /**
- * Store a rendered page so the same screen can be opened again with no network.
+ * Guarda la cáscara de esta forma de ruta.
  *
- * The body is re-wrapped rather than stored as it arrived, for the reason in
- * `decodedHeaders`. Keys are plain URL strings on both sides — put and match —
- * so no `Vary` header can turn a hit into a miss.
- *
- * This holds signed-in HTML, the same way the browser's own back/forward cache
- * does; the app is single-user per device, so that is the whole exposure.
+ * Una por forma, no una por URL: como el HTML ya no trae datos, la de un
+ * proyecto sirve para todos, y el cache deja de crecer con cada cosa que
+ * abres. El cuerpo se reenvuelve en vez de guardarse tal como llegó, por lo
+ * que explica `decodedHeaders`.
  */
-async function savePage(url, res) {
+async function saveShell(url, res) {
   if (!res.ok || res.redirected || res.type === "opaqueredirect") return;
   if (!(res.headers.get("content-type") || "").includes("text/html")) return;
 
   const path = new URL(url).pathname;
-  // A cached login form served after a session expires is a dead end, and
-  // /offline already lives in the shell cache.
+  // Un formulario de login cacheado y servido después de que caduca la sesión
+  // es un callejón sin salida, y /offline ya vive en el cache de la cáscara.
   if (path === "/login" || path === OFFLINE_URL) return;
 
   const body = await res.blob();
-  const cache = await caches.open(PAGES);
-  await cache.put(url, new Response(body, { status: 200, headers: decodedHeaders(res) }));
-
-  // Every project, quote and entity you open is a screen; without a ceiling the
-  // cache grows for as long as the app is installed. `keys()` is in insertion
-  // order, so the oldest copies go first.
-  const keys = await cache.keys();
-  if (keys.length > PAGE_LIMIT) {
-    await Promise.all(keys.slice(0, keys.length - PAGE_LIMIT).map((k) => cache.delete(k)));
-  }
+  const cache = await caches.open(SHELLS);
+  await cache.put(shellKey(path), new Response(body, { status: 200, headers: decodedHeaders(res) }));
 }
 
 /**
- * Pull the tab bar destinations into the page cache while there is a network,
- * so the first offline tap lands on a real screen instead of a fallback. The
- * page sends the list (lib/nav.ts stays the single source of truth); the
- * throttle lives here because the worker outlives any one page load.
+ * Trae las cáscaras de los destinos de la barra mientras hay red, para que el
+ * primer toque sin conexión caiga en una pantalla real. La lista la manda la
+ * página (lib/nav.ts sigue siendo la única fuente); el intervalo vive acá
+ * porque el worker sobrevive a cualquier carga de página.
  */
 async function warmPages(urls) {
   if (!Array.isArray(urls) || !urls.length) return;
@@ -236,19 +262,20 @@ async function warmPages(urls) {
   for (const url of urls) {
     try {
       const res = await fetch(url, { credentials: "include" });
-      await savePage(new URL(url, self.location.origin).href, res);
+      await saveShell(new URL(url, self.location.origin).href, res);
     } catch (_) {
-      break; // network went away mid-sweep; whatever was stored still counts
+      break; // se fue la red a mitad del barrido; lo guardado igual cuenta
     }
   }
 }
 
 /* ------------------------------------------------------------ outbox ---- */
-/* Mirrors web/src/lib/offline.ts — kept duplicated on purpose, a service
- * worker cannot share module code with the page without a bundler step. */
+/* Espeja web/src/lib/local/db.ts — duplicado a propósito: un service worker no
+ * puede compartir módulos con la app sin un paso de bundling. Cualquier cambio
+ * de esquema va en los dos lados. */
 
 const DB_NAME = "proyectos-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -260,6 +287,10 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains("meta")) {
         db.createObjectStore("meta", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("records")) {
+        const store = db.createObjectStore("records", { keyPath: "key" });
+        store.createIndex("collection", "collection", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -303,6 +334,28 @@ function del(db, store, key) {
   });
 }
 
+/** La misma petición que haría la app para una escritura de la cola. */
+function requestFor(item, token) {
+  const base = `/api/collections/${item.collection}/records`;
+  const headers = { "Content-Type": "application/json", Authorization: token };
+
+  if (item.op === "update") {
+    return [
+      `${base}/${item.recordId}`,
+      { method: "PATCH", headers, body: JSON.stringify(item.payload || {}) },
+    ];
+  }
+  if (item.op === "delete") {
+    return [`${base}/${item.recordId}`, { method: "DELETE", headers }];
+  }
+  // create — y también el formato viejo de la cola de capturas, que no traía
+  // `op` ni `recordId`: se manda como creación sin id y el servidor lo pone.
+  const body = item.recordId
+    ? { id: item.recordId, ...(item.payload || {}) }
+    : item.payload || {};
+  return [base, { method: "POST", headers, body: JSON.stringify(body) }];
+}
+
 async function flushOutbox() {
   const db = await openDB();
   const items = await getAll(db, "outbox");
@@ -315,15 +368,13 @@ async function flushOutbox() {
   let sent = 0;
 
   for (const item of items) {
+    const [url, init] = requestFor(item, token);
+
     let res;
     try {
-      res = await fetch(`/api/collections/${item.collection}/records`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: token },
-        body: JSON.stringify(item.payload),
-      });
+      res = await fetch(url, init);
     } catch (_) {
-      break; // still offline: stop, keep the rest queued
+      break; // sigue sin red: parar y dejar el resto en la cola
     }
 
     if (res.ok) {
@@ -332,13 +383,18 @@ async function flushOutbox() {
       continue;
     }
 
-    if (res.status === 401 || res.status === 403) {
-      // Session expired. Keep everything and let the page re-authenticate.
-      break;
+    // La sesión caducó. Se guarda todo y que la página vuelva a autenticarse.
+    if (res.status === 401 || res.status === 403) break;
+
+    // Actualizar o borrar algo que ya no está: la intención se cumplió sola.
+    if (res.status === 404 && item.op !== "create") {
+      await del(db, "outbox", item.id);
+      sent++;
+      continue;
     }
 
-    // Rejected for another reason: keep it, but record why so the UI can say so
-    // instead of retrying forever in silence.
+    // Rechazado por otra razón: se guarda con el motivo para que la app decida,
+    // en vez de reintentar en silencio para siempre.
     item.error = `HTTP ${res.status}`;
     item.attempts = (item.attempts || 0) + 1;
     await put(db, "outbox", item);

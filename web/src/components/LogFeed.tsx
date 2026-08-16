@@ -1,12 +1,15 @@
+"use client";
+
 import type { LogEntry } from "@/lib/types";
 import { LOG_KIND_ICON } from "@/lib/labels";
-import { getConfig } from "@/lib/config";
-import { addLog, deleteLog } from "@/lib/actions";
+import { useConfig } from "@/lib/local/config";
+import { addLog, deleteLog } from "@/lib/local/actions";
 import { fmtDate, fmtRelative, todayISO } from "@/lib/dates";
+import { Form } from "./form";
 import { btn, Empty, inputClass, Select } from "./ui";
 
-/** Entries written in this app are plain text; ones typed in the PocketBase
- *  admin editor arrive as HTML. Render each accordingly. */
+/** Lo escrito en esta app es texto plano; lo tecleado en el admin de PocketBase
+ *  llega como HTML. Cada uno se pinta como corresponde. */
 function Body({ body }: { body: string }) {
   const html = body.trimStart().startsWith("<");
   if (html) {
@@ -22,7 +25,7 @@ function Body({ body }: { body: string }) {
   );
 }
 
-export async function LogFeed({
+export function LogFeed({
   projectId,
   entries,
   limit,
@@ -33,13 +36,13 @@ export async function LogFeed({
   limit?: number;
   showForm?: boolean;
 }) {
-  const cfg = await getConfig();
+  const cfg = useConfig();
   const shown = limit ? entries.slice(0, limit) : entries;
 
   return (
     <div>
       {showForm && (
-        <form action={addLog} className="mb-5 rounded-2xl bg-panel2/60 p-3.5">
+        <Form action={addLog} reset className="mb-5 rounded-2xl bg-panel2/60 p-3.5">
           <input type="hidden" name="project" value={projectId} />
 
           <textarea
@@ -50,9 +53,9 @@ export async function LogFeed({
             className={`${inputClass} resize-y`}
           />
 
-          {/* Only the body is required to log something. The eight refinements
-              below used to sit open on every workspace, which made a two-second
-              note look like a form to fill in. */}
+          {/* Solo el cuerpo es obligatorio. Los ocho campos secundarios estaban
+              abiertos en cada workspace, lo que hacía que una nota de dos
+              segundos pareciera un formulario que rellenar. */}
           <details className="group mt-2.5">
             <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">
               Detalles
@@ -65,7 +68,7 @@ export async function LogFeed({
               <input type="date" name="date" defaultValue={todayISO()} className={inputClass} />
               <input name="hours" inputMode="decimal" placeholder="horas" className={inputClass} />
 
-              {/* Closing the session is the cheapest moment to leave the next plan. */}
+              {/* Cerrar la sesión es el momento más barato para dejar el siguiente plan. */}
               <input
                 name="next_cue"
                 placeholder="Cuando… (dejar disparador para retomar)"
@@ -80,7 +83,7 @@ export async function LogFeed({
               Registrar
             </button>
           </div>
-        </form>
+        </Form>
       )}
 
       {shown.length === 0 ? (
@@ -105,9 +108,8 @@ export async function LogFeed({
                     {" · "}
                     {cfg.label("log_kind", e.kind)}
                   </span>
-                  <form action={deleteLog} className="ml-auto">
+                  <Form action={deleteLog} className="ml-auto">
                     <input type="hidden" name="id" value={e.id} />
-                    <input type="hidden" name="project" value={e.project} />
                     <button
                       type="submit"
                       aria-label="Borrar entrada"
@@ -115,7 +117,7 @@ export async function LogFeed({
                     >
                       ✕
                     </button>
-                  </form>
+                  </Form>
                 </div>
                 {e.body && <Body body={e.body} />}
               </div>

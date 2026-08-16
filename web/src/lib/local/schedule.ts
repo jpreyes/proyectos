@@ -1,15 +1,29 @@
-import "server-only";
-import type PocketBase from "pocketbase";
-import type { CalendarEvent, Commitment, Quote } from "./types";
-import type { Settings } from "./config";
-import { ALIVE } from "./filters";
-import { buildWeekLoad, planWork, weekRange, weekStart, type Slot, type WeekLoad } from "./capacity";
+"use client";
 
-// Lo que hay que leer de la base para poder responder "¿cuándo cabe esto?".
-//
-// Vive aparte de capacity.ts a propósito: ese módulo es aritmética pura y se
-// puede razonar —y probar— sin base de datos. Acá está la parte sucia, que es
-// traer los compromisos y los eventos del calendario institucional.
+/**
+ * "¿Cuándo cabe esto?" — la parte que necesita datos.
+ *
+ * Vive aparte de `lib/capacity.ts` por la misma razón de siempre: ese módulo es
+ * aritmética pura y se puede razonar sin base de datos. Lo único que cambió al
+ * pasar a local-first es de dónde salen los compromisos y los eventos: antes se
+ * consultaban al servidor con `await`, ahora se leen de la réplica, que ya está
+ * en memoria. Por eso estas funciones son síncronas — y por eso el buscador de
+ * huecos responde sin red.
+ */
+
+import type { CalendarEvent, Commitment, Quote } from "../types";
+import type { Settings } from "../config";
+import {
+  buildWeekLoad,
+  planWork,
+  weekEnd,
+  weekRange,
+  weekStart,
+  type Slot,
+  type WeekLoad,
+} from "../capacity";
+import * as store from "./store";
+import { day } from "./query";
 
 export interface CalendarWindow {
   weeks: string[];
@@ -20,39 +34,30 @@ export interface CalendarWindow {
 }
 
 /**
- * Carga la ventana de semanas que arranca en `from`.
+ * La ventana de semanas que arranca en `from`.
  *
- * `excludeCommitment` existe para replantear un encargo que ya está reservado:
- * sin sacar su propia reserva de la carga, el buscador compite contra sí mismo
- * y nunca encuentra dónde ponerse.
+ * `excludeCommitment` existe para replantear un encargo ya reservado: sin sacar
+ * su propia reserva de la carga, el buscador compite contra sí mismo y nunca
+ * encuentra dónde ponerse.
  */
-export async function loadCalendarWindow(
-  pb: PocketBase,
+export function calendarWindow(
   settings: Settings,
   opts: { from?: string; weeks?: number; excludeCommitment?: string } = {}
-): Promise<CalendarWindow> {
+): CalendarWindow {
   const weeks = weekRange(opts.from, opts.weeks || settings.capacity_horizon_weeks || 78);
   const first = weeks[0];
   const last = weeks[weeks.length - 1];
-  // El domingo que cierra la última semana, más un margen: un compromiso que
-  // empieza el sábado siguiente no toca esta ventana.
-  const until = `${last} 23:59:59`;
+  const until = weekEnd(last);
 
-  const [commitments, events] = await Promise.all([
-    pb.collection("commitments").getFullList<Commitment>({
-      filter: [ALIVE, pb.filter("end_date >= {:a} && start_date <= {:b}", { a: first, b: until })].join(
-        " && "
-      ),
-      sort: "start_date",
-    }),
-    pb
-      .collection("calendar_events")
-      .getFullList<CalendarEvent>({
-        filter: pb.filter("start >= {:a} && start <= {:b}", { a: first, b: until }),
-        sort: "start",
-      })
-      .catch(() => [] as CalendarEvent[]),
-  ]);
+  const commitments = store
+    .all<Commitment & { id: string }>("commitments")
+    .filter((c) => !c.deleted)
+    .filter((c) => day(c.end_date) >= first && day(c.start_date) <= until);
+
+  const events = store
+    .all<CalendarEvent & { id: string }>("calendar_events")
+    .filter((e) => !e.deleted)
+    .filter((e) => day(e.start) >= first && day(e.start) <= until);
 
   const usable = opts.excludeCommitment
     ? commitments.filter((c) => c.id !== opts.excludeCommitment)
@@ -68,20 +73,17 @@ export async function loadCalendarWindow(
 }
 
 /** El calce que propone el buscador para un presupuesto, o null si no aplica. */
-export async function proposeSlotForQuote(
-  pb: PocketBase,
+export function proposeSlotForQuote(
   settings: Settings,
   quote: Pick<Quote, "work_hours" | "max_hours_week" | "earliest_start" | "id">,
   opts: { excludeCommitment?: string } = {}
-): Promise<{ slot: Slot | null; window: CalendarWindow }> {
+): { slot: Slot | null; window: CalendarWindow } {
   const today = new Date().toISOString().slice(0, 10);
-  const earliestDay = quote.earliest_start
-    ? String(quote.earliest_start).slice(0, 10)
-    : today;
+  const earliestDay = quote.earliest_start ? day(quote.earliest_start) : today;
   // No se puede empezar en el pasado, pase lo que pase.
   const earliest = earliestDay > today ? earliestDay : today;
 
-  const window = await loadCalendarWindow(pb, settings, {
+  const window = calendarWindow(settings, {
     from: weekStart(earliest),
     excludeCommitment: opts.excludeCommitment,
   });
@@ -101,8 +103,8 @@ export async function proposeSlotForQuote(
 /** El calce ya fijado en el presupuesto, si tiene uno completo. */
 export function storedSlot(quote: Quote): Slot | null {
   if (!quote.plan_start || !quote.plan_end || !quote.plan_hours_week) return null;
-  const start = String(quote.plan_start).slice(0, 10);
-  const end = String(quote.plan_end).slice(0, 10);
+  const start = day(quote.plan_start);
+  const end = day(quote.plan_end);
   const weeks: string[] = [];
   let w = weekStart(start);
   const lastWeek = weekStart(end);

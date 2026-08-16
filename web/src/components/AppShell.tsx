@@ -1,0 +1,85 @@
+"use client";
+
+/**
+ * El portero y el arranque.
+ *
+ * Dos cosas que antes hacía el servidor y ahora tienen que ocurrir en el
+ * dispositivo:
+ *
+ *   1. **La sesión.** `requirePB()` mandaba a /login cuando no había cookie.
+ *      Eso no puede seguir viviendo en el servidor: sin red no hay servidor, y
+ *      una app local-first que exige preguntar antes de mostrarte tus propios
+ *      datos no es local-first. El token está guardado acá; se valida acá.
+ *
+ *   2. **La réplica.** Cargarla desde IndexedDB toma milisegundos, pero no cero,
+ *      y pintar la app con las colecciones vacías durante ese instante se ve
+ *      como si hubieras perdido todo. Por eso hay una pantalla de arranque, y
+ *      por eso es lo más sobria posible: aparece y desaparece.
+ *
+ * La única espera de verdad es la primera vez en un dispositivo nuevo, cuando
+ * todavía no hay nada que replicar. Ahí sí hace falta la red, y se dice.
+ */
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { pbBrowser } from "@/lib/pb.client";
+import { boot, getSyncState, subscribeSync } from "@/lib/local/sync";
+import { useReady } from "@/lib/local/store";
+import * as store from "@/lib/local/store";
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const ready = useReady();
+  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [synced, setSynced] = useState(() => getSyncState().lastSync !== null);
+
+  useEffect(() => {
+    const pb = pbBrowser();
+
+    if (!pb.authStore.isValid) {
+      setAuthed(false);
+      router.replace("/login");
+      return;
+    }
+
+    setAuthed(true);
+    void boot();
+
+    // Si el token caduca mientras la app está abierta, el sincronizador empieza
+    // a recibir 401 y no hay forma de arreglarlo desde adentro.
+    const off = pb.authStore.onChange(() => {
+      if (!pb.authStore.isValid) router.replace("/login");
+    });
+
+    const offSync = subscribeSync(() => setSynced(getSyncState().lastSync !== null));
+    return () => {
+      off();
+      offSync();
+    };
+  }, [router]);
+
+  if (authed === false) return <Splash text="Entrando…" />;
+  if (!ready) return <Splash text="Abriendo tu copia local…" />;
+
+  // Dispositivo nuevo: no hay réplica ni la ha habido nunca. Es el único
+  // momento en que esta app necesita la red para poder mostrarte algo.
+  const empty = !store.all("settings").length && !store.all("projects").length;
+  if (empty && !synced) return <Splash text="Bajando tu información por primera vez…" wait />;
+
+  return <>{children}</>;
+}
+
+function Splash({ text, wait }: { text: string; wait?: boolean }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-6">
+      <div className="text-center">
+        <p className="text-[15px] text-muted">{text}</p>
+        {wait && (
+          <p className="mt-2 text-[13px] text-faint">
+            Solo pasa una vez por dispositivo. Después la app abre sin red.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

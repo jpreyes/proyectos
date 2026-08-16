@@ -1,9 +1,12 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import type { Entry, LogEntry, Project, Resource, Task } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { getConfig } from "@/lib/config";
-import { alive, ALIVE } from "@/lib/filters";
+import type { Entity, Entry, LogEntry, Project, Resource, Task } from "@/lib/types";
+import { useConfig } from "@/lib/local/config";
+import { useCollection, useRecord } from "@/lib/local/store";
+import { useRouteId } from "@/lib/local/route";
+import { sortBy } from "@/lib/local/query";
 import { clpOf, formatCLPShort } from "@/lib/money";
 import { fmtDate, fmtRelative } from "@/lib/dates";
 import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
@@ -12,64 +15,88 @@ import { ResourceMap } from "@/components/ResourceMap";
 import { LogFeed } from "@/components/LogFeed";
 import { TaskList } from "@/components/TaskList";
 import { Due } from "@/components/Due";
+import { Title } from "@/components/Title";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  try {
-    const pb = await requirePB();
-    const p = await pb.collection("projects").getOne<Project>(id);
-    return { title: `${p.name} · Proyectos` };
-  } catch {
-    return { title: "Workspace · Proyectos" };
+export default function WorkspacePage() {
+  const id = useRouteId();
+  const cfg = useConfig();
+
+  const project = useRecord<Project>("projects", id);
+  const allResources = useCollection<Resource>("resources");
+  const allLogs = useCollection<LogEntry>("log");
+  const allTasks = useCollection<Task>("tasks");
+  const allEntries = useCollection<Entry>("entries");
+  const allProjects = useCollection<Project>("projects");
+  const entities = useCollection<Entity>("entities");
+
+  const view = useMemo(() => {
+    const resources = sortBy(
+      allResources.filter((r) => r.project === id),
+      "-pinned",
+      "position",
+      "label"
+    );
+    const logs = sortBy(
+      allLogs.filter((l) => l.project === id),
+      "-date",
+      "-created"
+    );
+    const tasks = sortBy(
+      allTasks.filter((t) => t.project === id),
+      "status",
+      "due_date",
+      "-priority"
+    );
+    const entries = sortBy(
+      allEntries.filter((e) => e.project === id),
+      "-date"
+    );
+
+    const paid = (dir: string) =>
+      entries
+        .filter((e) => e.direction === dir && e.status === "paid")
+        .reduce((s, e) => s + clpOf(e), 0);
+
+    return {
+      resources,
+      logs,
+      tasks,
+      entries,
+      children: sortBy(
+        allProjects.filter((p) => p.parent === id),
+        "name"
+      ),
+      open: tasks.filter((t) => t.status !== "done"),
+      lastLog: logs[0],
+      income: paid("income"),
+      expense: paid("expense"),
+      receivable: entries
+        .filter(
+          (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
+        )
+        .reduce((s, e) => s + clpOf(e), 0),
+    };
+  }, [id, allResources, allLogs, allTasks, allEntries, allProjects]);
+
+  if (!project || project.deleted) {
+    return (
+      <>
+        <Title>Workspace</Title>
+        <PageHeader title="No está" subtitle="Este workspace no existe en esta cuenta." />
+        <Link href="/w" className={btn("subtle")}>
+          Volver a Trabajo
+        </Link>
+      </>
+    );
   }
-}
 
-export default async function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const pb = await requirePB();
-
-  let project: Project;
-  try {
-    project = await pb.collection("projects").getOne<Project>(id, { expand: "client,parent" });
-  } catch {
-    notFound();
-  }
-
-  const cfg = await getConfig();
-  const scope = alive(pb.filter("project = {:id}", { id }));
-
-  const [resources, logs, tasks, entries, children] = await Promise.all([
-    pb
-      .collection("resources")
-      .getFullList<Resource>({ filter: scope, sort: "-pinned,position,label" }),
-    pb.collection("log").getList<LogEntry>(1, 40, { filter: scope, sort: "-date,-created" }),
-    pb.collection("tasks").getFullList<Task>({ filter: scope, sort: "status,due_date,-priority" }),
-    pb.collection("entries").getFullList<Entry>({ filter: scope, sort: "-date" }),
-    pb.collection("projects").getFullList<Project>({
-      filter: alive(pb.filter("parent = {:id}", { id })),
-      sort: "name",
-    }),
-  ]);
-
-  const open = tasks.filter((t) => t.status !== "done");
-  const lastLog = logs.items[0];
-
-  const income = entries
-    .filter((e) => e.direction === "income" && e.status === "paid")
-    .reduce((s, e) => s + clpOf(e), 0);
-  const expense = entries
-    .filter((e) => e.direction === "expense" && e.status === "paid")
-    .reduce((s, e) => s + clpOf(e), 0);
-  const receivable = entries
-    .filter(
-      (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
-    )
-    .reduce((s, e) => s + clpOf(e), 0);
-
-  const margin = income - expense;
+  const client = entities.find((e) => e.id === project.client);
+  const parent = allProjects.find((p) => p.id === project.parent);
+  const margin = view.income - view.expense;
 
   return (
     <>
+      <Title>{project.name}</Title>
       <PageHeader
         title={project.name}
         subtitle={
@@ -84,14 +111,12 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
               </Badge>
             )}
             {project.code && <span className="font-mono text-[13px] text-faint">{project.code}</span>}
-            {project.expand?.parent && (
+            {parent && (
               <Link href={`/w/${project.parent}`} className="text-[13px] text-faint">
-                ↑ {project.expand.parent.name}
+                ↑ {parent.name}
               </Link>
             )}
-            {project.expand?.client && (
-              <span className="text-[13px] text-muted">{project.expand.client.name}</span>
-            )}
+            {client && <span className="text-[13px] text-muted">{client.name}</span>}
           </span>
         }
         action={
@@ -101,17 +126,17 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         }
       />
 
-      {/* Re-entry block. Fixed position, always first: resuming a task after a
-          long gap depends on visually reconstructing the context, so this is
-          the part that must never move. */}
+      {/* Bloque de reentrada. Posición fija, siempre primero: retomar una tarea
+          tras una interrupción larga depende de reconstruir el contexto
+          visualmente, así que esta es la parte que no puede moverse. */}
       <div className="mb-6 space-y-3">
         <NextStep projectId={project.id} cue={project.next_cue} step={project.next_step} />
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-[13px] text-faint">
-          {lastLog ? (
+          {view.lastLog ? (
             <span>
-              Última señal: <span className="text-muted">{fmtRelative(lastLog.date)}</span>
-              {lastLog.title ? ` · ${lastLog.title}` : ""}
+              Última señal: <span className="text-muted">{fmtRelative(view.lastLog.date)}</span>
+              {view.lastLog.title ? ` · ${view.lastLog.title}` : ""}
             </span>
           ) : (
             <span>Sin bitácora todavía.</span>
@@ -122,9 +147,9 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
               {fmtRelative(project.due_date)})
             </span>
           )}
-          {open.length > 0 && (
+          {view.open.length > 0 && (
             <span>
-              {open.length} pendiente{open.length === 1 ? "" : "s"}
+              {view.open.length} pendiente{view.open.length === 1 ? "" : "s"}
             </span>
           )}
         </div>
@@ -137,7 +162,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
       )}
 
       <Card className="mb-6" title="Pendientes">
-        <TaskList tasks={open} projectId={project.id} />
+        <TaskList tasks={view.open} projectId={project.id} />
       </Card>
 
       <Card
@@ -145,7 +170,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         title="Dónde vive"
         subtitle="Cada ubicación con una línea que explique para qué sirve."
       >
-        <ResourceMap projectId={project.id} resources={resources} />
+        <ResourceMap projectId={project.id} resources={view.resources} />
       </Card>
 
       <Card
@@ -160,17 +185,17 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
           </Link>
         }
       >
-        {entries.length === 0 ? (
+        {view.entries.length === 0 ? (
           <Empty>Sin movimientos.</Empty>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="Recibido" value={formatCLPShort(income)} tone="ok" />
-              <Stat label="Gastado" value={formatCLPShort(expense)} tone="neutral" />
+              <Stat label="Recibido" value={formatCLPShort(view.income)} tone="ok" />
+              <Stat label="Gastado" value={formatCLPShort(view.expense)} tone="neutral" />
               <Stat
                 label="Por cobrar"
-                value={formatCLPShort(receivable)}
-                tone={receivable > 0 ? "warn" : "neutral"}
+                value={formatCLPShort(view.receivable)}
+                tone={view.receivable > 0 ? "warn" : "neutral"}
               />
               <Stat label="Margen" value={formatCLPShort(margin)} tone={margin >= 0 ? "ok" : "bad"} />
             </div>
@@ -178,7 +203,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
               href={`/finanzas?project=${project.id}`}
               className="mt-4 block text-[13px] font-semibold text-accent"
             >
-              Ver los {entries.length} movimientos ›
+              Ver los {view.entries.length} movimientos ›
             </Link>
           </>
         )}
@@ -222,9 +247,9 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         </Card>
       )}
 
-      {children.length > 0 && (
+      {view.children.length > 0 && (
         <Group title="Sub-workspaces">
-          {children.map((c) => (
+          {view.children.map((c) => (
             <Row
               key={c.id}
               href={`/w/${c.id}`}
@@ -239,8 +264,11 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         </Group>
       )}
 
-      <Card title="Bitácora" subtitle={`${logs.totalItems} entrada${logs.totalItems === 1 ? "" : "s"}`}>
-        <LogFeed projectId={project.id} entries={logs.items} />
+      <Card
+        title="Bitácora"
+        subtitle={`${view.logs.length} entrada${view.logs.length === 1 ? "" : "s"}`}
+      >
+        <LogFeed projectId={project.id} entries={view.logs} limit={40} />
       </Card>
     </>
   );

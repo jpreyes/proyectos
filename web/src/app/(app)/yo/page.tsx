@@ -1,45 +1,53 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import type { Entry, Quote } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { alive } from "@/lib/filters";
+import { pbBrowser } from "@/lib/pb.client";
+import { useCollection } from "@/lib/local/store";
 import { clpOf, formatCLPShort } from "@/lib/money";
 import { YO_GROUPS } from "@/lib/nav";
 import { Chip, Group, Row } from "@/components/ui";
 import { LogoutRow } from "@/components/AccountRows";
-
-export const metadata = { title: "Yo · Proyectos" };
+import { Title } from "@/components/Title";
 
 /**
- * Everything that is not the daily loop. Six destinations became one tab, and
- * the grouping is the only signal about what belongs with what — there are no
- * section headings, because a stack of labels is the wall of options this
- * screen exists to replace.
+ * Todo lo que no es el bucle diario. Seis destinos se volvieron una pestaña, y
+ * la agrupación es la única señal de qué va con qué — no hay títulos de sección,
+ * porque una pila de rótulos es justo el muro de opciones que esta pantalla
+ * existe para reemplazar.
  */
-export default async function YoPage() {
-  const pb = await requirePB();
-  const user = pb.authStore.record as { email?: string; name?: string } | null;
+export default function YoPage() {
+  const entries = useCollection<Entry>("entries");
+  const quotes = useCollection<Quote>("quotes");
+  const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
 
-  const [receivables, pendingQuotes] = await Promise.all([
-    pb.collection("entries").getFullList<Entry>({
-      filter: alive('direction = "income" && (status = "invoiced" || status = "committed")'),
-      fields: "amount,amount_clp,currency,fx_rate",
+  // La cuenta sale del token, no de la réplica: es lo único que no es un dato
+  // tuyo sino la sesión con la que los pediste.
+  useEffect(() => {
+    setUser(pbBrowser().authStore.record as { email?: string; name?: string } | null);
+  }, []);
+
+  const { receivableTotal, pending } = useMemo(
+    () => ({
+      receivableTotal: entries
+        .filter(
+          (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
+        )
+        .reduce((s, e) => s + clpOf(e), 0),
+      pending: quotes.filter((q) => q.status === "pending").length,
     }),
-    pb
-      .collection("quotes")
-      .getList<Quote>(1, 1, { filter: alive('status = "pending"'), fields: "id" }),
-  ]);
-
-  const receivableTotal = receivables.reduce((s, e) => s + clpOf(e), 0);
+    [entries, quotes]
+  );
 
   return (
     <>
+      <Title>Yo</Title>
       <header className="mb-6 px-1">
-        <h1 className="text-[28px] font-bold leading-tight tracking-tight">
-          {user?.name || "Yo"}
-        </h1>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">{user?.name || "Yo"}</h1>
         <p className="mt-1 truncate text-[15px] text-faint">{user?.email}</p>
       </header>
 
-      {/* Two numbers worth a glance, and each one is a way in. */}
+      {/* Dos números que vale la pena mirar de reojo, y cada uno es una entrada. */}
       <div className="mb-6 grid grid-cols-2 gap-3">
         <Chip
           href="/finanzas"
@@ -51,9 +59,9 @@ export default async function YoPage() {
         <Chip
           href="/presupuestos"
           icon="▧"
-          tone={pendingQuotes.totalItems > 0 ? "accent" : "neutral"}
-          value={pendingQuotes.totalItems}
-          label={pendingQuotes.totalItems === 1 ? "presupuesto enviado" : "presupuestos enviados"}
+          tone={pending > 0 ? "accent" : "neutral"}
+          value={pending}
+          label={pending === 1 ? "presupuesto enviado" : "presupuestos enviados"}
         />
       </div>
 

@@ -1,8 +1,11 @@
-import { getConfig, type TaxGroup } from "@/lib/config";
-import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/actions";
-import { Badge, btn, Card, cx, Field, inputClass, PageHeader, Select } from "@/components/ui";
+"use client";
 
-export const metadata = { title: "Configuración · Proyectos" };
+import type { TaxGroup, TaxRow } from "@/lib/config";
+import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
+import { useConfig } from "@/lib/local/config";
+import { Form } from "@/components/form";
+import { Badge, btn, Card, cx, Field, inputClass, PageHeader, Select } from "@/components/ui";
+import { Title } from "@/components/Title";
 
 const TONES = [
   { value: "neutral", label: "Neutro" },
@@ -37,17 +40,11 @@ const LOCKED_GROUPS: { group: TaxGroup; title: string }[] = [
   { group: "commitment_status", title: "Estados de compromiso" },
 ];
 
-/** One editable vocabulary entry. */
-function TaxRowItem({
-  row,
-  editableValue,
-}: {
-  row: import("@/lib/config").TaxRow;
-  editableValue: boolean;
-}) {
+/** Una entrada del vocabulario editable. */
+function TaxRowItem({ row, editableValue }: { row: TaxRow; editableValue: boolean }) {
   return (
     <li className="flex flex-wrap items-center gap-2 border-b border-line py-2.5 last:border-0">
-      <form action={updateTaxonomy} className="flex flex-1 flex-wrap items-center gap-2">
+      <Form action={updateTaxonomy} className="flex flex-1 flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={row.id} />
 
         <input name="label" defaultValue={row.label} className={cx(inputClass, "min-w-32 flex-1")} />
@@ -68,12 +65,7 @@ function TaxRowItem({
           </span>
         )}
 
-        <Select
-          name="color"
-          defaultValue={row.color || "neutral"}
-          options={TONES}
-          className="w-32"
-        />
+        <Select name="color" defaultValue={row.color || "neutral"} options={TONES} className="w-32" />
         <input
           name="position"
           defaultValue={row.position}
@@ -94,10 +86,10 @@ function TaxRowItem({
         <button type="submit" className={btn("subtle", "sm")}>
           Guardar
         </button>
-      </form>
+      </Form>
 
       {editableValue && (
-        <form action={deleteTaxonomy}>
+        <Form action={deleteTaxonomy} confirm={`¿Eliminar "${row.label}"?`}>
           <input type="hidden" name="id" value={row.id} />
           <button
             type="submit"
@@ -106,13 +98,13 @@ function TaxRowItem({
           >
             ✕
           </button>
-        </form>
+        </Form>
       )}
     </li>
   );
 }
 
-/** A collapsed section header that reads as a row until you open it. */
+/** Un encabezado plegado que se lee como una fila hasta que lo abres. */
 function Section({
   title,
   hint,
@@ -139,23 +131,25 @@ function Section({
   );
 }
 
-export default async function SettingsPage() {
-  const cfg = await getConfig();
+export default function SettingsPage() {
+  const cfg = useConfig();
   const s = cfg.settings;
 
   return (
     <>
+      <Title>Configuración</Title>
       <PageHeader
         title="Configuración"
         subtitle="Tu vocabulario y los números que la app usa para decidir qué mostrarte."
       />
 
-      {/* Everything here used to be open at once: twenty number fields followed
-          by fifteen vocabulary tables. Collapsed, the screen opens as a short
-          list of names — which is all you need to find the one you came for. */}
+      {/* Todo esto estaba abierto a la vez: veinte campos numéricos seguidos de
+          quince tablas de vocabulario. Plegado, la pantalla abre como una lista
+          corta de nombres — que es todo lo que hace falta para encontrar el que
+          venías a buscar. */}
       <div className="mb-6 overflow-hidden rounded-2xl bg-bg">
         <Section title="Números" hint="Antes estaban fijos en el código.">
-          <form action={saveSettings} className="grid gap-3.5 sm:grid-cols-2">
+          <Form action={saveSettings} className="grid gap-3.5 sm:grid-cols-2">
             <input type="hidden" name="id" value={s.id} />
 
             <Field label="Enfriándose" hint="días sin bitácora para avisarte">
@@ -272,11 +266,7 @@ export default async function SettingsPage() {
                   <input name="issuer_role" defaultValue={s.issuer_role} className={inputClass} />
                 </Field>
                 <Field label="RUT">
-                  <input
-                    name="issuer_tax_id"
-                    defaultValue={s.issuer_tax_id}
-                    className={inputClass}
-                  />
+                  <input name="issuer_tax_id" defaultValue={s.issuer_tax_id} className={inputClass} />
                 </Field>
                 <Field label="Correo">
                   <input name="issuer_email" defaultValue={s.issuer_email} className={inputClass} />
@@ -300,11 +290,12 @@ export default async function SettingsPage() {
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Guardar
             </button>
-          </form>
+          </Form>
 
           <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-faint">
             La hora es tuya y aplica de inmediato. El servidor revisa cada 15 minutos, así que el
-            correo puede llegar hasta un cuarto de hora después de la hora elegida.
+            correo puede llegar hasta un cuarto de hora después de la hora elegida — y necesita que
+            el cambio haya subido, claro.
           </p>
         </Section>
       </div>
@@ -326,8 +317,9 @@ export default async function SettingsPage() {
               ))}
             </ul>
 
-            <form
+            <Form
               action={createTaxonomy}
+              reset
               className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4"
             >
               <input type="hidden" name="group" value={group} />
@@ -341,7 +333,7 @@ export default async function SettingsPage() {
               <button type="submit" className={btn("subtle")}>
                 Agregar
               </button>
-            </form>
+            </Form>
           </Section>
         ))}
       </div>
@@ -368,6 +360,22 @@ export default async function SettingsPage() {
           </Section>
         ))}
       </div>
+
+      <Card className="mt-8" title="Esta copia" subtitle="Lo que vive en este dispositivo.">
+        <LocalInfo />
+      </Card>
     </>
+  );
+}
+
+/** Un poco de honestidad sobre la réplica: qué hay, de cuándo, y cómo forzarla. */
+function LocalInfo() {
+  return (
+    <p className="text-[15px] leading-relaxed text-muted">
+      La app guarda una copia completa de tus datos en este dispositivo y la mantiene al día en las
+      dos direcciones. Por eso abre y escribe sin conexión: lo que anotes queda guardado acá y sube
+      cuando haya red. La píldora de abajo a la izquierda dice si hay algo esperando; tocarla fuerza
+      una sincronización. Al salir de la sesión, la copia se borra.
+    </p>
   );
 }

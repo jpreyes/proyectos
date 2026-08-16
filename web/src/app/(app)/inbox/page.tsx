@@ -1,40 +1,46 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
 import type { InboxItem, Project } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { deleteInboxItem, dropInboxItem, triage } from "@/lib/actions";
-import { getConfig } from "@/lib/config";
-import { alive } from "@/lib/filters";
+import { deleteInboxItem, dropInboxItem, triage } from "@/lib/local/actions";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { index, sortBy } from "@/lib/local/query";
 import { fmtRelative } from "@/lib/dates";
+import { Form } from "@/components/form";
 import { btn, Card, Empty, Group, inputClass, PageHeader, Row, Select } from "@/components/ui";
-
-export const metadata = { title: "Bandeja · Proyectos" };
+import { Title } from "@/components/Title";
 
 const ACTIVE = ["idea", "active", "paused", "waiting"];
 
-export default async function InboxPage() {
-  const pb = await requirePB();
+export default function InboxPage() {
+  const cfg = useConfig();
+  const items = useCollection<InboxItem>("inbox");
+  const allProjects = useCollection<Project>("projects");
 
-  const cfg = await getConfig();
-
-  const [open, recent, projects] = await Promise.all([
-    pb
-      .collection("inbox")
-      .getFullList<InboxItem>({ filter: alive('status = "open"'), sort: "created" }),
-    pb.collection("inbox").getList<InboxItem>(1, 15, {
-      filter: alive('status != "open"'),
-      sort: "-updated",
-      expand: "project",
-    }),
-    pb.collection("projects").getFullList<Project>({
-      filter: alive(`(${ACTIVE.map((s) => `status = "${s}"`).join(" || ")})`),
-      sort: "name",
-    }),
-  ]);
-
-  const projectOptions = projects.map((p) => ({ value: p.id, label: p.name }));
+  const { open, recent, projectOptions, projectById } = useMemo(() => {
+    const projects = sortBy(
+      allProjects.filter((p) => ACTIVE.includes(p.status)),
+      "name"
+    );
+    return {
+      open: sortBy(
+        items.filter((i) => i.status === "open"),
+        "created"
+      ),
+      recent: sortBy(
+        items.filter((i) => i.status !== "open"),
+        "-updated"
+      ).slice(0, 15),
+      projectOptions: projects.map((p) => ({ value: p.id, label: p.name })),
+      projectById: index(allProjects),
+    };
+  }, [items, allProjects]);
 
   return (
     <>
+      <Title>Bandeja</Title>
       <PageHeader
         title="Bandeja"
         subtitle={
@@ -62,7 +68,14 @@ export default async function InboxPage() {
                 <span className="shrink-0 text-[12px] text-faint">{fmtRelative(item.created)}</span>
               </div>
 
-              <form action={triage} className="grid gap-2.5 sm:grid-cols-2">
+              {/* Los dos botones secundarios usan `data-action` en vez del
+                  `formAction` de antes: un formulario que no viaja al servidor
+                  ya no tiene a dónde apuntar. */}
+              <Form
+                action={triage}
+                alt={{ drop: dropInboxItem, delete: deleteInboxItem }}
+                className="grid gap-2.5 sm:grid-cols-2"
+              >
                 <input type="hidden" name="id" value={item.id} />
                 <input type="hidden" name="text" value={item.text} />
 
@@ -102,7 +115,7 @@ export default async function InboxPage() {
                   </button>
                   <button
                     type="submit"
-                    formAction={dropInboxItem}
+                    data-action="drop"
                     className={btn("ghost")}
                     title="Decidir que no se hace"
                   >
@@ -110,35 +123,35 @@ export default async function InboxPage() {
                   </button>
                   <button
                     type="submit"
-                    formAction={deleteInboxItem}
+                    data-action="delete"
                     className={btn("ghost")}
                     aria-label="Borrar"
                   >
                     ✕
                   </button>
                 </div>
-              </form>
+              </Form>
             </Card>
           ))}
         </div>
       )}
 
-      {recent.items.length > 0 && (
+      {recent.length > 0 && (
         <div className="mt-8">
           <Group title="Ya procesado">
-            {recent.items.map((i) => (
+            {recent.map((i) => (
               <Row
                 key={i.id}
-                href={i.expand?.project ? `/w/${i.project}` : undefined}
+                href={i.project && projectById.get(i.project) ? `/w/${i.project}` : undefined}
                 label={i.text}
-                hint={[i.outcome || "—", i.expand?.project?.name].filter(Boolean).join(" · ")}
+                hint={[i.outcome || "—", projectById.get(i.project)?.name].filter(Boolean).join(" · ")}
               />
             ))}
           </Group>
         </div>
       )}
 
-      {open.length === 0 && recent.items.length === 0 && (
+      {open.length === 0 && recent.length === 0 && (
         <p className="mt-6 text-center text-[13px] text-faint">
           Captura con el botón ＋ y vuelve acá a darle destino.{" "}
           <Link href="/" className="text-accent">

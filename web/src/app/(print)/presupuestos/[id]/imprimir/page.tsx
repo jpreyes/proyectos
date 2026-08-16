@@ -1,13 +1,16 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import type { Deliverable, Quote, QuoteItem } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { getConfig } from "@/lib/config";
+import type { Deliverable, Entity, Quote, QuoteItem } from "@/lib/types";
+import { useConfig } from "@/lib/local/config";
+import { useCollection, useRecord } from "@/lib/local/store";
+import { useRouteId } from "@/lib/local/route";
+import { sortBy } from "@/lib/local/query";
 import { formatAmount } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import { PrintButton } from "@/components/PrintButton";
-
-export const metadata = { title: "Presupuesto" };
+import { Title } from "@/components/Title";
 
 /**
  * El documento que se manda al cliente.
@@ -17,31 +20,38 @@ export const metadata = { title: "Presupuesto" };
  * resto de la app sea oscura — se imprime, o se guarda como PDF desde el
  * diálogo del navegador, y en ambos casos el fondo importa.
  */
-export default async function QuotePrintPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const pb = await requirePB();
-  const cfg = await getConfig();
+export default function QuotePrintPage() {
+  const id = useRouteId();
+  const cfg = useConfig();
   const s = cfg.settings;
 
-  let quote: Quote;
-  try {
-    quote = await pb.collection("quotes").getOne<Quote>(id, { expand: "client" });
-  } catch {
-    notFound();
-  }
-  if (quote.deleted) notFound();
+  const quote = useRecord<Quote>("quotes", id);
+  const allItems = useCollection<QuoteItem>("quote_items");
+  const allDeliverables = useCollection<Deliverable>("deliverables");
+  const entities = useCollection<Entity>("entities");
 
-  const [items, deliverables] = await Promise.all([
-    pb
-      .collection("quote_items")
-      .getFullList<QuoteItem>({ filter: pb.filter("quote = {:q}", { q: id }), sort: "position" }),
-    pb
-      .collection("deliverables")
-      .getFullList<Deliverable>({ filter: pb.filter("quote = {:q}", { q: id }), sort: "position" }),
-  ]);
+  const { items, deliverables } = useMemo(
+    () => ({
+      items: sortBy(allItems.filter((it) => it.quote === id), "position"),
+      deliverables: sortBy(allDeliverables.filter((d) => d.quote === id), "position"),
+    }),
+    [id, allItems, allDeliverables]
+  );
+
+  if (!quote || quote.deleted) {
+    return (
+      <div className="mx-auto max-w-[210mm] px-5 py-10 text-[13px] text-neutral-700">
+        <Title>Presupuesto</Title>
+        Este presupuesto no existe en esta cuenta.{" "}
+        <Link href="/presupuestos" className="underline">
+          Volver
+        </Link>
+      </div>
+    );
+  }
 
   const currency = quote.currency || "CLP";
-  const client = quote.expand?.client;
+  const client = entities.find((e) => e.id === quote.client);
 
   // El plazo total que se promete: el entregable más lejano manda.
   const maxLead = deliverables.reduce((m, d) => Math.max(m, d.lead_days || 0), 0);
@@ -50,6 +60,7 @@ export default async function QuotePrintPage({ params }: { params: Promise<{ id:
 
   return (
     <>
+      <Title>{quote.number ? `Presupuesto ${quote.number}` : "Presupuesto"}</Title>
       <div className="no-print mx-auto mb-4 flex max-w-[210mm] items-center justify-between gap-3 px-4">
         <Link href={`/presupuestos/${id}`} className="text-[13px] text-neutral-700 hover:underline">
           ← Volver al presupuesto

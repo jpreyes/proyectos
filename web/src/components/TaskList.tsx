@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import type { Task } from "@/lib/types";
-import { getConfig } from "@/lib/config";
-import { addTask, deleteTask, setTaskStatus } from "@/lib/actions";
+import type { Project, Task } from "@/lib/types";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { index } from "@/lib/local/query";
+import { addTask, deleteTask, setTaskStatus } from "@/lib/local/actions";
 import { daysUntil, fmtRelative } from "@/lib/dates";
+import { Form } from "./form";
 import { btn, cx, Empty, inputClass, Select } from "./ui";
 
 function urgencyClass(due: string) {
@@ -13,7 +18,7 @@ function urgencyClass(due: string) {
   return "text-muted";
 }
 
-export async function TaskList({
+export function TaskList({
   tasks,
   projectId,
   showProject = false,
@@ -24,7 +29,11 @@ export async function TaskList({
   showProject?: boolean;
   showForm?: boolean;
 }) {
-  const cfg = await getConfig();
+  const cfg = useConfig();
+  // Lo que antes venía en `expand`: con la réplica en memoria, resolver una
+  // relación es buscar en un mapa.
+  const projects = index(useCollection<Project>("projects"));
+
   return (
     <div>
       {tasks.length === 0 ? (
@@ -38,11 +47,10 @@ export async function TaskList({
                 key={t.id}
                 className="flex items-center gap-3 rounded-xl px-1 py-1.5 hover:bg-panel2/70"
               >
-                {/* 24px, not 16: this is the most-tapped control in the app and
-                    it was below every touch-target guideline. */}
-                <form action={setTaskStatus} className="flex shrink-0">
+                {/* 24px, no 16: es el control más tocado de la app y estaba por
+                    debajo de toda guía de área táctil. */}
+                <Form action={setTaskStatus} className="flex shrink-0">
                   <input type="hidden" name="id" value={t.id} />
-                  <input type="hidden" name="project" value={t.project} />
                   <input type="hidden" name="status" value={done ? "todo" : "done"} />
                   <button
                     type="submit"
@@ -56,7 +64,7 @@ export async function TaskList({
                   >
                     ✓
                   </button>
-                </form>
+                </Form>
 
                 <div className="min-w-0 flex-1 py-1">
                   <span
@@ -64,9 +72,9 @@ export async function TaskList({
                   >
                     {t.title}
                   </span>
-                  {showProject && t.expand?.project && (
+                  {showProject && projects.get(t.project) && (
                     <Link href={`/w/${t.project}`} className="ml-2 text-[13px] text-faint">
-                      {t.expand.project.name}
+                      {projects.get(t.project)?.name}
                     </Link>
                   )}
                 </div>
@@ -77,11 +85,10 @@ export async function TaskList({
                   </span>
                 )}
 
-                {/* Was opacity-0 until hover, which on a touch screen means it
-                    did not exist. Dimmed but present instead. */}
-                <form action={deleteTask} className="shrink-0">
+                {/* Estaba en opacity-0 hasta el hover, o sea que en una pantalla
+                    táctil no existía. Atenuado pero presente. */}
+                <Form action={deleteTask} className="shrink-0">
                   <input type="hidden" name="id" value={t.id} />
-                  <input type="hidden" name="project" value={t.project} />
                   <button
                     type="submit"
                     aria-label={`Borrar tarea: ${t.title}`}
@@ -89,7 +96,7 @@ export async function TaskList({
                   >
                     ✕
                   </button>
-                </form>
+                </Form>
               </li>
             );
           })}
@@ -97,7 +104,7 @@ export async function TaskList({
       )}
 
       {showForm && projectId && (
-        <form action={addTask} className="mt-4 grid gap-2.5 sm:grid-cols-2">
+        <Form action={addTask} reset className="mt-4 grid gap-2.5 sm:grid-cols-2">
           <input type="hidden" name="project" value={projectId} />
           <input
             name="title"
@@ -110,7 +117,7 @@ export async function TaskList({
           <button type="submit" className={`${btn("subtle")} sm:col-span-2`}>
             Agregar
           </button>
-        </form>
+        </Form>
       )}
     </div>
   );

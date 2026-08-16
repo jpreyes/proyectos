@@ -1,27 +1,29 @@
+"use client";
+
+import { useMemo } from "react";
 import type { Entity, Project } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { createProject } from "@/lib/actions";
-import { ALIVE } from "@/lib/filters";
+import { createProject } from "@/lib/local/actions";
+import { useCollection } from "@/lib/local/store";
+import { sortBy } from "@/lib/local/query";
 import { PageHeader } from "@/components/ui";
 import { ProjectForm } from "@/components/ProjectForm";
+import { Title } from "@/components/Title";
 
-export const metadata = { title: "Nuevo workspace · Proyectos" };
+export default function NewProjectPage() {
+  const entities = useCollection<Entity>("entities");
+  const projects = useCollection<Project>("projects");
 
-export default async function NewProjectPage() {
-  const pb = await requirePB();
-
-  const [entities, parents] = await Promise.all([
-    pb.collection("entities").getFullList<Entity>({ filter: ALIVE, sort: "name" }),
-    pb.collection("projects").getFullList<Project>({ filter: ALIVE, sort: "name" }),
-  ]);
+  const sortedEntities = useMemo(() => sortBy(entities, "name"), [entities]);
+  const sortedProjects = useMemo(() => sortBy(projects, "name"), [projects]);
 
   return (
     <>
+      <Title>Nuevo workspace</Title>
       <PageHeader
         title="Nuevo workspace"
         subtitle="Un proyecto, un ramo, una empresa, una investigación — todos viven igual."
       />
-      <ProjectForm action={createProject} entities={entities} parents={parents} />
+      <ProjectForm action={createProject} entities={sortedEntities} parents={sortedProjects} />
     </>
   );
 }

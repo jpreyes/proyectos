@@ -1,22 +1,26 @@
+"use client";
+
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { CalendarFeed, Commitment, Entity, Project } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { getConfig } from "@/lib/config";
-import { ALIVE } from "@/lib/filters";
-import { fmtDate } from "@/lib/dates";
-import { inputDate } from "@/lib/dates";
+import type { Tone } from "@/lib/labels";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { day, sortBy } from "@/lib/local/query";
+import { calendarWindow } from "@/lib/local/schedule";
+import { fmtDate, inputDate } from "@/lib/dates";
 import { fmtHours, weekStart } from "@/lib/capacity";
-import { loadCalendarWindow } from "@/lib/schedule";
-import { syncStaleFeeds } from "@/lib/ics";
 import {
   createCommitment,
   deleteCalendarFeed,
   deleteCommitment,
   saveCalendarFeed,
   setCommitmentStatus,
-  syncCalendarFeeds,
   updateCommitment,
-} from "@/lib/actions";
+} from "@/lib/local/actions";
+import { refreshStaleFeeds, syncCalendarFeeds } from "@/lib/actions.server";
+import { Form } from "@/components/form";
 import {
   Badge,
   btn,
@@ -30,8 +34,7 @@ import {
   Stat,
 } from "@/components/ui";
 import { WeekGrid } from "@/components/WeekGrid";
-
-export const metadata = { title: "Calendario · Proyectos" };
+import { Title } from "@/components/Title";
 
 const VIEWS = [
   { weeks: 13, label: "3 meses" },
@@ -39,53 +42,52 @@ const VIEWS = [
   { weeks: 52, label: "1 año" },
 ];
 
-export default async function CalendarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ weeks?: string }>;
-}) {
-  const sp = await searchParams;
-  const pb = await requirePB();
-  const cfg = await getConfig();
-
-  // Refresco perezoso: si el .ics lleva más de seis horas sin mirarse, se
-  // vuelve a leer al abrir la página. No hay proceso aparte que mantener vivo,
-  // y la sincronización explícita sigue estando en el botón.
-  try {
-    await syncStaleFeeds(pb, 6);
-  } catch {
-    // el error queda guardado en el feed y se muestra más abajo
-  }
-
-  const weeks = Number(sp.weeks) || 26;
-
-  const [window, feeds, projects, entities] = await Promise.all([
-    loadCalendarWindow(pb, cfg.settings, { weeks }),
-    pb
-      .collection("calendar_feeds")
-      .getFullList<CalendarFeed>({ sort: "label" })
-      .catch(() => [] as CalendarFeed[]),
-    pb.collection("projects").getFullList<Project>({ filter: ALIVE, sort: "name" }),
-    pb.collection("entities").getFullList<Entity>({ filter: ALIVE, sort: "name" }),
-  ]);
-
-  const commitments = await pb.collection("commitments").getFullList<Commitment>({
-    filter: ALIVE,
-    sort: "start_date",
-    expand: "project,quote,entity",
-  });
-
-  const today = new Date().toISOString().slice(0, 10);
-  const thisWeek = weekStart(today);
-
-  const active = commitments.filter(
-    (c) => c.status !== "cancelled" && String(c.end_date).slice(0, 10) >= today
+export default function CalendarRoute() {
+  return (
+    <Suspense fallback={null}>
+      <CalendarPage />
+    </Suspense>
   );
-  const past = commitments.filter(
-    (c) => c.status === "cancelled" || String(c.end_date).slice(0, 10) < today
-  );
+}
 
-  const nowLoad = window.load.get(thisWeek)?.total || 0;
+function CalendarPage() {
+  const cfg = useConfig();
+  const sp = useSearchParams();
+  const weeks = Number(sp.get("weeks")) || 26;
+
+  const allCommitments = useCollection<Commitment>("commitments");
+  const events = useCollection("calendar_events");
+  const feeds = useCollection<CalendarFeed>("calendar_feeds");
+  const projects = useCollection<Project>("projects");
+  const entities = useCollection<Entity>("entities");
+
+  // Refresco perezoso del .ics. Es lo único de esta pantalla que necesita
+  // servidor —el calendario de la UACh vive afuera— así que se pide y se
+  // olvida: si no hay red, la grilla igual se dibuja con lo ya replicado.
+  useEffect(() => {
+    if (navigator.onLine) void refreshStaleFeeds().catch(() => undefined);
+  }, []);
+
+  const view = useMemo(() => {
+    const window = calendarWindow(cfg.settings, { weeks });
+    const commitments = sortBy(allCommitments, "start_date");
+    const today = new Date().toISOString().slice(0, 10);
+
+    return {
+      window,
+      thisWeek: weekStart(today),
+      active: commitments.filter((c) => c.status !== "cancelled" && day(c.end_date) >= today),
+      past: commitments.filter((c) => c.status === "cancelled" || day(c.end_date) < today),
+      projectOptions: sortBy(projects, "name").map((p) => ({ value: p.id, label: p.name })),
+      entityOptions: sortBy(entities, "name").map((e) => ({ value: e.id, label: e.name })),
+    };
+    // `events` entra en las dependencias aunque no se use directamente: la carga
+    // de la ventana los suma, y sin esto la grilla no se redibujaría al llegar
+    // una sincronización de Outlook.
+  }, [cfg.settings, weeks, allCommitments, events, projects, entities]);
+
+  const { window } = view;
+  const nowLoad = window.load.get(view.thisWeek)?.total || 0;
   const overloaded = window.weeks.filter(
     (w) => (window.load.get(w)?.total || 0) > window.capacity + 1e-9
   );
@@ -95,18 +97,13 @@ export default async function CalendarPage({
 
   return (
     <>
+      <Title>Calendario</Title>
       <PageHeader
         title="Calendario"
-        subtitle={`Techo de ${fmtHours(window.capacity)} por semana · ${active.length} compromiso${
-          active.length === 1 ? "" : "s"
-        } vigente${active.length === 1 ? "" : "s"}`}
-        action={
-          <form action={syncCalendarFeeds}>
-            <button type="submit" className={btn("subtle", "sm")}>
-              Sincronizar Outlook
-            </button>
-          </form>
-        }
+        subtitle={`Techo de ${fmtHours(window.capacity)} por semana · ${view.active.length} compromiso${
+          view.active.length === 1 ? "" : "s"
+        } vigente${view.active.length === 1 ? "" : "s"}`}
+        action={<SyncButton />}
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3">
@@ -160,16 +157,16 @@ export default async function CalendarPage({
         title="Compromisos vigentes"
         subtitle="Horas por semana entre dos fechas. Las clases, las inspecciones, la investigación."
       >
-        {active.length === 0 ? (
+        {view.active.length === 0 ? (
           <Empty>Nada comprometido todavía.</Empty>
         ) : (
           <ul className="divide-y divide-line">
-            {active.map((c) => (
+            {view.active.map((c) => (
               <CommitmentRow
                 key={c.id}
                 commitment={c}
-                projects={projects}
-                entities={entities}
+                projects={view.projectOptions}
+                entities={view.entityOptions}
                 kinds={cfg.options("project_kind")}
                 statuses={cfg.options("commitment_status")}
                 tone={cfg.tone("commitment_status", c.status)}
@@ -181,7 +178,7 @@ export default async function CalendarPage({
 
         <details className="mt-5 border-t border-line pt-4">
           <summary className={`${btn("subtle")} list-none`}>+ Nuevo compromiso</summary>
-          <form action={createCommitment} className="mt-3 grid gap-3.5 sm:grid-cols-2">
+          <Form action={createCommitment} reset className="mt-3 grid gap-3.5 sm:grid-cols-2">
             <Field label="Qué es" className="sm:col-span-2">
               <input
                 name="title"
@@ -203,18 +200,10 @@ export default async function CalendarPage({
               <input type="date" name="end_date" required className={inputClass} />
             </Field>
             <Field label="Workspace">
-              <Select
-                name="project"
-                placeholder="—"
-                options={projects.map((p) => ({ value: p.id, label: p.name }))}
-              />
+              <Select name="project" placeholder="—" options={view.projectOptions} />
             </Field>
             <Field label="Contraparte">
-              <Select
-                name="entity"
-                placeholder="—"
-                options={entities.map((e) => ({ value: e.id, label: e.name }))}
-              />
+              <Select name="entity" placeholder="—" options={view.entityOptions} />
             </Field>
             <Field label="Notas" className="sm:col-span-2">
               <input name="notes" className={inputClass} />
@@ -222,16 +211,16 @@ export default async function CalendarPage({
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
               Agregar
             </button>
-          </form>
+          </Form>
         </details>
 
-        {past.length > 0 && (
+        {view.past.length > 0 && (
           <details className="mt-4 border-t border-line pt-4">
             <summary className="cursor-pointer text-[15px] text-muted hover:text-ink">
-              Terminados y anulados ({past.length})
+              Terminados y anulados ({view.past.length})
             </summary>
             <ul className="mt-3 space-y-2">
-              {past.map((c) => (
+              {view.past.map((c) => (
                 <li
                   key={c.id}
                   className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1 text-[13px] text-faint"
@@ -261,7 +250,7 @@ export default async function CalendarPage({
           <ul className="divide-y divide-line">
             {feeds.map((f) => (
               <li key={f.id} className="py-3">
-                <form action={saveCalendarFeed} className="grid gap-2.5 sm:grid-cols-2">
+                <Form action={saveCalendarFeed} className="grid gap-2.5 sm:grid-cols-2">
                   <input type="hidden" name="id" value={f.id} />
                   <input name="label" defaultValue={f.label} className={inputClass} />
                   <input
@@ -282,7 +271,7 @@ export default async function CalendarPage({
                   <button type="submit" className={btn("subtle")}>
                     Guardar
                   </button>
-                </form>
+                </Form>
 
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px]">
                   {f.last_error ? (
@@ -293,8 +282,12 @@ export default async function CalendarPage({
                       {f.last_sync ? fmtDate(f.last_sync) : "nunca"}
                     </span>
                   )}
-                  {/* Was hover-only, i.e. unreachable on a phone. */}
-                  <form action={deleteCalendarFeed} className="ml-auto">
+                  {/* Estaba solo en hover, o sea inalcanzable en un teléfono. */}
+                  <Form
+                    action={deleteCalendarFeed}
+                    confirm={`¿Quitar el calendario "${f.label}"?`}
+                    className="ml-auto"
+                  >
                     <input type="hidden" name="id" value={f.id} />
                     <button
                       type="submit"
@@ -302,15 +295,16 @@ export default async function CalendarPage({
                     >
                       Quitar
                     </button>
-                  </form>
+                  </Form>
                 </div>
               </li>
             ))}
           </ul>
         )}
 
-        <form
+        <Form
           action={saveCalendarFeed}
+          reset
           className="mt-4 grid gap-2.5 border-t border-line pt-4 sm:grid-cols-2"
         >
           <input name="label" required placeholder="UACh" className={inputClass} />
@@ -329,18 +323,42 @@ export default async function CalendarPage({
           <button type="submit" className={`${btn("subtle")} sm:col-span-2`}>
             Conectar
           </button>
-        </form>
+        </Form>
 
         <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-faint">
           En Outlook web: Calendario → Configuración → Calendarios compartidos → Publicar un
           calendario → permiso <span className="text-muted">Puede ver todos los detalles</span> →
-          copiar el enlace <span className="text-muted">ICS</span> (no el HTML). Se relee sola
-          cada seis horas. Si la UACh tiene bloqueada la publicación, el enlace no se genera:
-          en ese caso descarga el .ics y usa una URL propia, o carga los exámenes como
-          compromisos manuales.
+          copiar el enlace <span className="text-muted">ICS</span> (no el HTML). Se relee sola cada
+          seis horas, siempre que haya red. Si la UACh tiene bloqueada la publicación, el enlace no
+          se genera: descarga el .ics y usa una URL propia, o carga los exámenes como compromisos
+          manuales.
         </p>
       </Card>
     </>
+  );
+}
+
+/**
+ * Leer el .ics es de las pocas cosas que sí puede fallar por falta de red, así
+ * que este botón dice en qué está en vez de fingir que fue instantáneo.
+ */
+function SyncButton() {
+  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
+
+  async function run() {
+    setState("busy");
+    try {
+      await syncCalendarFeeds();
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <button type="button" onClick={run} disabled={state === "busy"} className={btn("subtle", "sm")}>
+      {state === "busy" ? "Leyendo…" : state === "error" ? "Sin conexión — reintentar" : "Sincronizar Outlook"}
+    </button>
   );
 }
 
@@ -356,11 +374,11 @@ function CommitmentRow({
   statusLabel,
 }: {
   commitment: Commitment;
-  projects: Project[];
-  entities: Entity[];
+  projects: { value: string; label: string }[];
+  entities: { value: string; label: string }[];
   kinds: { value: string; label: string }[];
   statuses: { value: string; label: string }[];
-  tone: "neutral" | "accent" | "ok" | "warn" | "bad";
+  tone: Tone;
   statusLabel: string;
 }) {
   const fromQuote = c.source === "quote";
@@ -377,8 +395,9 @@ function CommitmentRow({
           <Badge tone={tone}>{statusLabel}</Badge>
         </summary>
 
-        <form
+        <Form
           action={updateCommitment}
+          key={c.updated}
           className="mt-3 grid gap-3.5 rounded-xl bg-panel2/60 p-3.5 sm:grid-cols-2"
         >
           <input type="hidden" name="id" value={c.id} />
@@ -410,20 +429,10 @@ function CommitmentRow({
             />
           </Field>
           <Field label="Workspace">
-            <Select
-              name="project"
-              defaultValue={c.project}
-              placeholder="—"
-              options={projects.map((p) => ({ value: p.id, label: p.name }))}
-            />
+            <Select name="project" defaultValue={c.project} placeholder="—" options={projects} />
           </Field>
           <Field label="Contraparte">
-            <Select
-              name="entity"
-              defaultValue={c.entity}
-              placeholder="—"
-              options={entities.map((e) => ({ value: e.id, label: e.name }))}
-            />
+            <Select name="entity" defaultValue={c.entity} placeholder="—" options={entities} />
           </Field>
           <Field label="Notas" className="col-span-full">
             <input name="notes" defaultValue={c.notes} className={inputClass} />
@@ -434,19 +443,19 @@ function CommitmentRow({
               Guardar
             </button>
           </div>
-        </form>
+        </Form>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {statuses
             .filter((s) => s.value !== c.status)
             .map((s) => (
-              <form key={s.value} action={setCommitmentStatus}>
+              <Form key={s.value} action={setCommitmentStatus}>
                 <input type="hidden" name="id" value={c.id} />
                 <input type="hidden" name="status" value={s.value} />
                 <button type="submit" className={btn("ghost", "sm")}>
                   {s.label}
                 </button>
-              </form>
+              </Form>
             ))}
 
           {fromQuote && c.quote && (
@@ -455,12 +464,16 @@ function CommitmentRow({
             </Link>
           )}
 
-          <form action={deleteCommitment} className="ml-auto">
+          <Form
+            action={deleteCommitment}
+            confirm={`¿Eliminar el compromiso "${c.title}"?`}
+            className="ml-auto"
+          >
             <input type="hidden" name="id" value={c.id} />
             <button type="submit" className={btn("ghost", "sm")}>
               Eliminar
             </button>
-          </form>
+          </Form>
         </div>
       </details>
     </li>

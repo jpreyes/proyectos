@@ -1,25 +1,28 @@
+"use client";
+
 import Link from "next/link";
 import type { Entity, Project } from "@/lib/types";
-import { getConfig } from "@/lib/config";
+import { useConfig } from "@/lib/local/config";
 import { inputDate } from "@/lib/dates";
+import { Form, type Action } from "./form";
 import { btn, Card, Field, inputClass, Select } from "./ui";
 
-export async function ProjectForm({
+export function ProjectForm({
   action,
   project,
   entities,
   parents,
 }: {
-  action: (fd: FormData) => void | Promise<void>;
+  action: Action;
   project?: Project;
   entities: Entity[];
   parents: Project[];
 }) {
-  const cfg = await getConfig();
+  const cfg = useConfig();
   const p = project;
 
   return (
-    <form action={action} className="space-y-5">
+    <Form action={action} className="space-y-5">
       {p && <input type="hidden" name="id" value={p.id} />}
 
       <div className="space-y-5">
@@ -177,6 +180,6 @@ export async function ProjectForm({
           </Link>
         </div>
       </div>
-    </form>
+    </Form>
   );
 }

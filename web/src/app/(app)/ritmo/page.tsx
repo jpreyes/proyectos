@@ -1,14 +1,17 @@
+"use client";
+
+import { useMemo } from "react";
 import type { Daily } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { saveDaily } from "@/lib/actions";
-import { getConfig } from "@/lib/config";
-import { ALIVE } from "@/lib/filters";
+import { saveDaily } from "@/lib/local/actions";
+import { useConfig } from "@/lib/local/config";
+import { useCollection } from "@/lib/local/store";
+import { sortBy } from "@/lib/local/query";
 import { fmtDate, todayISO } from "@/lib/dates";
+import { Form } from "@/components/form";
 import { btn, Card, cx, Empty, Field, Group, inputClass, PageHeader, Row, Stat } from "@/components/ui";
+import { Title } from "@/components/Title";
 
-export const metadata = { title: "Ritmo · Proyectos" };
-
-/** "23:45" -> 1425. Returns null for anything unparseable. */
+/** "23:45" -> 1425. Devuelve null para cualquier cosa impareable. */
 function toMinutes(hhmm: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm?.trim() || "");
   if (!m) return null;
@@ -28,53 +31,66 @@ function mean(values: number[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-export default async function RhythmPage() {
-  const pb = await requirePB();
-  const cfg = await getConfig();
+export default function RhythmPage() {
+  const cfg = useConfig();
   const WINDOW_DAYS = cfg.settings.rhythm_window_days;
   const MIN_SAMPLE = cfg.settings.rhythm_min_sample;
 
-  const rows = await pb
-    .collection("daily")
-    .getList<Daily>(1, WINDOW_DAYS, { filter: ALIVE, sort: "-date" });
-  const days = rows.items;
-
+  const all = useCollection<Daily>("daily");
   const today = todayISO();
-  const todayRow = days.find((d) => d.date.slice(0, 10) === today);
 
-  /* ------------------------------------------------------------ energy --- */
-  const slots = [
-    { key: "morning", label: "Mañana", avg: mean(days.map((d) => d.energy_morning)) },
-    { key: "afternoon", label: "Tarde", avg: mean(days.map((d) => d.energy_afternoon)) },
-    { key: "evening", label: "Noche", avg: mean(days.map((d) => d.energy_evening)) },
-  ];
-  const rated = days.filter(
-    (d) => d.energy_morning > 0 || d.energy_afternoon > 0 || d.energy_evening > 0
-  ).length;
-  const best = slots.filter((s) => s.avg !== null).sort((a, b) => (b.avg || 0) - (a.avg || 0))[0];
+  const view = useMemo(() => {
+    const days = sortBy(all, "-date").slice(0, WINDOW_DAYS);
 
-  /* ------------------------------------------------------------- sleep --- */
-  const durations: number[] = [];
-  const midpoints: number[] = [];
-  for (const d of days) {
-    const s = toMinutes(d.sleep_start);
-    const e = toMinutes(d.sleep_end);
-    if (s === null || e === null) continue;
-    const dur = e >= s ? e - s : e + 1440 - s; // crosses midnight
-    if (dur <= 0 || dur > 16 * 60) continue;
-    durations.push(dur);
-    midpoints.push((s + dur / 2) % 1440);
-  }
-  const avgDuration = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null;
-  const avgMidpoint = midpoints.length ? midpoints.reduce((a, b) => a + b, 0) / midpoints.length : null;
+    /* --------------------------------------------------------- energía --- */
+    const slots = [
+      { key: "morning", label: "Mañana", avg: mean(days.map((d) => d.energy_morning)) },
+      { key: "afternoon", label: "Tarde", avg: mean(days.map((d) => d.energy_afternoon)) },
+      { key: "evening", label: "Noche", avg: mean(days.map((d) => d.energy_evening)) },
+    ];
+    const rated = days.filter(
+      (d) => d.energy_morning > 0 || d.energy_afternoon > 0 || d.energy_evening > 0
+    ).length;
+    const best = slots.filter((s) => s.avg !== null).sort((a, b) => (b.avg || 0) - (a.avg || 0))[0];
 
-  const enough = rated >= MIN_SAMPLE;
+    /* ----------------------------------------------------------- sueño --- */
+    const durations: number[] = [];
+    const midpoints: number[] = [];
+    for (const d of days) {
+      const s = toMinutes(d.sleep_start);
+      const e = toMinutes(d.sleep_end);
+      if (s === null || e === null) continue;
+      const dur = e >= s ? e - s : e + 1440 - s; // cruza la medianoche
+      if (dur <= 0 || dur > 16 * 60) continue;
+      durations.push(dur);
+      midpoints.push((s + dur / 2) % 1440);
+    }
+
+    return {
+      days,
+      slots,
+      rated,
+      best,
+      todayRow: days.find((d) => String(d.date).slice(0, 10) === today),
+      avgDuration: durations.length
+        ? durations.reduce((a, b) => a + b, 0) / durations.length
+        : null,
+      avgMidpoint: midpoints.length ? midpoints.reduce((a, b) => a + b, 0) / midpoints.length : null,
+      focus: mean(days.map((d) => d.focus_hours)),
+    };
+  }, [all, WINDOW_DAYS, today]);
+
+  const enough = view.rated >= MIN_SAMPLE;
+  const { todayRow } = view;
 
   return (
     <>
+      <Title>Ritmo</Title>
       <PageHeader
         title="Ritmo"
-        subtitle={`${days.length} día${days.length === 1 ? "" : "s"} registrado${days.length === 1 ? "" : "s"}`}
+        subtitle={`${view.days.length} día${view.days.length === 1 ? "" : "s"} registrado${
+          view.days.length === 1 ? "" : "s"
+        }`}
       />
 
       <p className="mb-6 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted">
@@ -87,35 +103,39 @@ export default async function RhythmPage() {
       <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Franja peak"
-          value={enough && best?.avg ? best.label : "—"}
+          value={enough && view.best?.avg ? view.best.label : "—"}
           tone={enough ? "accent" : "neutral"}
-          hint={enough ? `${best?.avg?.toFixed(1)} de 5` : `faltan ${MIN_SAMPLE - rated} días`}
+          hint={enough ? `${view.best?.avg?.toFixed(1)} de 5` : `faltan ${MIN_SAMPLE - view.rated} días`}
         />
         <Stat
           label="Sueño promedio"
-          value={avgDuration ? `${Math.floor(avgDuration / 60)}h ${Math.round(avgDuration % 60)}m` : "—"}
+          value={
+            view.avgDuration
+              ? `${Math.floor(view.avgDuration / 60)}h ${Math.round(view.avgDuration % 60)}m`
+              : "—"
+          }
         />
         <Stat
           label="Punto medio de sueño"
-          value={avgMidpoint !== null ? fmtMinutes(avgMidpoint) : "—"}
+          value={view.avgMidpoint !== null ? fmtMinutes(view.avgMidpoint) : "—"}
           hint="proxy de cronotipo"
         />
-        <Stat
-          label="Foco promedio"
-          value={mean(days.map((d) => d.focus_hours))?.toFixed(1) ?? "—"}
-          hint="horas al día"
-        />
+        <Stat label="Foco promedio" value={view.focus?.toFixed(1) ?? "—"} hint="horas al día" />
       </div>
 
       <div className="space-y-6">
         <Card title={todayRow ? "Editar hoy" : "Registrar hoy"}>
-          <form action={saveDaily} className="grid gap-3.5 sm:grid-cols-2">
+          <Form
+            action={saveDaily}
+            key={todayRow?.updated || "nuevo"}
+            className="grid gap-3.5 sm:grid-cols-2"
+          >
             {todayRow && <input type="hidden" name="id" value={todayRow.id} />}
             <Field label="Fecha" className="sm:col-span-2">
               <input
                 type="date"
                 name="date"
-                defaultValue={todayRow?.date.slice(0, 10) || today}
+                defaultValue={todayRow ? String(todayRow.date).slice(0, 10) : today}
                 className={inputClass}
               />
             </Field>
@@ -189,25 +209,25 @@ export default async function RhythmPage() {
                 Guardar
               </button>
             </div>
-          </form>
+          </Form>
         </Card>
 
         <Card
           title="Energía por franja"
-          subtitle={`Promedio de ${rated} día${rated === 1 ? "" : "s"}`}
+          subtitle={`Promedio de ${view.rated} día${view.rated === 1 ? "" : "s"}`}
         >
-          {rated === 0 ? (
+          {view.rated === 0 ? (
             <Empty>Sin datos de energía todavía.</Empty>
           ) : (
             <div className="space-y-3">
-              {slots.map((s) => (
+              {view.slots.map((s) => (
                 <div key={s.key} className="flex items-center gap-3">
                   <span className="w-16 shrink-0 text-[15px] text-muted">{s.label}</span>
                   <span className="h-3 flex-1 overflow-hidden rounded-full bg-line">
                     <span
                       className={cx(
                         "block h-full rounded-full",
-                        enough && s.key === best?.key ? "bg-accent" : "bg-line2"
+                        enough && s.key === view.best?.key ? "bg-accent" : "bg-line2"
                       )}
                       style={{ width: `${((s.avg || 0) / 5) * 100}%` }}
                     />
@@ -227,14 +247,14 @@ export default async function RhythmPage() {
         </Card>
       </div>
 
-      {/* The four-column table is gone: on a phone it scrolled sideways, and the
-          sleep window plus the three ratings fit fine on one line of hint. */}
+      {/* La tabla de cuatro columnas se fue: en un teléfono se desplazaba de
+          lado, y la ventana de sueño más las tres notas caben en una línea. */}
       <div className="mt-6">
         <Group title="Últimos días">
-          {days.length === 0 ? (
+          {view.days.length === 0 ? (
             <Empty>Sin registros.</Empty>
           ) : (
-            days.slice(0, 14).map((d) => (
+            view.days.slice(0, 14).map((d) => (
               <Row
                 key={d.id}
                 label={fmtDate(d.date)}

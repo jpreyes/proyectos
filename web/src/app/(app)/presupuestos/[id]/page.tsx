@@ -1,13 +1,16 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import type { Deliverable, Entity, Quote, QuoteItem } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { getConfig } from "@/lib/config";
-import { ALIVE } from "@/lib/filters";
+import type { Deliverable, Entity, Project, Quote, QuoteItem } from "@/lib/types";
+import { useConfig } from "@/lib/local/config";
+import { useCollection, useRecord } from "@/lib/local/store";
+import { useRouteId } from "@/lib/local/route";
+import { sortBy } from "@/lib/local/query";
+import { proposeSlotForQuote, storedSlot } from "@/lib/local/schedule";
 import { formatAmount } from "@/lib/money";
 import { inputDate } from "@/lib/dates";
 import { fmtHours, weekStart } from "@/lib/capacity";
-import { proposeSlotForQuote, storedSlot } from "@/lib/schedule";
 import {
   addDeliverable,
   addQuoteItem,
@@ -21,67 +24,88 @@ import {
   updateDeliverable,
   updateQuote,
   updateQuoteItem,
-} from "@/lib/actions";
-import {
-  Badge,
-  btn,
-  Card,
-  cx,
-  Empty,
-  Field,
-  inputClass,
-  PageHeader,
-  Select,
-} from "@/components/ui";
+} from "@/lib/local/actions";
+import { Form } from "@/components/form";
+import { Badge, btn, Card, cx, Empty, Field, inputClass, PageHeader, Select } from "@/components/ui";
 import { WeekGrid } from "@/components/WeekGrid";
-
-export const metadata = { title: "Presupuesto · Proyectos" };
+import { Title } from "@/components/Title";
 
 /** Cuántas semanas de contexto se muestran alrededor del calce propuesto. */
 const GRID_WEEKS = 18;
 
-export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const pb = await requirePB();
-  const cfg = await getConfig();
+export default function QuotePage() {
+  const id = useRouteId();
+  const cfg = useConfig();
 
-  let quote: Quote;
-  try {
-    quote = await pb.collection("quotes").getOne<Quote>(id, { expand: "client,project" });
-  } catch {
-    notFound();
+  const quote = useRecord<Quote>("quotes", id);
+  const allItems = useCollection<QuoteItem>("quote_items");
+  const allDeliverables = useCollection<Deliverable>("deliverables");
+  const entities = useCollection<Entity>("entities");
+  const projects = useCollection<Project>("projects");
+  const commitments = useCollection("commitments");
+  const events = useCollection("calendar_events");
+
+  const view = useMemo(() => {
+    const items = sortBy(
+      allItems.filter((it) => it.quote === id),
+      "position"
+    );
+    const deliverables = sortBy(
+      allDeliverables.filter((d) => d.quote === id),
+      "position"
+    );
+
+    // El calce fijado manda; si no hay, se propone uno contra el calendario de
+    // hoy. Nada de esto se guarda al mirar la página: fijarlo es un acto aparte.
+    const fixed = quote ? storedSlot(quote) : null;
+    const proposed = quote
+      ? proposeSlotForQuote(cfg.settings, quote)
+      : { slot: null, window: null };
+    const slot = fixed ?? proposed.slot;
+    const window = proposed.window;
+
+    const gridWeeks = (() => {
+      if (!window) return [];
+      if (!slot) return window.weeks.slice(0, GRID_WEEKS);
+      const firstIdx = Math.max(0, window.weeks.indexOf(weekStart(slot.start)));
+      return window.weeks.slice(firstIdx, firstIdx + Math.max(GRID_WEEKS, slot.weeks.length + 3));
+    })();
+
+    return {
+      items,
+      deliverables,
+      fixed,
+      slot,
+      window,
+      gridWeeks,
+      highlight: new Set(slot?.weeks || []),
+      clients: sortBy(entities, "name").map((e) => ({ value: e.id, label: e.name })),
+    };
+    // commitments y events entran para que el calce se recalcule cuando cambia
+    // la carga del calendario, aunque la ventana los lea del store.
+  }, [id, quote, allItems, allDeliverables, entities, cfg.settings, commitments, events]);
+
+  if (!quote || quote.deleted) {
+    return (
+      <>
+        <Title>Presupuesto</Title>
+        <PageHeader title="No está" subtitle="Este presupuesto no existe en esta cuenta." />
+        <Link href="/presupuestos" className={btn("subtle")}>
+          Volver a Presupuestos
+        </Link>
+      </>
+    );
   }
-  if (quote.deleted) notFound();
 
-  const [items, deliverables, entities] = await Promise.all([
-    pb
-      .collection("quote_items")
-      .getFullList<QuoteItem>({ filter: pb.filter("quote = {:q}", { q: id }), sort: "position" }),
-    pb
-      .collection("deliverables")
-      .getFullList<Deliverable>({ filter: pb.filter("quote = {:q}", { q: id }), sort: "position" }),
-    pb.collection("entities").getFullList<Entity>({ filter: ALIVE, sort: "name" }),
-  ]);
-
-  /* --------------------------------------------------------- programación - */
-  // El calce fijado manda; si no hay, se propone uno contra el calendario de
-  // hoy. Nada de esto se guarda al mirar la página: fijarlo es un acto aparte.
-  const fixed = storedSlot(quote);
-  const { slot: proposed, window } = await proposeSlotForQuote(pb, cfg.settings, quote);
-  const slot = fixed ?? proposed;
-
-  const gridWeeks = (() => {
-    if (!slot) return window.weeks.slice(0, GRID_WEEKS);
-    const firstIdx = Math.max(0, window.weeks.indexOf(weekStart(slot.start)));
-    return window.weeks.slice(firstIdx, firstIdx + Math.max(GRID_WEEKS, slot.weeks.length + 3));
-  })();
-
-  const highlight = new Set(slot?.weeks || []);
-  const clients = entities.map((e) => ({ value: e.id, label: e.name }));
+  const { slot, fixed, window } = view;
+  const client = entities.find((e) => e.id === quote.client);
+  const project = projects.find((p) => p.id === quote.project);
   const isApproved = quote.status === "approved";
+  const capacity = window?.capacity ?? cfg.settings.capacity_hours_week;
 
   return (
     <>
+      <Title>{quote.title || "Presupuesto"}</Title>
       <PageHeader
         title={
           <span className="flex flex-wrap items-center gap-2">
@@ -92,7 +116,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             </Badge>
           </span>
         }
-        subtitle={quote.expand?.client?.name || "sin cliente"}
+        subtitle={client?.name || "sin cliente"}
         action={
           <div className="flex gap-2">
             <Link href={`/presupuestos/${id}/imprimir`} className={btn("subtle", "sm")}>
@@ -117,18 +141,18 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
       >
         <div className="flex flex-wrap items-center gap-2">
           {!isApproved && (
-            <form action={approveQuote}>
+            <Form action={approveQuote}>
               <input type="hidden" name="id" value={id} />
               <button type="submit" className={btn("primary", "sm")}>
                 Aprobar
               </button>
-            </form>
+            </Form>
           )}
 
           {(["draft", "pending", "rejected"] as const)
             .filter((s) => s !== quote.status)
             .map((s) => (
-              <form key={s} action={setQuoteStatus}>
+              <Form key={s} action={setQuoteStatus}>
                 <input type="hidden" name="id" value={id} />
                 <input type="hidden" name="previous" value={quote.status} />
                 <input type="hidden" name="status" value={s} />
@@ -139,24 +163,24 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                       ? "Volver a borrador"
                       : "Rechazado"}
                 </button>
-              </form>
+              </Form>
             ))}
 
           <span className="ml-auto" />
 
-          <form action={deleteQuote}>
+          <Form action={deleteQuote} confirm={`¿Eliminar el presupuesto "${quote.title}"?`}>
             <input type="hidden" name="id" value={id} />
             <button type="submit" className={btn("ghost", "sm")}>
               Eliminar
             </button>
-          </form>
+          </Form>
         </div>
 
-        {isApproved && quote.expand?.project && (
+        {isApproved && project && (
           <p className="mt-3 border-t border-line pt-3 text-[13px] text-muted">
             Proyecto:{" "}
             <Link href={`/w/${quote.project}`} className="text-accent hover:underline">
-              {quote.expand.project.name}
+              {project.name}
             </Link>
             . Si lo rechazas ahora, se anula la reserva de tiempo y el ingreso proyectado; el
             proyecto queda.
@@ -166,7 +190,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
       {/* -------------------------------------------------------------- datos */}
       <Card className="mb-5" title="Datos">
-        <form action={updateQuote} className="grid gap-3.5 sm:grid-cols-2">
+        <Form action={updateQuote} key={quote.updated} className="grid gap-3.5 sm:grid-cols-2">
           <input type="hidden" name="id" value={id} />
 
           <Field label="Número">
@@ -177,7 +201,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           </Field>
 
           <Field label="Cliente">
-            <Select name="client" defaultValue={quote.client} placeholder="—" options={clients} />
+            <Select name="client" defaultValue={quote.client} placeholder="—" options={view.clients} />
           </Field>
           <Field label="Tipo">
             <Select
@@ -215,11 +239,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           </Field>
 
           <Field label="Moneda">
-            <Select
-              name="currency"
-              defaultValue={quote.currency}
-              options={cfg.options("currency")}
-            />
+            <Select name="currency" defaultValue={quote.currency} options={cfg.options("currency")} />
           </Field>
           <Field label="Valor en CLP" hint="1 si presupuestas en pesos">
             <input name="fx_rate" defaultValue={quote.fx_rate || 1} className={inputClass} />
@@ -278,11 +298,15 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           <button type="submit" className={`${btn("primary")} sm:col-span-2`}>
             Guardar
           </button>
-        </form>
+        </Form>
       </Card>
 
       {/* -------------------------------------------------------------- ítems */}
-      <Card className="mb-5" title="Presupuesto" subtitle={`${items.length} ítem${items.length === 1 ? "" : "es"}`}>
+      <Card
+        className="mb-5"
+        title="Presupuesto"
+        subtitle={`${view.items.length} ítem${view.items.length === 1 ? "" : "es"}`}
+      >
         <div className="hidden grid-cols-[1fr_4rem_5rem_7rem_6rem_auto] gap-2 border-b border-line pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted sm:grid">
           <span>Descripción</span>
           <span>Unidad</span>
@@ -293,10 +317,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         </div>
 
         <ul className="divide-y divide-line">
-          {items.map((item) => (
+          {view.items.map((item) => (
             <li key={item.id} className="group flex items-center gap-2 py-1.5">
-              <form
+              <Form
                 action={updateQuoteItem}
+                key={item.updated}
                 className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-[1fr_4rem_5rem_7rem_6rem_auto]"
               >
                 <input type="hidden" name="id" value={item.id} />
@@ -309,11 +334,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                   className={cx(inputClass, "col-span-2 sm:col-span-1")}
                 />
                 <input name="unit" defaultValue={item.unit} className={inputClass} placeholder="gl" />
-                <input
-                  name="qty"
-                  defaultValue={item.qty}
-                  className={cx(inputClass, "text-right")}
-                />
+                <input name="qty" defaultValue={item.qty} className={cx(inputClass, "text-right")} />
                 <input
                   name="unit_price"
                   defaultValue={item.unit_price}
@@ -325,10 +346,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <button type="submit" className={btn("subtle", "sm")}>
                   ✓
                 </button>
-              </form>
+              </Form>
 
-              {/* Was hover-only: unreachable on a touch screen. */}
-              <form action={deleteQuoteItem}>
+              {/* Estaba solo en hover: inalcanzable en una pantalla táctil. */}
+              <Form action={deleteQuoteItem}>
                 <input type="hidden" name="id" value={item.id} />
                 <input type="hidden" name="quote" value={id} />
                 <button
@@ -338,13 +359,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 >
                   ✕
                 </button>
-              </form>
+              </Form>
             </li>
           ))}
         </ul>
 
-        <form
+        <Form
           action={addQuoteItem}
+          reset
           className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 sm:grid-cols-[1fr_4rem_5rem_7rem_6rem_auto]"
         >
           <input type="hidden" name="quote" value={id} />
@@ -361,7 +383,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           <button type="submit" className={btn("subtle", "sm")}>
             Agregar
           </button>
-        </form>
+        </Form>
 
         {/* ------------------------------------------------------- totales -- */}
         <dl className="mt-4 ml-auto max-w-sm space-y-1 border-t border-line pt-3 text-[13px]">
@@ -386,11 +408,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         title="Cuándo cabe"
         subtitle={
           quote.work_hours
-            ? `${fmtHours(quote.work_hours)} de trabajo · techo ${fmtHours(window.capacity)} por semana`
+            ? `${fmtHours(quote.work_hours)} de trabajo · techo ${fmtHours(capacity)} por semana`
             : "Pon las horas de trabajo en Datos y acá aparece dónde calzan."
         }
       >
-        {!quote.work_hours || !slot ? (
+        {!quote.work_hours || !slot || !window ? (
           <Empty>Sin horas declaradas no hay nada que buscar.</Empty>
         ) : (
           <>
@@ -417,14 +439,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
               <span className="ml-auto flex gap-2">
                 {fixed ? (
-                  <form action={clearQuotePlan}>
+                  <Form action={clearQuotePlan}>
                     <input type="hidden" name="id" value={id} />
                     <button type="submit" className={btn("ghost", "sm")}>
                       Soltar el calce
                     </button>
-                  </form>
+                  </Form>
                 ) : (
-                  <form action={setQuotePlan}>
+                  <Form action={setQuotePlan}>
                     <input type="hidden" name="id" value={id} />
                     <input type="hidden" name="plan_start" value={slot.start} />
                     <input type="hidden" name="plan_end" value={slot.end} />
@@ -432,24 +454,24 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                     <button type="submit" className={btn("subtle", "sm")}>
                       Fijar este calce
                     </button>
-                  </form>
+                  </Form>
                 )}
               </span>
             </div>
 
             {!slot.fits && (
               <p className="mb-3 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-[13px] text-bad">
-                No hay ningún tramo en el horizonte donde esto quepa sin pasar tu capacidad
-                semanal. Si lo apruebas igual, queda reservado lo antes posible y marcado como
-                tentativo — que es más honesto que dejarlo sin agendar.
+                No hay ningún tramo en el horizonte donde esto quepa sin pasar tu capacidad semanal.
+                Si lo apruebas igual, queda reservado lo antes posible y marcado como tentativo — que
+                es más honesto que dejarlo sin agendar.
               </p>
             )}
 
             <WeekGrid
-              weeks={gridWeeks}
+              weeks={view.gridWeeks}
               load={window.load}
               capacity={window.capacity}
-              highlight={highlight}
+              highlight={view.highlight}
               extraHours={slot.hoursPerWeek}
             />
 
@@ -467,10 +489,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         subtitle="Qué recibe el cliente y en cuánto tiempo desde que parte el trabajo."
       >
         <ul className="divide-y divide-line">
-          {deliverables.map((d) => (
+          {view.deliverables.map((d) => (
             <li key={d.id} className="group flex items-center gap-2 py-1.5">
-              <form
+              <Form
                 action={updateDeliverable}
+                key={d.updated}
                 className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_1.5fr_6rem_auto]"
               >
                 <input type="hidden" name="id" value={d.id} />
@@ -492,10 +515,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <button type="submit" className={btn("subtle", "sm")}>
                   ✓
                 </button>
-              </form>
+              </Form>
 
-              {/* Was hover-only: unreachable on a touch screen. */}
-              <form action={deleteDeliverable}>
+              {/* Estaba solo en hover: inalcanzable en una pantalla táctil. */}
+              <Form action={deleteDeliverable}>
                 <input type="hidden" name="id" value={d.id} />
                 <input type="hidden" name="quote" value={id} />
                 <button
@@ -505,13 +528,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 >
                   ✕
                 </button>
-              </form>
+              </Form>
             </li>
           ))}
         </ul>
 
-        <form
+        <Form
           action={addDeliverable}
+          reset
           className="mt-3 grid grid-cols-1 gap-2 border-t border-line pt-3 sm:grid-cols-[1fr_1.5fr_6rem_auto]"
         >
           <input type="hidden" name="quote" value={id} />
@@ -521,7 +545,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           <button type="submit" className={btn("subtle", "sm")}>
             Agregar
           </button>
-        </form>
+        </Form>
       </Card>
     </>
   );

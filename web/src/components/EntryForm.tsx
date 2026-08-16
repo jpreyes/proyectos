@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { Account, Category, Entity, Entry, Project } from "@/lib/types";
-import { getConfig } from "@/lib/config";
+import { useConfig } from "@/lib/local/config";
 import { inputDate, todayISO } from "@/lib/dates";
+import { Form, type Action } from "./form";
 import { btn, Card, Field, inputClass, Select } from "./ui";
 
-export async function EntryForm({
+export function EntryForm({
   action,
   entry,
   projects,
@@ -14,7 +17,7 @@ export async function EntryForm({
   defaultProject,
   returnTo,
 }: {
-  action: (fd: FormData) => void | Promise<void>;
+  action: Action;
   entry?: Entry;
   projects: Project[];
   entities: Entity[];
@@ -23,12 +26,12 @@ export async function EntryForm({
   defaultProject?: string;
   returnTo?: string;
 }) {
-  const cfg = await getConfig();
+  const cfg = useConfig();
   const e = entry;
   const ivaPct = Math.round((cfg.settings.iva_rate || 0.19) * 100);
 
   return (
-    <form action={action} className="space-y-5">
+    <Form action={action} className="space-y-5">
       {e && <input type="hidden" name="id" value={e.id} />}
       <input type="hidden" name="return_to" value={returnTo || "/finanzas"} />
 
@@ -257,6 +260,6 @@ export async function EntryForm({
           </Link>
         </div>
       </div>
-    </form>
+    </Form>
   );
 }

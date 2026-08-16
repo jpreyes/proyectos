@@ -7,24 +7,26 @@ export const dynamic = "force-static";
 export const metadata = { title: "Sin conexión · Proyectos" };
 
 /**
- * The last resort, and only that.
+ * El último recurso, y solo eso.
  *
- * Any screen already opened is served from the page cache when the network is
- * gone, so this is reached only for a view with no local copy at all. It used
- * to be the front door of every outage, which made a recoverable moment look
- * like the app had fallen over. The copy assumes the rest still works.
+ * El worker guarda una cáscara por forma de ruta, así que cualquier pantalla
+ * cuya forma ya se visitó abre sin red y con tus datos, que están en el
+ * dispositivo. Acá se llega únicamente cuando falta hasta la cáscara — una
+ * sección que este navegador nunca abrió. Antes esta página era la puerta de
+ * entrada de cualquier corte, lo que hacía ver un momento recuperable como si
+ * la app se hubiera caído.
  */
 export default function OfflinePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-5 py-10">
       <div className="w-full max-w-md">
         <h1 className="text-[28px] font-bold leading-tight tracking-tight">
-          De esta pantalla no hay copia
+          De esta sección no hay copia
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          No hay red y esta vista no se había abierto antes en este dispositivo. Las que sí, siguen
-          disponibles tal como se vieron la última vez. Y lo de siempre: lo que anotes acá se guarda
-          y se sube apenas vuelva la señal.
+          No hay red y esta sección nunca se abrió en este dispositivo. Las demás siguen
+          funcionando completas —tus datos viven acá, no en el servidor— y lo que anotes en este
+          cuadro se guarda igual y sube apenas vuelva la señal.
         </p>
       </div>
 

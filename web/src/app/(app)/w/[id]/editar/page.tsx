@@ -1,44 +1,54 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useMemo } from "react";
+import Link from "next/link";
 import type { Entity, Project } from "@/lib/types";
-import { requirePB } from "@/lib/pb.server";
-import { deleteProject, updateProject } from "@/lib/actions";
-import { ALIVE } from "@/lib/filters";
+import { deleteProject, updateProject } from "@/lib/local/actions";
+import { useCollection, useRecord } from "@/lib/local/store";
+import { useRouteId } from "@/lib/local/route";
+import { sortBy } from "@/lib/local/query";
+import { Form } from "@/components/form";
 import { btn, PageHeader } from "@/components/ui";
 import { ProjectForm } from "@/components/ProjectForm";
+import { Title } from "@/components/Title";
 
-export const metadata = { title: "Editar workspace · Proyectos" };
+export default function EditProjectPage() {
+  const id = useRouteId();
+  const project = useRecord<Project>("projects", id);
+  const entities = useCollection<Entity>("entities");
+  const projects = useCollection<Project>("projects");
 
-export default async function EditProjectPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const pb = await requirePB();
+  const sortedEntities = useMemo(() => sortBy(entities, "name"), [entities]);
+  const sortedProjects = useMemo(() => sortBy(projects, "name"), [projects]);
 
-  let project: Project;
-  try {
-    project = await pb.collection("projects").getOne<Project>(id);
-  } catch {
-    notFound();
+  if (!project || project.deleted) {
+    return (
+      <>
+        <Title>Editar workspace</Title>
+        <PageHeader title="No está" subtitle="Este workspace no existe en esta cuenta." />
+        <Link href="/w" className={btn("subtle")}>
+          Volver a Trabajo
+        </Link>
+      </>
+    );
   }
-
-  const [entities, parents] = await Promise.all([
-    pb.collection("entities").getFullList<Entity>({ filter: ALIVE, sort: "name" }),
-    pb.collection("projects").getFullList<Project>({ filter: ALIVE, sort: "name" }),
-  ]);
 
   return (
     <>
+      <Title>Editar workspace</Title>
       <PageHeader title="Editar ficha" subtitle={project.name} />
       <ProjectForm
         action={updateProject}
         project={project}
-        entities={entities}
-        parents={parents}
+        entities={sortedEntities}
+        parents={sortedProjects}
       />
 
-      <form action={deleteProject} className="mt-10 border-t border-line pt-6">
+      <Form
+        action={deleteProject}
+        confirm={`¿Eliminar "${project.name}"? Su bitácora, tareas y ubicaciones se van con él.`}
+        className="mt-10 border-t border-line pt-6"
+      >
         <input type="hidden" name="id" value={project.id} />
         <p className="mb-3 text-[13px] leading-relaxed text-faint">
           Eliminar borra también su bitácora, tareas y mapa de ubicaciones. Los movimientos
@@ -47,7 +57,7 @@ export default async function EditProjectPage({
         <button type="submit" className={btn("danger")}>
           Eliminar workspace
         </button>
-      </form>
+      </Form>
     </>
   );
 }

@@ -1,31 +1,36 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { flush, pending, queue } from "@/lib/offline";
+import { create } from "@/lib/local/mutate";
+import { boot, getSyncState, subscribeSync } from "@/lib/local/sync";
 import { btn, cx, inputClass } from "./ui";
 
-/** The one thing that has to keep working with no network. */
+/**
+ * La captura de último recurso.
+ *
+ * Vive en `/offline`, que hoy solo aparece en una vista que nunca se abrió en
+ * este dispositivo. Aun así escribe en el mismo sitio que el resto de la app, y
+ * arranca la capa local por su cuenta porque acá no hay `AppShell` que lo haga.
+ */
 export function OfflineCapture() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [queued, setQueued] = useState(0);
   const [saved, setSaved] = useState(false);
   const [online, setOnline] = useState(false);
 
-  async function refresh() {
-    setQueued((await pending()).length);
-  }
-
   useEffect(() => {
+    void boot();
     setOnline(navigator.onLine);
-    refresh();
-    const on = () => {
-      setOnline(true);
-      flush().then(refresh);
-    };
+    setQueued(getSyncState().queued);
+
+    const offSync = subscribeSync(() => setQueued(getSyncState().queued));
+    const on = () => setOnline(true);
     const off = () => setOnline(false);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
+
     return () => {
+      offSync();
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
     };
@@ -40,12 +45,7 @@ export function OfflineCapture() {
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
 
-    await queue("inbox", { text: value, status: "open" });
-    await refresh();
-    if (navigator.onLine) {
-      await flush();
-      await refresh();
-    }
+    await create("inbox", { text: value, status: "open" });
   }
 
   return (
@@ -64,11 +64,7 @@ export function OfflineCapture() {
         </button>
 
         <span className="text-[13px] text-faint">
-          {queued > 0
-            ? `${queued} esperando subir`
-            : online
-              ? "Conectado"
-              : "Sin conexión"}
+          {queued > 0 ? `${queued} esperando subir` : online ? "Conectado" : "Sin conexión"}
         </span>
 
         {online && (

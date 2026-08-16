@@ -1,6 +1,14 @@
-import "server-only";
-import { cache } from "react";
-import { pbServer } from "./pb.server";
+/**
+ * El vocabulario editable y los números que la app usa para decidir qué
+ * mostrarte. Antes esto se leía en el servidor en cada petición; ahora sale de
+ * la réplica local (ver `lib/local/config.ts`), así que este módulo se quedó
+ * con lo que siempre fue: los tipos, los valores por defecto y la función pura
+ * que arma el objeto `Config` a partir de las filas.
+ *
+ * Sin dependencias del servidor a propósito — lo usan el hook del cliente y
+ * cualquier cosa que necesite los mismos rótulos.
+ */
+
 import type { Tone } from "./labels";
 import * as FALLBACK from "./labels";
 
@@ -67,7 +75,7 @@ export interface Settings {
   quote_prefix: string;
 }
 
-const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS: Settings = {
   id: "",
   cold_days: 21,
   horizon_days: 14,
@@ -98,7 +106,7 @@ const DEFAULT_SETTINGS: Settings = {
   quote_prefix: "P",
 };
 
-/** Hardcoded maps, used only if the taxonomy collection is unreachable. */
+/** Mapas compilados, usados solo si la taxonomía todavía no bajó. */
 const FALLBACK_LABELS: Record<TaxGroup, Record<string, string>> = {
   project_kind: FALLBACK.PROJECT_KIND,
   project_status: FALLBACK.PROJECT_STATUS,
@@ -120,44 +128,32 @@ const FALLBACK_LABELS: Record<TaxGroup, Record<string, string>> = {
 export interface Config {
   rows: TaxRow[];
   settings: Settings;
-  /** Every row of a group, including inactive ones — for the settings screen. */
+  /** Todas las filas de un grupo, incluidas las ocultas — para Configuración. */
   all(group: TaxGroup): TaxRow[];
-  /** Active rows only, ordered — for pickers. */
+  /** Solo las activas, ordenadas — para los selectores. */
   options(group: TaxGroup): { value: string; label: string }[];
   label(group: TaxGroup, value: string | null | undefined): string;
   tone(group: TaxGroup, value: string | null | undefined): Tone;
   icon(group: TaxGroup, value: string | null | undefined): string;
 }
 
-/**
- * Loaded once per request (React `cache` dedupes), so every component may call
- * it without worrying about repeated queries.
- *
- * Falls back to the compiled-in maps when the collections are missing, which
- * keeps the app rendering during a partial deploy instead of erroring out.
- */
-export const getConfig = cache(async (): Promise<Config> => {
-  let rows: TaxRow[] = [];
-  let settings = DEFAULT_SETTINGS;
-
-  try {
-    const pb = await pbServer();
-    rows = await pb
-      .collection("taxonomy")
-      .getFullList<TaxRow>({ sort: "group,position,label" });
-
-    const list = await pb.collection("settings").getList<Settings>(1, 1);
-    if (list.items.length) settings = { ...DEFAULT_SETTINGS, ...list.items[0] };
-  } catch {
-    // keep defaults
-  }
+/** Arma el `Config` a partir de las filas crudas. Puro: mismo input, mismo output. */
+export function buildConfig(rows: TaxRow[], settings?: Partial<Settings> | null): Config {
+  const ordered = [...rows].sort(
+    (a, b) =>
+      String(a.group).localeCompare(String(b.group)) ||
+      (a.position || 0) - (b.position || 0) ||
+      String(a.label).localeCompare(String(b.label), "es")
+  );
 
   const byGroup = new Map<TaxGroup, TaxRow[]>();
-  for (const r of rows) {
+  for (const r of ordered) {
     const list = byGroup.get(r.group) || [];
     list.push(r);
     byGroup.set(r.group, list);
   }
+
+  const merged: Settings = { ...DEFAULT_SETTINGS, ...(settings || {}) };
 
   function find(group: TaxGroup, value: string | null | undefined): TaxRow | undefined {
     if (!value) return undefined;
@@ -165,8 +161,8 @@ export const getConfig = cache(async (): Promise<Config> => {
   }
 
   return {
-    rows,
-    settings,
+    rows: ordered,
+    settings: merged,
 
     all(group) {
       return byGroup.get(group) || [];
@@ -195,4 +191,4 @@ export const getConfig = cache(async (): Promise<Config> => {
       return find(group, value)?.icon || "";
     },
   };
-});
+}

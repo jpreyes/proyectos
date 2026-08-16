@@ -48,8 +48,29 @@ export interface Settings {
   rhythm_min_sample: number;
   rhythm_window_days: number;
   routine_grid_days: number;
-  iva_rate: number;
+  /**
+   * El impuesto sobre las ventas, con el nombre que tenga donde vives: IVA,
+   * VAT, GST, IGV. La tasa es solo el valor por defecto del formulario — cada
+   * movimiento guarda el impuesto como monto, así que conviven documentos con
+   * tasas distintas y exentos sin conflicto.
+   */
+  tax_label: string;
+  tax_rate: number;
+  /**
+   * ¿El impuesto que pagas en tus gastos se descuenta del que cobras? En los
+   * regímenes tipo IVA/VAT/GST sí; en el "sales tax" de Estados Unidos no, y
+   * ahí el cierre solo suma lo cobrado.
+   */
+  tax_on_expenses: boolean;
+  /** Cada cuánto se declara. Chile y México mensual, España y el Reino Unido trimestral. */
+  tax_period: "monthly" | "bimonthly" | "quarterly";
+  /** Con qué fecha entra un movimiento al período: la del documento o la del pago. */
+  tax_basis: "document" | "payment";
+
+  /** Lo que te retiene quien te paga, a cuenta de tu impuesto a la renta. */
+  withholding_label: string;
   withholding_rate: number;
+  /** Moneda base de la cuenta: en la que se congela cada movimiento y se suma todo. */
   default_currency: string;
   digest_hour: number;
   digest_minute: number;
@@ -93,7 +114,12 @@ export const DEFAULT_SETTINGS: Settings = {
   rhythm_min_sample: 7,
   rhythm_window_days: 60,
   routine_grid_days: 70,
-  iva_rate: 0.19,
+  tax_label: "IVA",
+  tax_rate: 0.19,
+  tax_on_expenses: true,
+  tax_period: "monthly",
+  tax_basis: "document",
+  withholding_label: "Retención",
   withholding_rate: 0.145,
   default_currency: "CLP",
   digest_hour: 7,

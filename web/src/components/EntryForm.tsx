@@ -28,7 +28,11 @@ export function EntryForm({
 }) {
   const cfg = useConfig();
   const e = entry;
-  const ivaPct = Math.round((cfg.settings.iva_rate || 0.19) * 100);
+  // Ni "IVA" ni "CLP" están escritos en la pantalla: los pone la cuenta. Es lo
+  // que permite que este mismo formulario sirva con VAT, GST o IGV.
+  const taxLabel = cfg.settings.tax_label || "IVA";
+  const taxPct = Math.round((cfg.settings.tax_rate || 0.19) * 100);
+  const home = cfg.settings.default_currency || "CLP";
 
   return (
     <Form action={action} className="space-y-5">
@@ -69,7 +73,7 @@ export function EntryForm({
 
         <Card
           title="Monto"
-          subtitle="El valor en CLP se congela al guardar, para que los reportes históricos no se muevan."
+          subtitle={`El valor en ${home} se congela al guardar, para que los reportes históricos no se muevan.`}
         >
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Total">
@@ -89,14 +93,14 @@ export function EntryForm({
               />
             </Field>
             <Field
-              label="Valor en CLP"
-              hint="Solo si no es CLP (UF del día, dólar observado)"
+              label={`Valor en ${home}`}
+              hint={`Solo si el movimiento no está en ${home} (el cambio del día)`}
               className="sm:col-span-2"
             >
               <input
                 name="fx_rate"
                 inputMode="decimal"
-                defaultValue={e?.fx_rate && e.currency !== "CLP" ? e.fx_rate : ""}
+                defaultValue={e?.fx_rate && e.currency !== home ? e.fx_rate : ""}
                 placeholder="39.150"
                 className={`${inputClass} tabular-nums`}
               />
@@ -112,7 +116,7 @@ export function EntryForm({
                 className={`${inputClass} tabular-nums`}
               />
             </Field>
-            <Field label="IVA">
+            <Field label={taxLabel}>
               <input
                 name="tax"
                 inputMode="decimal"
@@ -120,7 +124,7 @@ export function EntryForm({
                 className={`${inputClass} tabular-nums`}
               />
             </Field>
-            <Field label="Retención">
+            <Field label={cfg.settings.withholding_label || "Retención"}>
               <input
                 name="withholding"
                 inputMode="decimal"
@@ -131,8 +135,8 @@ export function EntryForm({
           </div>
 
           <label className="mt-4 flex items-center gap-2.5 text-[15px] text-muted">
-            <input type="checkbox" name="apply_iva" />
-            Calcular neto e IVA ({ivaPct}%) desde el total si los dejo vacíos
+            <input type="checkbox" name="apply_tax" />
+            Calcular neto y {taxLabel} ({taxPct}%) desde el total si los dejo vacíos
           </label>
         </Card>
 

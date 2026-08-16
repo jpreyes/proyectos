@@ -266,7 +266,31 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   paso se muestra centrado en vez de quedarse esperando.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
-  moverse cuando cambia la UF de hoy.
+  moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy
+  significa **«monto en la moneda base de la cuenta»**, y renombrar la columna a cambio de
+  nada no paga el riesgo.
+- **El impuesto no se llama IVA en el código y no es chileno.** El mismo mecanismo es IVA en
+  Chile o España, VAT en el Reino Unido, GST en Australia, IGV en Perú. Por eso el nombre, la
+  tasa, cada cuánto se declara, con qué fecha entra un movimiento al período y si el impuesto
+  de los gastos da crédito son **ajustes de la cuenta** (`tax_label`, `tax_rate`,
+  `tax_period`, `tax_basis`, `tax_on_expenses`), no constantes. Lo que hace que esto funcione
+  de verdad es una decisión anterior: **cada movimiento guarda el impuesto como monto, no como
+  tasa**, así que conviven un documento al 19%, otro al 21% y uno exento sin conflicto; la
+  tasa de `settings` es solo el valor por defecto del formulario. El «sales tax»
+  estadounidense es el caso que obliga a `tax_on_expenses`: allí la compra no da crédito y el
+  cierre solo suma lo cobrado.
+- **El cierre de impuestos dice lo que NO ve** (`components/TaxClose.tsx`). Suma solo lo
+  anotado, y como un movimiento sin impuesto escrito puede ser un exento o un olvido, muestra
+  cuántos son y cuánto valen. Nunca dice «esto es lo que debes pagar» —las exenciones y
+  remanentes los decide una ley que la app no conoce— y nunca mezcla monedas: cada una se
+  suma aparte y el total en moneda base usa el cambio **congelado** de cada movimiento.
+- **La moneda la pone la cuenta; el formato, quien lee.** `lib/money.ts` guarda la moneda base
+  en una variable de módulo que fija `AppShell` (los formateadores los llaman treinta
+  componentes sin acceso a la configuración), y el idioma sale de `navigator.language`. Ese
+  idioma **hay que validarlo construyendo un `Intl.NumberFormat`**, no preguntando por
+  `supportedLocalesOf`: un sistema con `LANG=en_US.POSIX` entrega `"en-US@posix"`, que pasa el
+  chequeo fácil y revienta al construir — y como esto ocurre al cargar el módulo, la
+  excepción no rompe una cifra, deja la app en blanco. Se le quita el sufijo y se prueba.
 - Las fechas se formatean en **UTC** (`lib/dates.ts`). Los campos de solo-fecha caen en
   medianoche UTC; renderizarlos en `America/Santiago` los correría un día hacia atrás.
 - **El panel de la base no sale a internet y el registro está cerrado.** `vps/nginx.conf`

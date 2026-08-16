@@ -19,7 +19,7 @@
  */
 
 import { DEFAULT_SETTINGS, type Settings, type TaxRow } from "../config";
-import { splitIVA } from "../money";
+import { splitTax } from "../money";
 import type { CalendarFeed, Commitment, Entry, Quote, QuoteItem } from "../types";
 import { create, remove, update, upsert } from "./mutate";
 import { proposeSlotForQuote, storedSlot } from "./schedule";
@@ -252,8 +252,8 @@ function entryPayload(fd: FormData) {
 
   let net = money(fd, "net");
   let tax = money(fd, "tax");
-  if (bool(fd, "apply_iva") && !net && !tax) {
-    const split = splitIVA(amount, settings().iva_rate || 0.19);
+  if (bool(fd, "apply_tax") && !net && !tax) {
+    const split = splitTax(amount, settings().tax_rate || 0.19);
     net = split.net;
     tax = split.tax;
   }
@@ -543,7 +543,12 @@ export async function saveSettings(fd: FormData) {
     rhythm_min_sample: num(fd, "rhythm_min_sample"),
     rhythm_window_days: num(fd, "rhythm_window_days"),
     routine_grid_days: num(fd, "routine_grid_days"),
-    iva_rate: num(fd, "iva_rate"),
+    tax_label: str(fd, "tax_label") || "IVA",
+    tax_rate: num(fd, "tax_rate"),
+    tax_on_expenses: bool(fd, "tax_on_expenses"),
+    tax_period: str(fd, "tax_period") || "monthly",
+    tax_basis: str(fd, "tax_basis") || "document",
+    withholding_label: str(fd, "withholding_label") || "Retención",
     withholding_rate: num(fd, "withholding_rate"),
     default_currency: str(fd, "default_currency") || "CLP",
     digest_hour: num(fd, "digest_hour"),

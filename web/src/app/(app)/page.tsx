@@ -7,7 +7,7 @@ import { markEntryPaid } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { index, sortBy } from "@/lib/local/query";
-import { clpOf, formatCLPShort } from "@/lib/money";
+import { homeOf, formatMoneyShort } from "@/lib/money";
 import { daysUntil, fmtRelative } from "@/lib/dates";
 import { Form } from "@/components/form";
 import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
@@ -95,7 +95,7 @@ export default function TodayPage() {
       horizon.push({
         key: `e-${e.id}`,
         date: e.due_date,
-        label: `Cobrar ${formatCLPShort(clpOf(e))} — ${e.description}`,
+        label: `Cobrar ${formatMoneyShort(homeOf(e))} — ${e.description}`,
         context:
           entityById.get(e.entity)?.name || projectById.get(e.project)?.name || "Sin contraparte",
         href: "/finanzas",
@@ -138,7 +138,7 @@ export default function TodayPage() {
         const n = daysUntil(h.date) ?? 99;
         return n >= 0 && n <= 7;
       }).length,
-      receivableTotal: receivables.reduce((s, e) => s + clpOf(e), 0),
+      receivableTotal: receivables.reduce((s, e) => s + homeOf(e), 0),
     };
   }, [allProjects, allTasks, allEntries, logs, entities, cfg, COLD_DAYS, HORIZON_DAYS]);
 
@@ -174,7 +174,7 @@ export default function TodayPage() {
         <Stat
           label="Por cobrar"
           href="/finanzas"
-          value={formatCLPShort(view.receivableTotal)}
+          value={formatMoneyShort(view.receivableTotal)}
           tone={view.receivableTotal > 0 ? "warn" : "neutral"}
           hint={`${view.receivables.length} documento${view.receivables.length === 1 ? "" : "s"}`}
         />
@@ -223,7 +223,7 @@ export default function TodayPage() {
               ]
                 .filter(Boolean)
                 .join(" · ")}
-              value={formatCLPShort(clpOf(e))}
+              value={formatMoneyShort(homeOf(e))}
               chevron={false}
               badge={
                 <>

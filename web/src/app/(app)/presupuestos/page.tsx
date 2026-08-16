@@ -8,7 +8,7 @@ import { createQuote } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { index, sortBy } from "@/lib/local/query";
-import { formatAmount, formatCLPShort } from "@/lib/money";
+import { formatAmount, formatMoneyShort } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import { Form } from "@/components/form";
 import {
@@ -82,13 +82,13 @@ function QuotesPage() {
       <div className="mb-6 grid grid-cols-2 gap-3">
         <Stat
           label="Pendiente de respuesta"
-          value={formatCLPShort(view.pendingTotal)}
+          value={formatMoneyShort(view.pendingTotal)}
           hint={`${view.pending.length} esperando`}
           tone={view.pending.length ? "warn" : "neutral"}
         />
         <Stat
           label="Aprobado"
-          value={formatCLPShort(view.approvedTotal)}
+          value={formatMoneyShort(view.approvedTotal)}
           hint={`${view.approved.length} con el sí puesto`}
           tone="ok"
         />

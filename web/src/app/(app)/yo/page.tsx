@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Entry, Quote } from "@/lib/types";
 import { pbBrowser } from "@/lib/pb.client";
 import { useCollection } from "@/lib/local/store";
-import { clpOf, formatCLPShort } from "@/lib/money";
+import { homeOf, formatMoneyShort } from "@/lib/money";
 import { YO_GROUPS } from "@/lib/nav";
 import { Chip, Group, Row } from "@/components/ui";
 import { LogoutRow } from "@/components/AccountRows";
@@ -33,7 +33,7 @@ export default function YoPage() {
         .filter(
           (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
         )
-        .reduce((s, e) => s + clpOf(e), 0),
+        .reduce((s, e) => s + homeOf(e), 0),
       pending: quotes.filter((q) => q.status === "pending").length,
     }),
     [entries, quotes]
@@ -53,7 +53,7 @@ export default function YoPage() {
           href="/finanzas"
           icon="▲"
           tone={receivableTotal > 0 ? "warn" : "neutral"}
-          value={formatCLPShort(receivableTotal)}
+          value={formatMoneyShort(receivableTotal)}
           label="por cobrar"
         />
         <Chip

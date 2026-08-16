@@ -24,13 +24,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { pbBrowser } from "@/lib/pb.client";
 import { boot, getSyncState, subscribeSync } from "@/lib/local/sync";
-import { useReady } from "@/lib/local/store";
+import { useCollection, useReady } from "@/lib/local/store";
 import * as store from "@/lib/local/store";
+import { setHomeCurrency } from "@/lib/money";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const ready = useReady();
   const [authed, setAuthed] = useState<boolean | null>(null);
+
+  // La moneda base se fija acá, una vez, para toda la app: los formateadores de
+  // `lib/money.ts` los llaman treinta componentes que no tienen acceso a la
+  // configuración, y pasársela por parámetro a cada uno sería ruido en cada
+  // llamada para un dato que cambia una vez al año.
+  const settings = useCollection<{ default_currency?: string }>("settings");
+  setHomeCurrency(settings[0]?.default_currency);
   const [synced, setSynced] = useState(() => getSyncState().lastSync !== null);
 
   useEffect(() => {

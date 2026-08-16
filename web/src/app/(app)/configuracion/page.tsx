@@ -249,17 +249,66 @@ export default function SettingsPage() {
                 className={inputClass}
               />
             </Field>
-            <Field label="IVA" hint="0.19 = 19%">
-              <input name="iva_rate" defaultValue={s.iva_rate} className={inputClass} />
+            {/* Impuestos: nada de esto es una constante del código. La misma
+                app sirve con IVA, VAT, GST o IGV porque el nombre, la tasa, el
+                período y si el gasto da crédito son de la cuenta. */}
+            <Field label="Nombre del impuesto" hint="IVA, VAT, GST, IGV…">
+              <input name="tax_label" defaultValue={s.tax_label} className={inputClass} />
             </Field>
-            <Field label="Retención honorarios" hint="0.145 = 14,5%">
+            <Field label="Tasa del impuesto" hint="0.19 = 19%. Solo es el valor por defecto">
+              <input name="tax_rate" defaultValue={s.tax_rate} className={inputClass} />
+            </Field>
+            <Field label="Nombre de la retención" hint="Retención, IRPF, ISR, TDS…">
+              <input
+                name="withholding_label"
+                defaultValue={s.withholding_label}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Tasa de retención" hint="0.145 = 14,5%">
               <input
                 name="withholding_rate"
                 defaultValue={s.withholding_rate}
                 className={inputClass}
               />
             </Field>
-            <Field label="Moneda por defecto">
+            <Field label="Cada cuánto se declara">
+              <Select
+                name="tax_period"
+                defaultValue={s.tax_period}
+                options={[
+                  { value: "monthly", label: "Cada mes" },
+                  { value: "bimonthly", label: "Cada dos meses" },
+                  { value: "quarterly", label: "Cada trimestre" },
+                ]}
+              />
+            </Field>
+            <Field label="Qué fecha cuenta" hint="cuándo entra un movimiento al período">
+              <Select
+                name="tax_basis"
+                defaultValue={s.tax_basis}
+                options={[
+                  { value: "document", label: "La del documento" },
+                  { value: "payment", label: "La del pago (régimen de caja)" },
+                ]}
+              />
+            </Field>
+            <label className="flex items-start gap-2 text-[15px] text-muted sm:col-span-2">
+              <input
+                type="checkbox"
+                name="tax_on_expenses"
+                defaultChecked={s.tax_on_expenses}
+                className="mt-1"
+              />
+              <span>
+                El impuesto que pago en mis gastos se descuenta del que cobro
+                <span className="block text-[13px] text-faint">
+                  Así funcionan el IVA, el VAT y el GST. El «sales tax» de Estados Unidos no: ahí
+                  el cierre solo suma lo cobrado.
+                </span>
+              </span>
+            </label>
+            <Field label="Moneda base" hint="en la que se congela y se suma todo">
               <Select
                 name="default_currency"
                 defaultValue={s.default_currency}

@@ -7,7 +7,7 @@ import { useConfig } from "@/lib/local/config";
 import { useCollection, useRecord } from "@/lib/local/store";
 import { useRouteId } from "@/lib/local/route";
 import { sortBy } from "@/lib/local/query";
-import { clpOf, formatCLPShort } from "@/lib/money";
+import { homeOf, formatMoneyShort } from "@/lib/money";
 import { fmtDate, fmtRelative } from "@/lib/dates";
 import { fmtHours } from "@/lib/capacity";
 import { formatAmount } from "@/lib/money";
@@ -61,7 +61,7 @@ export default function WorkspacePage() {
     const paid = (dir: string) =>
       entries
         .filter((e) => e.direction === dir && e.status === "paid")
-        .reduce((s, e) => s + clpOf(e), 0);
+        .reduce((s, e) => s + homeOf(e), 0);
 
     return {
       resources,
@@ -90,7 +90,7 @@ export default function WorkspacePage() {
         .filter(
           (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
         )
-        .reduce((s, e) => s + clpOf(e), 0),
+        .reduce((s, e) => s + homeOf(e), 0),
     };
   }, [id, allResources, allLogs, allTasks, allEntries, allProjects, allCommitments, allQuotes]);
 
@@ -266,14 +266,14 @@ export default function WorkspacePage() {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="Recibido" value={formatCLPShort(view.income)} tone="ok" />
-              <Stat label="Gastado" value={formatCLPShort(view.expense)} tone="neutral" />
+              <Stat label="Recibido" value={formatMoneyShort(view.income)} tone="ok" />
+              <Stat label="Gastado" value={formatMoneyShort(view.expense)} tone="neutral" />
               <Stat
                 label="Por cobrar"
-                value={formatCLPShort(view.receivable)}
+                value={formatMoneyShort(view.receivable)}
                 tone={view.receivable > 0 ? "warn" : "neutral"}
               />
-              <Stat label="Margen" value={formatCLPShort(margin)} tone={margin >= 0 ? "ok" : "bad"} />
+              <Stat label="Margen" value={formatMoneyShort(margin)} tone={margin >= 0 ? "ok" : "bad"} />
             </div>
             <Link
               href={`/finanzas?project=${project.id}`}
@@ -342,7 +342,7 @@ export default function WorkspacePage() {
                 <dd className="tabular-nums">
                   {project.budget_currency && project.budget_currency !== "CLP"
                     ? `${project.budget_currency} ${project.budget}`
-                    : formatCLPShort(project.budget)}
+                    : formatMoneyShort(project.budget)}
                 </dd>
               </div>
             )}

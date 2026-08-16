@@ -8,10 +8,11 @@ import { markEntryPaid } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { day, index, sortBy } from "@/lib/local/query";
-import { clpOf, formatCLP, formatCLPShort } from "@/lib/money";
+import { homeOf, formatMoney, formatMoneyShort } from "@/lib/money";
 import { fmtDate, fmtRelative, monthKey, recentMonths } from "@/lib/dates";
 import { Form } from "@/components/form";
 import { Badge, btn, Card, cx, Empty, Group, inputClass, PageHeader, Row, Stat } from "@/components/ui";
+import { TaxClose } from "@/components/TaxClose";
 import { Bars } from "@/components/Bars";
 import { Title } from "@/components/Title";
 
@@ -53,20 +54,20 @@ function FinancePage() {
     );
 
     const paid = entries.filter((e) => e.status === "paid");
-    const income = paid.filter((e) => e.direction === "income").reduce((s, e) => s + clpOf(e), 0);
-    const expense = paid.filter((e) => e.direction === "expense").reduce((s, e) => s + clpOf(e), 0);
+    const income = paid.filter((e) => e.direction === "income").reduce((s, e) => s + homeOf(e), 0);
+    const expense = paid.filter((e) => e.direction === "expense").reduce((s, e) => s + homeOf(e), 0);
     const receivable = entries
       .filter(
         (e) => e.direction === "income" && (e.status === "invoiced" || e.status === "committed")
       )
-      .reduce((s, e) => s + clpOf(e), 0);
+      .reduce((s, e) => s + homeOf(e), 0);
 
     const incomeByMonth: Record<string, number> = {};
     const expenseByMonth: Record<string, number> = {};
     for (const e of paid) {
       const k = monthKey(e.date);
       const bucket = e.direction === "income" ? incomeByMonth : expenseByMonth;
-      bucket[k] = (bucket[k] || 0) + clpOf(e);
+      bucket[k] = (bucket[k] || 0) + homeOf(e);
     }
 
     // Margen por proyecto — el número que una app de contabilidad genérica
@@ -83,7 +84,7 @@ function FinancePage() {
         expense: 0,
         pending: 0,
       };
-      const v = clpOf(e);
+      const v = homeOf(e);
       if (e.status === "paid") {
         if (e.direction === "income") row.income += v;
         else row.expense += v;
@@ -112,9 +113,9 @@ function FinancePage() {
         .map(([id, r]) => ({ id, ...r, margin: r.income - r.expense }))
         .sort((a, b) => b.margin - a.margin),
       taxed,
-      taxTotal: taxed.reduce((s, e) => s + clpOf(e), 0),
+      taxTotal: taxed.reduce((s, e) => s + homeOf(e), 0),
       subscriptions,
-      subsTotal: subscriptions.reduce((s, e) => s + clpOf(e), 0),
+      subsTotal: subscriptions.reduce((s, e) => s + homeOf(e), 0),
     };
   }, [allEntries, allProjects, allEntities, year, project, direction]);
 
@@ -185,19 +186,23 @@ function FinancePage() {
       </details>
 
       <div className="mb-6 grid grid-cols-2 gap-3">
-        <Stat label="Recibido" value={formatCLPShort(view.income)} tone="ok" hint={`en ${year}`} />
-        <Stat label="Gastado" value={formatCLPShort(view.expense)} hint={`en ${year}`} />
+        <Stat label="Recibido" value={formatMoneyShort(view.income)} tone="ok" hint={`en ${year}`} />
+        <Stat label="Gastado" value={formatMoneyShort(view.expense)} hint={`en ${year}`} />
         <Stat
           label="Margen"
-          value={formatCLPShort(view.income - view.expense)}
+          value={formatMoneyShort(view.income - view.expense)}
           tone={view.income - view.expense >= 0 ? "ok" : "bad"}
         />
         <Stat
           label="Por cobrar"
-          value={formatCLPShort(view.receivable)}
+          value={formatMoneyShort(view.receivable)}
           tone={view.receivable > 0 ? "warn" : "neutral"}
         />
       </div>
+
+      {/* El cierre va antes del flujo: uno se abre por obligación en una fecha
+          concreta, el otro por curiosidad. */}
+      <TaxClose entries={allEntries} settings={cfg.settings} />
 
       <Card
         className="mb-6"
@@ -216,10 +221,10 @@ function FinancePage() {
               key={r.id}
               href={`/w/${r.id}`}
               label={r.name}
-              hint={r.pending > 0 ? `+${formatCLPShort(r.pending)} por cobrar` : undefined}
+              hint={r.pending > 0 ? `+${formatMoneyShort(r.pending)} por cobrar` : undefined}
               value={
                 <span className={r.margin >= 0 ? "text-ok" : "text-bad"}>
-                  {formatCLPShort(r.margin)}
+                  {formatMoneyShort(r.margin)}
                 </span>
               }
             />
@@ -251,7 +256,7 @@ function FinancePage() {
               value={
                 <span className={cx(e.direction === "income" ? "text-ok" : "text-ink")}>
                   {e.direction === "expense" ? "−" : ""}
-                  {formatCLP(clpOf(e))}
+                  {formatMoney(homeOf(e))}
                 </span>
               }
               badge={
@@ -266,7 +271,7 @@ function FinancePage() {
 
       {/* Los dos paneles de revisión van al final: son para sentarse a mirar,
           no para el vistazo con el que uno abre esta pantalla. */}
-      <Group title={`Costo de fricción · ${formatCLP(view.taxTotal)}`}>
+      <Group title={`Costo de fricción · ${formatMoney(view.taxTotal)}`}>
         {view.taxed.length === 0 ? (
           <Empty>
             Nada marcado en {year}. Multas, recargos, cosas repuestas, compras duplicadas — se marca
@@ -281,13 +286,13 @@ function FinancePage() {
                 href={`/finanzas/${e.id}`}
                 label={e.description}
                 hint={fmtDate(e.date)}
-                value={formatCLPShort(clpOf(e))}
+                value={formatMoneyShort(homeOf(e))}
               />
             ))
         )}
       </Group>
 
-      <Group title={`Recurrentes · ${formatCLP(view.subsTotal)}`}>
+      <Group title={`Recurrentes · ${formatMoney(view.subsTotal)}`}>
         {view.subscriptions.length === 0 ? (
           <Empty>Nada marcado como recurrente. Están acá para revisarlas, no para renovarlas.</Empty>
         ) : (
@@ -299,7 +304,7 @@ function FinancePage() {
                 href={`/finanzas/${e.id}`}
                 label={e.description}
                 hint={view.entityById.get(e.entity)?.name}
-                value={formatCLPShort(clpOf(e))}
+                value={formatMoneyShort(homeOf(e))}
               />
             ))
         )}
@@ -320,7 +325,7 @@ function FinancePage() {
                     iconTone="ok"
                     label={e.description}
                     hint={e.due_date ? `vence ${fmtRelative(e.due_date)}` : undefined}
-                    value={formatCLPShort(clpOf(e))}
+                    value={formatMoneyShort(homeOf(e))}
                     chevron={false}
                   />
                 </button>

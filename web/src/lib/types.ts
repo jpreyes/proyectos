@@ -125,12 +125,75 @@ export interface Entry extends Base {
   recurring: boolean;
   /** Presupuesto del que salió, cuando lo creó una aprobación. */
   quote: string;
+  /** Serie que lo fabricó. Vacío = escrito a mano. */
+  series: string;
+  /** A qué repetición de la serie corresponde. */
+  series_date: string;
+  /**
+   * Lo borró la serie al cambiarle el calendario, no la persona. Es lo que
+   * permite reponerlo si el cambio se revierte sin reponer lo que alguien
+   * borró a propósito.
+   */
+  series_dropped?: boolean;
   expand?: {
     project?: Project;
     entity?: Entity;
     account?: Account;
     category?: Category;
   };
+}
+
+/** Cada cuánto se repite una serie. Son las siete formas que aparecen en un contrato. */
+export type Cadence =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "bimonthly"
+  | "quarterly"
+  | "semiannual"
+  | "annual";
+
+/**
+ * La regla de la que salen los movimientos que se repiten.
+ *
+ * No es un movimiento: es lo que hay que saber para fabricarlos. El sueldo, el
+ * arriendo, la cuota del crédito, el proyecto largo que se cobra por mes. Cada
+ * repetición se materializa como una fila normal de `entries`
+ * (`lib/local/recurring.ts`), así que todo lo que ya lee el ledger la ve sin
+ * saber que existen las series.
+ */
+export interface EntrySeries extends Base {
+  direction: Direction;
+  description: string;
+  amount: number;
+  currency: Currency;
+  fx_rate: number;
+  net: number;
+  tax: number;
+  withholding: number;
+
+  cadence: Cadence;
+  start_date: string;
+  /** Vacío = sin término. */
+  end_date: string;
+  /** 0 = sin límite. */
+  occurrences: number;
+  /** Días entre la fecha de la cuota y su vencimiento. */
+  due_days: number;
+
+  /** Con qué estado nace cada cuota. Nunca `paid`: para eso está `auto_paid`. */
+  status: Exclude<EntryStatus, "paid" | "cancelled">;
+  /** Las cuotas cuya fecha ya pasó se dan por pagadas solas. */
+  auto_paid: boolean;
+  /** Pausada. Se guarda al revés de como se lee: un bool nace en false. */
+  paused: boolean;
+
+  project: string;
+  entity: string;
+  account: string;
+  category: string;
+  doc_type: DocType | "";
+  notes: string;
 }
 
 export type InboxStatus = "open" | "planned" | "dropped";

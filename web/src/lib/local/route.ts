@@ -15,9 +15,10 @@ import { usePathname } from "next/navigation";
  * servidor. Con una cáscara prestada, devolvería el id del otro proyecto.
  * `usePathname()` sí refleja la dirección real de la barra.
  *
- * Sirve para las cinco rutas dinámicas de la app, porque en todas el id es el
- * segundo segmento: /w/:id, /w/:id/editar, /finanzas/:id, /presupuestos/:id,
- * /presupuestos/:id/imprimir.
+ * Sirve para las rutas dinámicas de la app, porque en todas el id es el segundo
+ * segmento: /w/:id, /w/:id/editar, /finanzas/:id, /recurrentes/:id,
+ * /presupuestos/:id, /presupuestos/:id/imprimir. Una ruta nueva con el id más
+ * adentro tendría que traer su propio lector.
  */
 export function useRouteId(): string {
   const pathname = usePathname();

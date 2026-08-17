@@ -41,6 +41,7 @@ export const TABS: readonly NavItem[] = [
       "/calendario",
       "/presupuestos",
       "/finanzas",
+      "/recurrentes",
       "/entidades",
       "/rutinas",
       "/ritmo",

@@ -1,6 +1,7 @@
 // Spanish UI strings for every enum in the schema, in one place.
 
 import type {
+  Cadence,
   CommitmentStatus,
   Direction,
   DocType,
@@ -110,6 +111,23 @@ export const DOC_TYPE: Record<DocType, string> = {
   recibo: "Recibo",
   transfer: "Transferencia",
   other: "Otro",
+};
+
+/**
+ * Cada cuánto se repite una serie.
+ *
+ * No entra a `taxonomy` como los demás enums: no es vocabulario editable, es
+ * aritmética. Renombrar "Mensual" no cambia nada, pero agregar un valor sí
+ * exigiría enseñarle a `lib/local/recurring.ts` cómo se avanza esa cadencia.
+ */
+export const CADENCE: Record<Cadence, string> = {
+  weekly: "Semanal",
+  biweekly: "Cada dos semanas",
+  monthly: "Mensual",
+  bimonthly: "Cada dos meses",
+  quarterly: "Trimestral",
+  semiannual: "Semestral",
+  annual: "Anual",
 };
 
 export const TASK_STATUS: Record<TaskStatus, string> = {

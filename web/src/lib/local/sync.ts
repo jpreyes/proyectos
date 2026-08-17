@@ -446,7 +446,17 @@ async function failed(m: Mutation, err: ClientResponseError): Promise<Outcome> {
   if (status === 401 || status === 403) return "retry";
 
   // Crear algo que ya existe = un reintento de algo que en realidad funcionó.
-  if (m.op === "create" && status === 400 && /unique/i.test(JSON.stringify(err?.response || {}))) {
+  //
+  // Son dos redacciones distintas y hacen falta las dos: PocketBase habla de
+  // "unique" cuando choca un índice, y de "already exists" cuando el que choca
+  // es el id. Lo segundo aparece con las recurrencias, donde el id de cada
+  // cuota se deriva de (serie, fecha) justamente para que dos dispositivos que
+  // generen la misma repetición produzcan una sola fila.
+  if (
+    m.op === "create" &&
+    status === 400 &&
+    /unique|already exists/i.test(JSON.stringify(err?.response || {}))
+  ) {
     return "applied";
   }
 

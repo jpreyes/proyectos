@@ -32,6 +32,27 @@ export default function EditEntryPage() {
     <>
       <Title>Movimiento</Title>
       <PageHeader title="Editar movimiento" subtitle={entry.description} />
+
+      {/* Un movimiento fabricado por una regla se puede corregir como cualquier
+          otro —ese es el punto de materializarlos— pero conviene saber que hay
+          once más detrás y dónde se cambian todos de una vez. */}
+      {entry.series && (
+        <Link
+          href={`/recurrentes/${entry.series}`}
+          className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-row px-4 py-3.5 text-[15px] transition-colors active:bg-pill"
+        >
+          <span className="min-w-0">
+            <span className="block font-semibold">Viene de una recurrencia</span>
+            <span className="mt-0.5 block text-[13px] text-faint">
+              Editarlo acá cambia solo esta vez
+            </span>
+          </span>
+          <span className="shrink-0 text-[17px] leading-none text-faint" aria-hidden>
+            ›
+          </span>
+        </Link>
+      )}
+
       <EntryForm action={updateEntry} entry={entry} {...lists} />
 
       <Form

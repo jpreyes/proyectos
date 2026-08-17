@@ -23,6 +23,7 @@ export const COLLECTIONS = [
   "log",
   "tasks",
   "entries",
+  "entry_series",
   "entities",
   "accounts",
   "categories",

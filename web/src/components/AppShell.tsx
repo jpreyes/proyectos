@@ -23,6 +23,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { pbBrowser } from "@/lib/pb.client";
+import { runSeries } from "@/lib/local/recurring";
 import { boot, getSyncState, subscribeSync } from "@/lib/local/sync";
 import { useCollection, useReady } from "@/lib/local/store";
 import * as store from "@/lib/local/store";
@@ -74,7 +75,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const empty = !store.all("settings").length && !store.all("projects").length;
   if (empty && !synced) return <Splash text="Preparando la app…" wait />;
 
-  return <>{children}</>;
+  return (
+    <>
+      <RecurringKeeper />
+      {children}
+    </>
+  );
+}
+
+/**
+ * Las recurrencias, al día.
+ *
+ * Una serie no guarda movimientos: los fabrica, y alguien tiene que pasar a
+ * fabricarlos. Se hace acá y no en un hook del servidor por lo mismo que todo
+ * lo demás de esta app — el dispositivo es el que tiene los datos y el que se
+ * abre— y con un efecto atado a la colección, no con un temporizador: así corre
+ * al abrir, al crear una serie y también cuando la serie la creaste en el otro
+ * dispositivo y acaba de llegar por la bajada.
+ *
+ * Materializar es idempotente y barato: lo que ya existe se salta por id.
+ */
+function RecurringKeeper() {
+  const series = useCollection("entry_series");
+
+  useEffect(() => {
+    void runSeries();
+  }, [series]);
+
+  return null;
 }
 
 function Splash({ text, wait }: { text: string; wait?: boolean }) {

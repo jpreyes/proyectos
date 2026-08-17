@@ -29,6 +29,8 @@ onRecordCreateRequest(
   "log",
   "tasks",
   "entries",
+  // La regla de la que salen los movimientos que se repiten (1770002600).
+  "entry_series",
   "entities",
   "inbox",
   "routines",

@@ -37,6 +37,20 @@ function year() {
   return new Date().getUTCFullYear();
 }
 
+/**
+ * Lo que va delante del nombre de cada proyecto sembrado.
+ *
+ * Va **delante** y no detrás porque las filas truncan: un sufijo se pierde
+ * justo en el teléfono, que es donde uno abre la app por primera vez y no sabe
+ * qué de lo que ve es suyo. Se pierde parte del nombre a cambio, y da lo mismo:
+ * los ejemplos se distinguen entre sí por la segunda mitad solo mientras son lo
+ * único que hay.
+ *
+ * Si cambia, hay que cambiarlo también en la migración 1770002700, que renombra
+ * los que ya se sembraron.
+ */
+const DEMO_PREFIX = "Proyecto de ejemplo · ";
+
 /* -------------------------------------------------------------- helpers --- */
 
 function firstOwned(collection, userId, filter) {
@@ -157,7 +171,7 @@ function seedEntities(owner) {
 function seedProjects(owner, people) {
   const main = add("projects", {
     owner: owner,
-    name: "Refuerzo estructural — Edificio Aula Magna",
+    name: DEMO_PREFIX + "Refuerzo estructural — Edificio Aula Magna",
     code: freeValue("projects", owner, "code", "EST-" + year() + "-01"),
     kind: "structural",
     status: "active",
@@ -181,7 +195,7 @@ function seedProjects(owner, people) {
 
   const lab = add("projects", {
     owner: owner,
-    name: "Ensayos de laboratorio",
+    name: DEMO_PREFIX + "Ensayos de laboratorio",
     code: freeValue("projects", owner, "code", "EST-" + year() + "-01-L"),
     kind: "structural",
     status: "waiting",
@@ -198,7 +212,7 @@ function seedProjects(owner, people) {
 
   const teaching = add("projects", {
     owner: owner,
-    name: "Hormigón Armado — segundo semestre",
+    name: DEMO_PREFIX + "Hormigón Armado — segundo semestre",
     code: freeValue("projects", owner, "code", "DOC-" + year() + "-2"),
     kind: "teaching",
     status: "active",

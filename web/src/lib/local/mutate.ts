@@ -36,6 +36,7 @@ const SOFT_DELETE = new Set([
   "log",
   "tasks",
   "entries",
+  "entry_series",
   "entities",
   "inbox",
   "routines",
@@ -44,7 +45,7 @@ const SOFT_DELETE = new Set([
   "commitments",
 ]);
 
-const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+export const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /** Un id con la misma forma que los de PocketBase: 15 caracteres, [a-z0-9]. */
 export function newId(): string {

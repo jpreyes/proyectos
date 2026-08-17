@@ -64,6 +64,7 @@ Todo vive en `web/src/lib/local/`:
 | `mutate.ts` | `create` / `update` / `remove`: aplican local y encolan. |
 | `query.ts` | `sortBy`, `index`, `groupBy` — lo que reemplazó a los filtros de PB. |
 | `actions.ts` | Las 55 escrituras de la app, con la misma firma `(FormData)` de antes. |
+| `recurring.ts` | Las series: calendario de repeticiones, id derivado, materialización. |
 | `config.ts`, `schedule.ts`, `lists.ts`, `route.ts` | Catálogo, calce de horas, selectores, id de la ruta. |
 
 Decisiones de esta capa que **no hay que deshacer**:
@@ -119,6 +120,7 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 | `log` | Bitácora append-only: qué pasó y cuándo. |
 | `tasks` | Pendientes. |
 | `entries` | Ledger: un movimiento de plata, proyectado o real. |
+| `entry_series` | La regla de lo que se repite: sueldos, arriendos, cuotas. **Fabrica `entries`.** |
 | `entities` | Contrapartes reutilizables. |
 | `accounts`, `categories` | Taxonomía del ledger. |
 | `taxonomy` | Tu vocabulario editable + etiquetas de los estados fijos. |
@@ -299,12 +301,48 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   mantienen honestas: **se borran/saltan de un toque y no vuelven**, y la marca de "ya
   ocurrió" es independiente de que los datos sigan ahí — si no, borrarlos los repondría
   en el próximo arranque. Los pasos apuntan a `data-tour="…"`; si el elemento no está, el
-  paso se muestra centrado en vez de quedarse esperando.
+  paso se muestra centrado en vez de quedarse esperando. Los proyectos sembrados llevan
+  **"Proyecto de ejemplo · " delante del nombre** (`DEMO_PREFIX`, y la migración 1770002700
+  para las cuentas donde la siembra ya ocurrió): con nombres verosímiles, en una cuenta que
+  ya tiene encargos reales no había cómo saber mirando la lista cuáles se pueden borrar. Va
+  delante y no detrás porque las filas truncan, y un sufijo se pierde justo en el teléfono.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
   moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy
   significa **«monto en la moneda base de la cuenta»**, y renombrar la columna a cambio de
   nada no paga el riesgo.
+- **Una recurrencia no reemplaza al movimiento: lo fabrica** (`lib/local/recurring.ts`,
+  `/recurrentes`). `entry_series` guarda la regla —cada cuánto, desde cuándo, hasta cuándo,
+  por cuánto— y la app materializa cada repetición como una fila normal de `entries`. La
+  alternativa, expandir la serie al leer, habría obligado a que el flujo mensual, el margen
+  por proyecto, «por cobrar», el cierre de impuestos y el buscador supieran de recurrencias,
+  y habría hecho imposible lo más corriente de todo: que el arriendo de este mes haya llegado
+  distinto y uno lo corrija sin tocar los otros once. Cuatro cosas la sostienen y ninguna es
+  cosmética:
+  - **El id de cada cuota se deriva de (serie, fecha)**, no al azar. Es lo que hace que el
+    teléfono y el computador, generando el mismo mes, escriban **una** fila y no dos; el
+    segundo choca contra el id que ya existe y el sincronizador lo trata como el reintento
+    de algo que ya funcionó (`failed()` en `sync.ts` reconoce ese 400). De paso, borrar una
+    cuota se queda borrado: el id sigue ocupado en la réplica y el generador salta lo que
+    ya existe.
+  - **Se materializa hasta un horizonte corto** (`HORIZON_DAYS`, tres meses), no hasta el
+    fin de la serie: un sueldo sin término es infinito y el ledger no puede serlo. Lo
+    pasado sí se materializa entero —de eso se trata anotar desde enero— con un tope duro
+    por serie para el caso torpe (una serie semanal que arranca en 2015).
+  - **Editar la serie reescribe el futuro y nunca el pasado.** Un aumento de sueldo se ve
+    el mes que viene; lo ya cobrado no se toca. Solo se reescriben las cuotas que siguen en
+    el estado con que nacieron: una facturada o pagada ya vive su propia vida. Las que se
+    caen del calendario nuevo se sueltan marcadas con `series_dropped`, que es lo único que
+    permite reponerlas si el cambio se revierte **sin** reponer las que alguien borró a
+    propósito.
+  - **En las cadencias por mes el día se conserva y se recorta, no se arrastra**: un cobro
+    del 31 cae el 28 de febrero y vuelve al 31 en marzo. Calcular cada fecha desde la
+    anterior dejaría el cobro en el día 28 para siempre después de un solo febrero.
+
+  La generación corre en el dispositivo (`RecurringKeeper` en `AppShell`), atada a la
+  colección y no a un temporizador: así ocurre al abrir la app, al crear una serie y también
+  cuando la serie llegó del otro dispositivo. En el servidor habría necesitado cron, y el
+  cron del JSVM ya costó meses de silencio.
 - **El impuesto no se llama IVA en el código y no es chileno.** El mismo mecanismo es IVA en
   Chile o España, VAT en el Reino Unido, GST en Australia, IGV en Perú. Por eso el nombre, la
   tasa, cada cuánto se declara, con qué fecha entra un movimiento al período y si el impuesto

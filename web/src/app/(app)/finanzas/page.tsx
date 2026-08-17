@@ -3,11 +3,13 @@
 import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Category, Entity, Entry, Project } from "@/lib/types";
+import type { Category, Entity, Entry, EntrySeries, Project } from "@/lib/types";
 import { markEntryPaid } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { day, index, sortBy } from "@/lib/local/query";
+import { perMonth } from "@/lib/local/recurring";
+import { CADENCE } from "@/lib/labels";
 import { homeOf, formatMoney, formatMoneyShort } from "@/lib/money";
 import { fmtDate, fmtRelative, monthKey, recentMonths } from "@/lib/dates";
 import { Form } from "@/components/form";
@@ -36,6 +38,7 @@ function FinancePage() {
   const allEntries = useCollection<Entry>("entries");
   const allProjects = useCollection<Project>("projects");
   const allEntities = useCollection<Entity>("entities");
+  const allSeries = useCollection<EntrySeries>("entry_series");
   useCollection<Category>("categories"); // se replica igual; hoy no se muestra en la lista
 
   const view = useMemo(() => {
@@ -98,7 +101,10 @@ function FinancePage() {
     // repuestas o compradas dos veces, suscripciones que nadie canceló. Queda
     // invisible porque llega en pedacitos inconexos, así que el punto es el total.
     const taxed = entries.filter((e) => e.friction_cost && e.direction === "expense");
-    const subscriptions = entries.filter((e) => e.recurring && e.direction === "expense");
+
+    // Las recurrentes no se filtran por año: son un compromiso vigente, no algo
+    // que haya pasado en 2026.
+    const live = allSeries.filter((s) => !s.paused);
 
     return {
       entries,
@@ -114,10 +120,13 @@ function FinancePage() {
         .sort((a, b) => b.margin - a.margin),
       taxed,
       taxTotal: taxed.reduce((s, e) => s + homeOf(e), 0),
-      subscriptions,
-      subsTotal: subscriptions.reduce((s, e) => s + homeOf(e), 0),
+      series: sortBy(allSeries, "direction", "description"),
+      seriesNet: live.reduce(
+        (sum, s) => sum + (s.direction === "income" ? perMonth(s) : -perMonth(s)),
+        0
+      ),
     };
-  }, [allEntries, allProjects, allEntities, year, project, direction]);
+  }, [allEntries, allProjects, allEntities, allSeries, year, project, direction]);
 
   const months = recentMonths(12);
   const years = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
@@ -324,21 +333,45 @@ function FinancePage() {
         )}
       </Group>
 
-      <Group title={`Recurrentes · ${formatMoney(view.subsTotal)}`}>
-        {view.subscriptions.length === 0 ? (
-          <Empty>Nada marcado como recurrente. Están acá para revisarlas, no para renovarlas.</Empty>
+      {/* Lo que se repite ya no es una lista de movimientos marcados a mano: es
+          una regla que los fabrica. Acá va el resumen y el paso a la pantalla
+          que las administra. */}
+      <Group
+        title={
+          view.seriesNet >= 0
+            ? `Recurrentes · +${formatMoneyShort(view.seriesNet)}/mes`
+            : `Recurrentes · −${formatMoneyShort(-view.seriesNet)}/mes`
+        }
+      >
+        {view.series.length === 0 ? (
+          <Row
+            href="/recurrentes/nuevo"
+            icon="+"
+            iconTone="accent"
+            label="Programar un ingreso o un egreso"
+            hint="Un sueldo, un arriendo, una cuota, un encargo que se cobra por mes"
+          />
         ) : (
-          view.subscriptions
-            .slice(0, 8)
-            .map((e) => (
+          <>
+            {view.series.slice(0, 6).map((s) => (
               <Row
-                key={e.id}
-                href={`/finanzas/${e.id}`}
-                label={e.description}
-                hint={view.entityById.get(e.entity)?.name}
-                value={formatMoneyShort(homeOf(e))}
+                key={s.id}
+                href={`/recurrentes/${s.id}`}
+                label={s.description}
+                hint={[CADENCE[s.cadence] || s.cadence, s.paused ? "en pausa" : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+                value={
+                  <span className={s.direction === "income" ? "text-ok" : "text-ink"}>
+                    {s.direction === "expense" ? "−" : ""}
+                    {formatMoneyShort(perMonth(s))}
+                    <span className="text-faint">/mes</span>
+                  </span>
+                }
               />
-            ))
+            ))}
+            <Row href="/recurrentes" icon="∿" label="Ver todas las recurrentes" />
+          </>
         )}
       </Group>
 

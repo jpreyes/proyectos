@@ -24,7 +24,7 @@
 
 // v6: cáscaras por forma de ruta en vez de copias por URL, y la cola pasa a
 // llevar operaciones (crear/actualizar/borrar) en vez de solo capturas.
-const VERSION = "v6";
+const VERSION = "v7";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const SHELLS = `shells-${VERSION}`;
@@ -51,6 +51,8 @@ const ROUTE_SHAPES = [
   [/^\/w\/[^/]+$/, "/w/:id"],
   [/^\/finanzas\/nuevo$/, "/finanzas/nuevo"],
   [/^\/finanzas\/[^/]+$/, "/finanzas/:id"],
+  [/^\/recurrentes\/nuevo$/, "/recurrentes/nuevo"],
+  [/^\/recurrentes\/[^/]+$/, "/recurrentes/:id"],
   [/^\/presupuestos\/[^/]+\/imprimir$/, "/presupuestos/:id/imprimir"],
   [/^\/presupuestos\/[^/]+$/, "/presupuestos/:id"],
 ];

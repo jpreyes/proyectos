@@ -20,8 +20,16 @@
 
 import { DEFAULT_SETTINGS, type Settings, type TaxRow } from "../config";
 import { splitTax } from "../money";
-import type { CalendarFeed, Commitment, Entry, Quote, QuoteItem } from "../types";
+import type {
+  CalendarFeed,
+  Commitment,
+  Entry,
+  EntrySeries,
+  Quote,
+  QuoteItem,
+} from "../types";
 import { create, remove, update, upsert } from "./mutate";
+import { materializeSeries, resyncSeries } from "./recurring";
 import { proposeSlotForQuote, storedSlot } from "./schedule";
 import * as store from "./store";
 
@@ -304,6 +312,114 @@ export async function markEntryPaid(fd: FormData) {
 export async function deleteEntry(fd: FormData) {
   await remove("entries", str(fd, "id"));
   return str(fd, "return_to") || "/finanzas";
+}
+
+/* --------------------------------------------------------- recurrencias ---- */
+
+/**
+ * Las series: sueldos, arriendos, cuotas, encargos largos que se cobran por
+ * mes. Guardan la regla; los movimientos los fabrica `lib/local/recurring.ts`
+ * y son filas normales del ledger.
+ *
+ * Cada escritura acá termina llamando al generador, y no a un temporizador: si
+ * creas la serie del arriendo, las cuotas tienen que estar antes de que
+ * termines de mirar la pantalla.
+ */
+function seriesPayload(fd: FormData) {
+  const amount = money(fd, "amount");
+  const currency = str(fd, "currency") || "CLP";
+  const fx = currency === "CLP" ? 1 : money(fd, "fx_rate");
+
+  let net = money(fd, "net");
+  let tax = money(fd, "tax");
+  if (bool(fd, "apply_tax") && !net && !tax) {
+    const split = splitTax(amount, settings().tax_rate || 0.19);
+    net = split.net;
+    tax = split.tax;
+  }
+
+  return {
+    direction: str(fd, "direction"),
+    description: str(fd, "description"),
+    amount,
+    currency,
+    fx_rate: fx,
+    net,
+    tax,
+    withholding: money(fd, "withholding"),
+    cadence: str(fd, "cadence") || "monthly",
+    start_date: str(fd, "start_date"),
+    end_date: str(fd, "end_date"),
+    occurrences: Math.max(0, Math.round(num(fd, "occurrences"))),
+    due_days: Math.max(0, Math.round(num(fd, "due_days"))),
+    status: str(fd, "status") || "planned",
+    auto_paid: bool(fd, "auto_paid"),
+    // Se guarda "pausada" y no "activa" porque un bool nace en false: una serie
+    // recién creada tiene que quedar andando, no dormida.
+    paused: bool(fd, "paused"),
+    project: str(fd, "project"),
+    entity: str(fd, "entity"),
+    account: str(fd, "account"),
+    category: str(fd, "category"),
+    doc_type: str(fd, "doc_type"),
+    notes: str(fd, "notes"),
+  };
+}
+
+function series(id: string): (EntrySeries & { id: string }) | undefined {
+  return store.get<EntrySeries & { id: string }>("entry_series", id);
+}
+
+export async function createSeries(fd: FormData) {
+  const id = await create("entry_series", seriesPayload(fd));
+  const row = series(id);
+  if (row) await materializeSeries(row);
+  return str(fd, "return_to") || `/recurrentes/${id}`;
+}
+
+export async function updateSeries(fd: FormData) {
+  const id = str(fd, "id");
+  await update("entry_series", id, seriesPayload(fd));
+
+  const row = series(id);
+  if (row) await resyncSeries(row);
+
+  return str(fd, "return_to") || `/recurrentes/${id}`;
+}
+
+/** Pausar y reanudar. Pausada no borra nada: deja de fabricar. */
+export async function toggleSeriesPaused(fd: FormData) {
+  const id = str(fd, "id");
+  const row = series(id);
+  if (!row) return;
+
+  await update("entry_series", id, { paused: !row.paused });
+  if (row.paused) {
+    const resumed = series(id);
+    if (resumed) await materializeSeries(resumed);
+  }
+}
+
+/**
+ * Borrar la serie se lleva las cuotas futuras que todavía eran suyas.
+ *
+ * Lo pasado se queda: ocurrió. Lo que ya se facturó o se cobró, también — que
+ * la regla desaparezca no borra la plata que se movió.
+ */
+export async function deleteSeries(fd: FormData) {
+  const id = str(fd, "id");
+  const row = series(id);
+  const cutoff = today();
+
+  for (const e of store.all<Entry & { id: string }>("entries")) {
+    if (e.series !== id || e.deleted) continue;
+    if (e.date.slice(0, 10) <= cutoff) continue;
+    if (row && e.status !== (row.status || "planned")) continue;
+    await remove("entries", e.id);
+  }
+
+  await remove("entry_series", id);
+  return str(fd, "return_to") || "/recurrentes";
 }
 
 /* --------------------------------------------------------------- inbox ---- */

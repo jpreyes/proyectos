@@ -40,11 +40,12 @@ export const TOUR: readonly TourStep[] = [
   {
     route: "/",
     anchor: "nav",
-    title: "Cuatro destinos, no diez",
+    title: "Cinco destinos, no diez",
     body:
-      "Hoy es qué hacer ahora. Bandeja es lo que anotaste y no has decidido. Trabajo son tus " +
-      "encargos. Yo es todo lo demás: calendario, presupuestos, finanzas y ajustes. " +
-      "No hay más mapa que memorizar.",
+      "Hoy es qué hacer ahora. Bandeja es lo que anotaste y no has decidido. Asistente ordena " +
+      "lo que le cuentes y contesta sobre lo que tienes anotado. Trabajo son tus encargos. Yo " +
+      "es todo lo demás: calendario, presupuestos, finanzas y ajustes. No hay más mapa que " +
+      "memorizar.",
   },
   {
     route: "/",

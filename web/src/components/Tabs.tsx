@@ -6,13 +6,14 @@ import { isActivePath, TABS } from "@/lib/nav";
 import { cx } from "./ui";
 
 /**
- * Los mismos cuatro destinos en ambos anchos. En el teléfono viven en una barra
+ * Los mismos destinos en ambos anchos. En el teléfono viven en una barra
  * flotante al alcance del pulgar; en una pantalla ancha se vuelven un riel
  * angosto, porque una barra inferior en un escritorio desperdicia el único eje
  * que a esa pantalla le sobra.
  *
- * Con cuatro, los rótulos completos caben en un teléfono de 375 px sin
- * abreviaturas. El motivo de por qué son cuatro está en lib/nav.ts.
+ * Son cinco y los rótulos completos siguen cabiendo en un teléfono de 375 px sin
+ * abreviaturas — el día que haya que abreviar uno, sobra un destino. El motivo de
+ * cuáles son está en lib/nav.ts.
  *
  * La barra ocupa el ancho de la pantalla y los destinos se reparten en partes
  * iguales (`flex-1 basis-0`), no el ancho de su contenido. Ajustada al contenido

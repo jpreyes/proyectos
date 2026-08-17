@@ -455,22 +455,60 @@ export function Stat({
   return <div className={cls}>{body}</div>;
 }
 
+/**
+ * El encabezado de una pantalla, y dónde va lo que explica cómo se usa.
+ *
+ * `help` es la respuesta a un problema concreto: las instrucciones puestas en
+ * primera plana ocupan la pantalla **para siempre** a cambio de servir una sola
+ * vez. Quien ya sabe usar la pantalla las lee cien veces y las salta cien veces,
+ * y en un teléfono empujan hacia abajo justamente lo que uno vino a ver. Detrás
+ * de un «?» siguen estando —a un toque, en el sitio donde uno busca ayuda— y
+ * dejan de cobrar alquiler.
+ *
+ * Es un `<details>` y no un estado de React por lo mismo que los formularios
+ * largos de esta app: no hace falta JavaScript para abrir y cerrar algo, y el
+ * navegador ya sabe hacerlo con el teclado y con el lector de pantalla. El `?`
+ * va flotado a la derecha para quedar a la altura del título sin meter el panel
+ * dentro de la fila del encabezado, que es lo que lo dejaría en una columna
+ * angosta — el mismo error que arreglamos en las filas de Configuración.
+ */
 export function PageHeader({
   title,
   subtitle,
   action,
+  help,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   action?: ReactNode;
+  /** Cómo se usa esta pantalla. Se guarda detrás de un «?». */
+  help?: ReactNode;
 }) {
-  return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+  const head = (
+    <header className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-[28px] font-bold leading-tight tracking-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-[15px] text-faint">{subtitle}</p>}
       </div>
       {action}
     </header>
+  );
+
+  if (!help) return <div className="mb-6">{head}</div>;
+
+  return (
+    <details className="group mb-6">
+      <summary
+        aria-label="Cómo se usa"
+        title="Cómo se usa"
+        className="float-right ml-3 grid h-9 w-9 cursor-pointer touch-manipulation list-none place-items-center rounded-full bg-pill text-[15px] font-semibold text-muted transition-colors group-open:bg-accent group-open:text-bg active:bg-line2 md:hover:text-ink"
+      >
+        ?
+      </summary>
+      {head}
+      <div className="mt-4 rounded-2xl bg-row px-4 py-4 text-[15px] leading-relaxed text-muted [&>p+p]:mt-3">
+        {help}
+      </div>
+    </details>
   );
 }

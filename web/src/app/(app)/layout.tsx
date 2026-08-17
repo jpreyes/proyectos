@@ -5,6 +5,7 @@ import { useCollection } from "@/lib/local/store";
 import type { InboxItem } from "@/lib/types";
 import { AppShell } from "@/components/AppShell";
 import { Rail, TabBar } from "@/components/Tabs";
+import { BackLink } from "@/components/BackLink";
 import { CaptureBar } from "@/components/CaptureBar";
 import { OfflineBadge } from "@/components/OfflineBadge";
 import { Tour } from "@/components/Tour";
@@ -34,6 +35,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             escaneable, y eso tiene un ancho natural. */}
         <main className="pb-tabbar mx-auto w-full min-w-0 max-w-3xl px-4 pt-5 md:px-8 md:pt-8">
           <CaptureBar open={open} />
+          {/* Encima del título de la pantalla, en el layout: es lo que garantiza
+              que ninguna vista quede sin salida. Ver `BackLink`. */}
+          <BackLink />
           {children}
         </main>
 

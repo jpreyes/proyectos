@@ -269,6 +269,9 @@ function OrganizePage() {
   return (
     <>
       <Title>Asistente</Title>
+      {/* Las instrucciones van detrás del «?» y no en la pantalla. Puestas
+          arriba, servían una vez y después empujaban la conversación hacia abajo
+          en cada visita — y esta es una pantalla a la que se vuelve. */}
       <PageHeader
         title="Asistente"
         subtitle="Cuéntale lo que pasó, o pregúntale por lo que tienes anotado."
@@ -279,20 +282,28 @@ function OrganizePage() {
             </button>
           ) : undefined
         }
+        help={
+          <>
+            <p>
+              Escribe todo junto y sin orden —lo que pasó en una reunión, lo que hay que hacer,
+              lo que se cobra— y te propone dónde va cada cosa. También contesta: «¿qué tengo
+              esta semana?», «¿cuánto llevo cobrado este año?», «¿me queda espacio en
+              septiembre?».
+            </p>
+            <p>
+              Nada se escribe hasta que aprietas «Aplicar», y cada fila se puede apagar. No pone
+              fechas que no hayas dicho, no reescribe tu bitácora, y lo que borra llega apagado:
+              hay que encenderlo a mano.
+            </p>
+            <p>
+              Es la única parte de la app que manda algo afuera: lo que le escribes y un índice
+              de tu cuenta —nombres de proyectos y contrapartes, títulos de pendientes y tres
+              totales del año— nunca los cuerpos de tu bitácora, tus notas ni tus movimientos
+              uno por uno.
+            </p>
+          </>
+        }
       />
-
-      {!messages.length && (
-        <Card className="mb-6" title="Cómo se usa">
-          <p className="text-[15px] leading-relaxed text-muted">
-            Escribe todo junto y sin orden —lo que pasó en una reunión, lo que hay que hacer, lo
-            que se cobra— y te propone dónde va cada cosa. También contesta: «¿qué tengo esta
-            semana?», «¿cuánto llevo cobrado este año?», «¿me queda espacio en septiembre?».
-          </p>
-          <p className="mt-3 text-[15px] leading-relaxed text-muted">
-            Nada se escribe hasta que aprietas «Aplicar», y cada fila se puede apagar.
-          </p>
-        </Card>
-      )}
 
       {messages.map((m) =>
         m.role === "user" ? (
@@ -391,15 +402,12 @@ function OrganizePage() {
 
       <div ref={foot} />
 
-      {/* El aviso de qué sale de esta máquina va acá y no detrás de un
-          interruptor: se lee cuando importa —al escribirle— y no una sola vez, el
-          día que alguien encontró la casilla en Configuración. */}
+      {/* Una sola línea, y solo la que cambia lo que estás a punto de hacer. Lo
+          demás —qué sale de esta máquina, qué no toca— está en el «?» de arriba:
+          repetirlo acá era la misma pared de texto dos veces en la misma
+          pantalla. */}
       <p className="mt-8 px-1 text-[13px] leading-relaxed text-faint">
-        Nada se guarda hasta que aprietas «Aplicar». No pone fechas que no hayas dicho, no
-        reescribe tu bitácora, y lo que borra llega apagado y hay que encenderlo. Es la única
-        parte de la app que manda algo afuera: lo que escribes acá y un índice de tu cuenta
-        —nombres de proyectos y contrapartes, títulos de pendientes y tres totales del año—
-        nunca los cuerpos de tu bitácora, tus notas ni tus movimientos uno por uno.
+        Nada se guarda hasta que aprietas «Aplicar».
       </p>
     </>
   );

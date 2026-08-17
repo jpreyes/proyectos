@@ -1,21 +1,22 @@
 /**
- * Cuatro destinos, y cada uno responde una pregunta distinta: qué hago hoy, qué
- * anoté y no he decidido, en qué estoy trabajando, y yo.
+ * Cinco destinos, y cada uno responde una pregunta distinta: qué hago hoy, qué
+ * anoté y no he decidido, qué le digo al asistente, en qué estoy trabajando, y
+ * yo.
  *
- * Eran seis. Calendario y Presupuestos parecían merecer su lugar porque son
- * herramientas grandes, pero ninguna se abre "por sí misma": se abren *por un
- * encargo*. Puestas en la barra obligaban a mantener en la cabeza un mapa de
- * seis secciones y a decidir en cuál buscar algo que en realidad pertenece a un
- * proyecto. Ahora las horas comprometidas y los presupuestos de un proyecto se
- * ven dentro del proyecto, que es donde uno los va a buscar, y las dos vistas
- * completas siguen a un toque desde "Yo".
+ * Eran seis, después cuatro, y ahora cinco. Calendario y Presupuestos salieron
+ * porque ninguna se abre "por sí misma": se abren *por un encargo*, así que sus
+ * cosas viven dentro del proyecto y las vistas completas quedan a un toque desde
+ * "Yo". La regla que salió de ahí sigue siendo la buena: **en la barra va lo que
+ * se abre un día cualquiera sin tener que saber de antemano qué contiene.**
  *
- * La regla que queda: en la barra va lo que se abre un día cualquiera sin tener
- * que saber de antemano qué contiene. Lo demás vive un toque más adentro.
- *
- * Con cuatro, además, los rótulos completos caben en un teléfono de 375 px sin
- * abreviar — antes Calendario y Presupuestos tenían que ir como "Agenda" y
- * "Presup.", que es una pista de que sobraban.
+ * El asistente entra porque cumple esa regla mejor que casi todo lo demás: se
+ * abre justamente cuando *no* sabes dónde va lo que traes, que es la definición
+ * del caso. Estuvo un rato como fila de "Yo" y ahí fallaba distinto — un destino
+ * que uno usa a diario escondido dos toques adentro, en el cajón de las cosas que
+ * se configuran una vez. La prueba de que cabe es la de siempre: "Asistente" se
+ * lee completo en un teléfono de 375 px, sin abreviar. El día que un destino
+ * nuevo obligue a poner "Asist." o "Presup.", es que sobra — esa sigue siendo la
+ * señal, y es la que hay que respetar antes que el número.
  *
  * La comparten la barra del teléfono y el riel de escritorio.
  */
@@ -30,6 +31,11 @@ export type NavItem = {
 export const TABS: readonly NavItem[] = [
   { href: "/", label: "Hoy", icon: "◉" },
   { href: "/inbox", label: "Bandeja", icon: "⌸" },
+  // Va en medio y no al final: en un teléfono el centro de la barra es lo que el
+  // pulgar alcanza sin recolocar la mano, y esto es el destino al que uno llega
+  // con algo que quiere sacarse de la cabeza. Al lado de Bandeja, además, porque
+  // son los dos que reciben en vez de mostrar.
+  { href: "/organizar", label: "Asistente", icon: "✳" },
   { href: "/w", label: "Trabajo", icon: "▤" },
   {
     href: "/yo",
@@ -37,12 +43,13 @@ export const TABS: readonly NavItem[] = [
     icon: "◑",
     // Todo lo que se alcanza desde "Yo" mantiene esa pestaña encendida, o
     // entras a Finanzas y la barra afirma que no estás en ninguna parte.
+    // `/organizar` ya no está acá: tiene su propia pestaña, y dejarlo habría
+    // encendido dos a la vez.
     owns: [
       "/calendario",
       "/presupuestos",
       "/finanzas",
       "/recurrentes",
-      "/organizar",
       "/entidades",
       "/rutinas",
       "/ritmo",
@@ -51,15 +58,14 @@ export const TABS: readonly NavItem[] = [
   },
 ] as const;
 
-/** Las filas agrupadas de "Yo". Línea en blanco entre grupos = arreglo nuevo. */
+/**
+ * Las filas agrupadas de "Yo". Línea en blanco entre grupos = arreglo nuevo.
+ *
+ * El asistente estuvo acá arriba, solo en su grupo, y se fue a la barra. No se
+ * repite en las dos partes a propósito: una fila que duplica una pestaña es
+ * ruido, y en este menú el ruido es justo lo que hay que evitar.
+ */
 export const YO_GROUPS: readonly (readonly NavItem[])[] = [
-  // Va primero y solo porque es lo único de acá que *hace* algo en vez de
-  // mostrar algo. Y va en Yo y no en la barra por la misma regla de siempre:
-  // no se abre un día cualquiera sin saber qué se le va a pedir.
-  // Se llamó "Ordenar" mientras fue una pantalla de un solo tiro. Ahora es una
-  // conversación que además contesta, y "Ordenar" prometía la mitad. La ruta no
-  // cambia: un enlace guardado tiene que seguir llegando.
-  [{ href: "/organizar", label: "Asistente", icon: "✳" }],
   [
     { href: "/calendario", label: "Calendario", icon: "▦" },
     { href: "/presupuestos", label: "Presupuestos", icon: "▧" },

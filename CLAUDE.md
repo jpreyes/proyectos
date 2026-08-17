@@ -158,18 +158,42 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 
 ### Decisiones que no hay que deshacer
 
-- **Cuatro destinos en la barra: Hoy, Bandeja, Trabajo, Yo.** La app se abre en el
-  teléfono, y un índice de diez secciones con tipografía de 11–13 px se lee como panel de
-  control: todo pesa lo mismo y nada invita a entrar. Fueron diez, después seis, y seis
-  seguía siendo un mapa que había que memorizar. El criterio que quedó: **en la barra va
-  lo que se abre un día cualquiera sin saber de antemano qué contiene**. Calendario y
-  Presupuestos no cumplen eso — nunca se abren "por sí mismos", se abren *por un encargo*—
-  así que lo de cada proyecto se ve dentro del proyecto (`/w/[id]` muestra sus horas
-  comprometidas y sus presupuestos, y deja comprometer horas ahí mismo) y las dos vistas
-  completas quedan a un toque desde **Yo**. Con cuatro, además, los rótulos completos
-  caben en un teléfono de 375 px: mientras hicieron falta abreviaturas ("Agenda",
-  "Presup.") la barra estaba pidiendo a gritos que sobraba algo. Lo que aparezca nuevo
-  entra como fila de Yo o dentro del proyecto, nunca en la barra.
+- **Cinco destinos en la barra: Hoy, Bandeja, Asistente, Trabajo, Yo.** La app se abre en
+  el teléfono, y un índice de diez secciones con tipografía de 11–13 px se lee como panel
+  de control: todo pesa lo mismo y nada invita a entrar. Fueron diez, después seis, después
+  cuatro. **El número no es la regla; la regla es el criterio**: en la barra va lo que se
+  abre un día cualquiera sin saber de antemano qué contiene. Calendario y Presupuestos no lo
+  cumplen —nunca se abren "por sí mismos", se abren *por un encargo*— así que lo de cada
+  proyecto se ve dentro del proyecto (`/w/[id]` muestra sus horas comprometidas y sus
+  presupuestos, y deja comprometer horas ahí mismo) y las dos vistas completas quedan a un
+  toque desde **Yo**. El asistente sí lo cumple, y mejor que casi todo: se abre justamente
+  cuando *no* sabes dónde va lo que traes. Estuvo un rato como fila de Yo y ahí fallaba al
+  revés — un destino de uso diario, escondido dos toques adentro, en el cajón de lo que se
+  configura una vez; se reportó dos veces como «no veo el botón del agente». La prueba de
+  que un destino cabe sigue siendo la misma y es la que hay que respetar antes que el
+  número: **el rótulo completo se lee en un teléfono de 375 px**. "Asistente" cabe; mientras
+  hicieron falta abreviaturas ("Agenda", "Presup.") la barra estaba pidiendo a gritos que
+  sobraba algo. Un destino nuevo entra en la barra solo si pasa las dos pruebas —el criterio
+  y el rótulo—; si no, es fila de Yo o vive dentro del proyecto. Y **nunca en los dos
+  lugares**: una fila de Yo que duplica una pestaña es ruido en el único menú que existe
+  para no tener ruido.
+- **Ninguna pantalla sin salida** (`components/BackLink.tsx`, puesto en el layout de
+  `(app)`). La app se instala como PWA y una PWA **no tiene la flecha de atrás del
+  navegador**; en el teléfono tampoco hay una tecla que sirva siempre. Lo que había era un
+  «Volver a Trabajo» escrito a mano en cinco fichas y en ninguna otra, así que salir de una
+  vista era distinto en cada una y en varias imposible: se entraba a editar un movimiento y
+  la única salida era tocar una pestaña, que además te dejaba al principio de la lista. Va
+  en el **layout** y no en cada página, y eso es la mitad del arreglo: lo que se agregue
+  mañana lo hereda sin que nadie se acuerde. Dos comportamientos, y el segundo es el que
+  importa: si ya navegaste dentro de la app, `router.back()` —devuelve al lugar exacto,
+  incluido el punto de la lista, que un enlace al padre no puede hacer—; si esta pantalla es
+  la primera de la sesión (enlace guardado, acceso directo de la PWA, recarga) no hay a dónde
+  volver y se sube un nivel por la ruta, cuyo último tramo lo resuelve `nav.ts`: el padre de
+  una sección de un solo segmento es la pestaña que la ilumina. Por eso se **cuentan las
+  navegaciones** en vez de mirar `history.length`: ese número incluye todo lo que el
+  navegador visitó antes de llegar, así que no distingue "vengo de la lista" de "abrí esto
+  directo", que es justo la distinción que hace falta. En la raíz de una pestaña no aparece:
+  una flecha que a veces no hace nada es peor que ninguna.
 - **Las superficies se separan por elevación, no por bordes.** Una fila se
   levanta sobre la página y las filas de un grupo se parten con una hendidura de
   1 px del color del fondo. Esa ranura es lo que hace que un grupo se lea como un
@@ -207,6 +231,15 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   acepta `actions`: el enlace se estira invisible sobre la fila y los controles van
   encima. Es lo que permite que un cobro lleve a su detalle sin perder el «marcar
   pagado».
+- **Las instrucciones van detrás de un «?», no en la pantalla** (`help` en `PageHeader`).
+  Un texto que explica cómo se usa una pantalla sirve una vez y ocupa espacio siempre: quien
+  ya sabe lo salta cien veces, y en un teléfono empuja hacia abajo justamente lo que uno vino
+  a ver. Detrás del «?» sigue a un toque y en el sitio donde uno busca ayuda. Es un
+  `<details>` y no un estado de React por lo mismo que los formularios plegados: abrir y
+  cerrar algo no necesita JavaScript, y así funciona con teclado y con lector de pantalla.
+  El corolario, que es lo que hay que respetar: **en primera plana solo queda lo que cambia
+  lo que estás a punto de hacer** — en `/organizar` sobrevivió una línea, «nada se guarda
+  hasta que aprietas Aplicar», y el resto se fue al «?».
 - **Los formularios largos van plegados.** Configuración, el alta de contacto, el
   de presupuesto, el de rutina y los ocho campos secundarios de la bitácora
   arrancan cerrados. Lo obligatorio queda a la vista; lo demás es un `<details>`.

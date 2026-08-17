@@ -117,15 +117,13 @@ export default function QuotePage() {
           </span>
         }
         subtitle={client?.name || "sin cliente"}
+        // Acá había un «Volver» al listado. Se fue cuando el volver pasó a estar
+        // en el layout (`components/BackLink.tsx`): dos controles con la misma
+        // palabra y distinto destino en la misma pantalla es peor que ninguno.
         action={
-          <div className="flex gap-2">
-            <Link href={`/presupuestos/${id}/imprimir`} className={btn("subtle", "sm")}>
-              Imprimir
-            </Link>
-            <Link href="/presupuestos" className={btn("ghost", "sm")}>
-              Volver
-            </Link>
-          </div>
+          <Link href={`/presupuestos/${id}/imprimir`} className={btn("subtle", "sm")}>
+            Imprimir
+          </Link>
         }
       />
 

@@ -167,8 +167,8 @@ body {
 .bottom-tabbar {
   bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
-/* Above the bar, not beside it: with six tabs the bar spans the full width of a
-   narrow phone, so a right-aligned button would land on top of "Yo". */
+/* Above the bar, not beside it: the bar always spans the full width of the
+   phone, so a right-aligned button would land on top of the last tab. */
 .bottom-fab {
   bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }

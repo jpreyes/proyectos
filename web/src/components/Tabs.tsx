@@ -14,6 +14,15 @@ import { cx } from "./ui";
  * Con cuatro, los rótulos completos caben en un teléfono de 375 px sin
  * abreviaturas. El motivo de por qué son cuatro está en lib/nav.ts.
  *
+ * La barra ocupa el ancho de la pantalla y los destinos se reparten en partes
+ * iguales (`flex-1 basis-0`), no el ancho de su contenido. Ajustada al contenido
+ * quedaba una pastilla angosta en medio de un teléfono: los blancos de los lados
+ * no se pueden tocar, y cada destino recibía apenas los ~64 px de su rótulo, que
+ * es menos de lo que mide un pulgar. Además el tamaño de la barra dejaba de ser
+ * el mismo entre pantallas —crecía y se encogía con cuántos destinos hubiera— y
+ * los rótulos se movían de sitio al agregar uno. Repartiendo el ancho, agregar o
+ * quitar un destino cambia el tamaño de las zonas de toque y nada más.
+ *
  * La única insignia de la app es el contador de la bandeja: algo escrito y sin
  * decidir es lo único que debería insistir. Cualquier otra cosa ganándose un
  * punto rojo es cómo una herramienta empieza a sentirse como una obligación.
@@ -30,7 +39,7 @@ export function TabBar({ open }: { open: number }) {
     <nav
       aria-label="Principal"
       data-tour="nav"
-      className="bottom-tabbar float fixed inset-x-0 z-40 mx-auto flex w-fit max-w-[calc(100vw-1.5rem)] items-center rounded-full bg-panel/95 p-1 backdrop-blur md:hidden"
+      className="bottom-tabbar float fixed inset-x-3 z-40 flex items-center rounded-full bg-panel/95 p-1 backdrop-blur md:hidden"
     >
       {TABS.map((t) => {
         const active = isActivePath(pathname, t);
@@ -41,29 +50,34 @@ export function TabBar({ open }: { open: number }) {
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "relative flex min-w-0 flex-col items-center gap-1 rounded-full px-2 py-2 transition-colors",
+              "flex min-w-0 flex-1 basis-0 flex-col items-center gap-1 rounded-full px-1 py-2 transition-colors",
               active ? "bg-pill" : "active:bg-pill/50"
             )}
           >
-            <span
-              className={cx("text-[16px] leading-none", active ? "text-accent" : "text-muted")}
-              aria-hidden
-            >
-              {t.icon}
+            {/* La insignia cuelga del icono, no de la esquina de la pestaña: al
+                repartirse el ancho completo la esquina queda lejos del glifo y
+                el número se leería como si fuera de la pestaña vecina. */}
+            <span className="relative">
+              <span
+                className={cx("text-[16px] leading-none", active ? "text-accent" : "text-muted")}
+                aria-hidden
+              >
+                {t.icon}
+              </span>
+              {n > 0 && (
+                <span className="absolute -right-3 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-warn px-1 text-[10px] font-bold leading-none text-bg">
+                  {n}
+                </span>
+              )}
             </span>
             <span
               className={cx(
-                "max-w-[4.25rem] truncate text-[10px] leading-none",
+                "w-full truncate text-center text-[10px] leading-none",
                 active ? "font-semibold text-ink" : "text-faint"
               )}
             >
               {t.label}
             </span>
-            {n > 0 && (
-              <span className="absolute right-0.5 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-warn px-1 text-[10px] font-bold leading-none text-bg">
-                {n}
-              </span>
-            )}
           </Link>
         );
       })}

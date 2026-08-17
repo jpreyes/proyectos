@@ -105,6 +105,18 @@ export interface Settings {
    * navegador: verla una vez en el teléfono también vale en el escritorio.
    */
   tour_done: boolean;
+
+  /**
+   * El asistente que ordena. Apagado por defecto y a propósito: encenderlo
+   * significa que el texto que escribes y el índice de tu cuenta salen del
+   * servidor hacia un tercero, y eso no se da por hecho.
+   *
+   * La clave de la API **no está acá**: `settings` se replica entera en el
+   * navegador de cada dispositivo, así que guardarla en esta fila sería
+   * publicarla. Vive en el entorno del contenedor (`OPENCODE_API_KEY`).
+   */
+  assistant_enabled: boolean;
+  assistant_model: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -144,6 +156,9 @@ export const DEFAULT_SETTINGS: Settings = {
 
   demo_seeded: false,
   tour_done: false,
+
+  assistant_enabled: false,
+  assistant_model: "gpt-5.6-luna",
 };
 
 /** Mapas compilados, usados solo si la taxonomía todavía no bajó. */

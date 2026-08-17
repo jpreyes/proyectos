@@ -14,6 +14,7 @@ import {
   triage,
 } from "@/lib/local/actions";
 import { useCollection } from "@/lib/local/store";
+import { useConfig } from "@/lib/local/config";
 import { index, sortBy } from "@/lib/local/query";
 import { parseWhen } from "@/lib/local/parse";
 import { fmtRelative } from "@/lib/dates";
@@ -26,6 +27,7 @@ const ACTIVE = ["idea", "active", "paused", "waiting"];
 export default function InboxPage() {
   const items = useCollection<InboxItem>("inbox");
   const allProjects = useCollection<Project>("projects");
+  const assistant = useConfig().settings.assistant_enabled;
 
   const { open, recent, projects, projectById } = useMemo(
     () => ({
@@ -57,6 +59,21 @@ export default function InboxPage() {
             : `${open.length} cosa${open.length === 1 ? "" : "s"} esperando destino`
         }
       />
+
+      {/* Triar cuesta un toque por ítem, y hay días en que son quince. El
+          asistente propone el destino de todos de una vez y tú aceptas — sigue
+          sin escribir nada a tus espaldas, que es la regla de la casa. */}
+      {open.length > 1 && assistant && (
+        <div className="mb-4">
+          <Row
+            href="/organizar?bandeja=1"
+            icon="✳"
+            iconTone="accent"
+            label="Ordenar la bandeja de una vez"
+            hint={`El asistente propone dónde va cada una de las ${open.length}`}
+          />
+        </div>
+      )}
 
       {open.length === 0 ? (
         <Empty>Nada pendiente de clasificar.</Empty>

@@ -42,6 +42,7 @@ export const TABS: readonly NavItem[] = [
       "/presupuestos",
       "/finanzas",
       "/recurrentes",
+      "/organizar",
       "/entidades",
       "/rutinas",
       "/ritmo",
@@ -52,6 +53,10 @@ export const TABS: readonly NavItem[] = [
 
 /** Las filas agrupadas de "Yo". Línea en blanco entre grupos = arreglo nuevo. */
 export const YO_GROUPS: readonly (readonly NavItem[])[] = [
+  // Va primero y solo porque es lo único de acá que *hace* algo en vez de
+  // mostrar algo. Y va en Yo y no en la barra por la misma regla de siempre:
+  // no se abre un día cualquiera sin saber qué se le va a pedir.
+  [{ href: "/organizar", label: "Ordenar", icon: "✳" }],
   [
     { href: "/calendario", label: "Calendario", icon: "▦" },
     { href: "/presupuestos", label: "Presupuestos", icon: "▧" },

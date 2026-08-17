@@ -97,7 +97,9 @@ Decisiones de esta capa que **no hay que deshacer**:
   emita `online`, y cinco minutos con algo escrito sin subir es justo el rato en que uno
   cierra la app.
 - **Leer los .ics es lo único que quedó en el servidor** (`lib/actions.server.ts`):
-  es otro origen, no manda CORS, y da igual intentarlo sin red.
+  es otro origen, no manda CORS, y da igual intentarlo sin red. Desde el asistente son
+  dos: `lib/organize.server.ts` vive allá por otra razón —la clave de la API no puede
+  tocar el navegador— y tampoco escribe nada.
 
 ## Comandos
 
@@ -306,6 +308,44 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   para las cuentas donde la siembra ya ocurrió): con nombres verosímiles, en una cuenta que
   ya tiene encargos reales no había cómo saber mirando la lista cuáles se pueden borrar. Va
   delante y no detrás porque las filas truncan, y un sufijo se pierde justo en el teléfono.
+- **El asistente propone; nunca escribe solo** (`/organizar`, `lib/organize.server.ts`,
+  `lib/organize/plan.ts`, `lib/local/organize.ts`). Le tiras un volcado de texto y devuelve
+  un plan —proyectos, pendientes, bitácora, movimientos, recurrentes, horas— que aceptas de
+  un toque o al que le apagas las filas que no. La tentación de que escriba solo hay que
+  resistirla, y la razón está tres viñetas más arriba, en `parse.ts`: **una fecha inventada
+  no se descubre revisándola, se descubre el día que no llegaste**. En una app que es tu
+  índice y tu punto de reentrada, un bot que escribe a tus espaldas no ahorra trabajo:
+  traslada el trabajo a auditar algo que ya está escrito, que es más caro y se hace peor.
+  Cinco cosas que lo sostienen:
+  - **La clave de la API vive en el entorno del contenedor** (`OPENCODE_API_KEY`), nunca en
+    `settings`: esa fila se replica entera en cada navegador, así que guardarla ahí sería
+    publicarla. Por lo mismo el modelo sí es un ajuste —cambiarlo no debería pedir un
+    redespliegue— pero el servidor lo valida contra una lista blanca, porque llega del
+    cliente y un id libre son créditos ajenos.
+  - **La sesión se verifica contra PocketBase, no leyendo la cookie.** `pb_auth` no es
+    httpOnly y `authStore.isValid` solo mira la expiración del JWT, no su firma: sin el
+    `authRefresh()`, cualquiera que sepa la URL gasta los créditos con una cookie escrita a
+    mano.
+  - **Todo lo que devuelve el modelo pasa por una aduana** (`sanitizePlan`), y dos veces: en
+    el servidor y otra vez antes de aplicar. Un id que no exista se descarta, una fecha que
+    no tenga la forma exacta se descarta, un tipo fuera de tu vocabulario cae al valor por
+    defecto. Descartar un **campo** no bota el paso: una tarea sin proyecto es legal y Hoy
+    la muestra; una colgada de un proyecto inventado, no.
+  - **No escribe en PocketBase desde el servidor.** Aplicar el plan pasa por las mismas
+    escrituras locales que todo lo demás, que es lo que lo deja funcionando sin red, en
+    orden en la cola y con dueño.
+  - **El modelo no es un detalle de gusto: se midió.** Con el mismo prompt y el mismo
+    volcado, `gpt-5.6-luna` devolvió un plan correcto en 13 s y `deepseek-v4-flash` devolvió
+    **contenido vacío** a los 80 s, porque los modelos de razonamiento de este catálogo
+    gastan el pensamiento contra el mismo techo que la respuesta. Y el techo no se sube:
+    arriba está Cloudflare, que corta a los 100 s. De ahí salen los tres números del
+    servidor —`TIMEOUT_MS = 85_000`, `MAX_OUTPUT_TOKENS`, y un prompt escrito apretado— y
+    ninguno es arbitrario. Si alguien vuelve a alargar el prompt "para que entienda mejor",
+    lo que va a conseguir es que deje de contestar.
+  - **Está apagado hasta que la cuenta lo encienda** (`settings.assistant_enabled`). Es la
+    única parte de la app que manda algo afuera, y lo que sale es un índice —nombres e ids
+    de proyectos y contrapartes— nunca los cuerpos de la bitácora, las notas, los montos ni
+    las rutas de tus carpetas. Encenderlo tiene que ser un acto, no un descubrimiento.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
   moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy

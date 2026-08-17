@@ -5,6 +5,7 @@ import type { TaxGroup, TaxRow } from "@/lib/config";
 import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { deleteDemoData, useDemoCount } from "@/lib/local/demo";
+import { ASSISTANT_MODELS, DEFAULT_ASSISTANT_MODEL } from "@/lib/organize/plan";
 import { startTour } from "@/lib/tour";
 import { Form } from "@/components/form";
 import { ThemePicker } from "@/components/ThemePicker";
@@ -404,6 +405,41 @@ export default function SettingsPage() {
                   />
                 </Field>
               </div>
+            </div>
+
+            {/* Mismo formulario, misma razón que el bloque de arriba. */}
+            <div className="col-span-full mt-2 border-t border-line pt-4">
+              <h3 className="mb-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
+                Asistente
+              </h3>
+              <p className="mb-4 text-[13px] leading-relaxed text-faint">
+                Convierte un texto desordenado en proyectos, pendientes, bitácora y movimientos —
+                y te los propone para que los aceptes de un toque. Es la única parte de la app que
+                manda algo afuera: el texto que escribas y un índice de tu cuenta (los nombres de
+                tus proyectos y contrapartes, no sus contenidos ni los montos). Por eso viene
+                apagado.
+              </p>
+
+              <label className="flex items-start gap-2.5 text-[15px] leading-snug text-muted">
+                <input
+                  type="checkbox"
+                  name="assistant_enabled"
+                  defaultChecked={s.assistant_enabled}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-semibold text-ink">Encender el asistente</span> — necesita
+                  que el servidor tenga configurada la clave de opencode
+                </span>
+              </label>
+
+              <Field label="Modelo" className="mt-3.5 sm:max-w-sm">
+                <Select
+                  name="assistant_model"
+                  options={ASSISTANT_MODELS.map((m) => ({ value: m.value, label: m.label }))}
+                  defaultValue={s.assistant_model || DEFAULT_ASSISTANT_MODEL}
+                />
+              </Field>
             </div>
 
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>

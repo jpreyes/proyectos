@@ -686,6 +686,9 @@ export async function saveSettings(fd: FormData) {
     quote_profit_pct: num(fd, "quote_profit_pct"),
     quote_validity_days: num(fd, "quote_validity_days"),
     quote_prefix: str(fd, "quote_prefix"),
+
+    assistant_enabled: bool(fd, "assistant_enabled"),
+    assistant_model: str(fd, "assistant_model") || "gpt-5.6-luna",
   };
 
   await upsert("settings", str(fd, "id"), payload);

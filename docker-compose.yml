@@ -41,6 +41,15 @@ services:
       NEXT_PUBLIC_PB_URL: ""
       NODE_ENV: production
       TZ: America/Santiago
+      # El asistente que ordena (/organizar). La clave va acá y NO en la fila
+      # `settings` de PocketBase: la app replica esa fila entera en el navegador
+      # de cada dispositivo, así que guardarla ahí sería publicarla. Sin esta
+      # variable el asistente no funciona y lo dice; el resto de la app no se
+      # entera. Se define en el `.env` de este directorio, que no va al repo.
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      # Go (suscripción) por defecto; Zen (pago por uso) es otro endpoint y otra
+      # clave — no se comparten.
+      OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-}
     depends_on:
       pocketbase:
         condition: service_healthy

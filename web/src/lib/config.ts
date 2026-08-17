@@ -158,7 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tour_done: false,
 
   assistant_enabled: false,
-  assistant_model: "gpt-5.6-luna",
+  assistant_model: "deepseek-v4-flash",
 };
 
 /** Mapas compilados, usados solo si la taxonomía todavía no bajó. */

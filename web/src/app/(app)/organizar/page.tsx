@@ -7,9 +7,14 @@ import type { Entity, InboxItem, Project } from "@/lib/types";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { index, sortBy } from "@/lib/local/query";
-import { applyPlan, buildContext } from "@/lib/local/organize";
-import { proposePlan } from "@/lib/organize.server";
-import { DEFAULT_ASSISTANT_MODEL, MAX_INPUT, type Plan, type Step } from "@/lib/organize/plan";
+import { applyPlan, buildContext, requestPlan } from "@/lib/local/organize";
+import {
+  DEFAULT_ASSISTANT_MODEL,
+  expectedSeconds,
+  MAX_INPUT,
+  type Plan,
+  type Step,
+} from "@/lib/organize/plan";
 import { CADENCE } from "@/lib/labels";
 import { formatMoney } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
@@ -81,7 +86,28 @@ function OrganizePage() {
     setText(openItems.map((i) => `- ${i.text}`).join("\n"));
   }, [fromInbox, openItems, text, plan]);
 
+  /**
+   * Un contador de segundos mientras espera.
+   *
+   * Con `deepseek-v4-flash` la espera son cien segundos, y cien segundos de un
+   * botón que solo dice "Leyendo…" son indistinguibles de una app colgada — que
+   * es justo el silencio contra el que esta app tiene una regla escrita. Un
+   * número que sube es la señal más barata de que algo está pasando.
+   */
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!busy) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const tick = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(tick);
+  }, [busy]);
+
   const enabled = cfg.settings.assistant_enabled;
+  const wait = `${expectedSeconds(cfg.settings.assistant_model)} s`;
   const projectById = useMemo(() => index(projects), [projects]);
   const entityById = useMemo(() => index(entities), [entities]);
 
@@ -90,7 +116,7 @@ function OrganizePage() {
     setError("");
     try {
       const ctx = buildContext(cfg, fromInbox);
-      const res = await proposePlan({
+      const res = await requestPlan({
         text,
         context: ctx,
         model: cfg.settings.assistant_model || DEFAULT_ASSISTANT_MODEL,
@@ -228,8 +254,8 @@ function OrganizePage() {
               app tiene una regla sobre eso. */}
           {busy && (
             <p className="mt-3 text-[13px] leading-relaxed text-muted">
-              Puede tardar hasta un minuto: el modelo lee todo antes de proponer. No cierres
-              la pantalla.
+              Van {elapsed} s. Este modelo suele tardar unos {wait}: razona sobre todo el texto
+              antes de proponer. No cierres la pantalla.
             </p>
           )}
 

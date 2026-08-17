@@ -19,7 +19,13 @@
 
 import type { Account, Category, Entity, EntrySeries, InboxItem, Project } from "../types";
 import type { Config } from "../config";
-import { type OrganizeContext, sanitizePlan, type Plan, type Step } from "../organize/plan";
+import {
+  type OrganizeContext,
+  type Plan,
+  type ProposeResult,
+  sanitizePlan,
+  type Step,
+} from "../organize/plan";
 import { materializeSeries } from "./recurring";
 import { create, update } from "./mutate";
 import { sortBy } from "./query";
@@ -79,6 +85,65 @@ export function buildContext(cfg: Config, withInbox: boolean): OrganizeContext {
     logKinds: cfg.options("log_kind").map((o) => o.value),
     inbox,
   };
+}
+
+/* --------------------------------------------------------------- pedir ----- */
+
+/**
+ * Pide el plan al servidor.
+ *
+ * La respuesta viene por streaming y eso obliga a leerla, no a esperarla: el
+ * cuerpo son saltos de línea de relleno —un latido cada diez segundos, para que
+ * Cloudflare no corte la petición a los 100— y **la última línea con contenido
+ * es el resultado**. Ver el comentario de `app/(app)/organizar/stream/route.ts`
+ * para por qué no es un server action.
+ *
+ * `res.text()` alcanza: espera el cuerpo completo, pero mientras espera hay
+ * bytes en vuelo, que es exactamente lo que hacía falta.
+ */
+export async function requestPlan(body: {
+  text: string;
+  context: OrganizeContext;
+  model?: string;
+  previous?: string;
+  correction?: string;
+}): Promise<ProposeResult> {
+  let res: Response;
+  try {
+    res = await fetch("/organizar/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { ok: false, error: "No se pudo hablar con el servidor. Puede ser la red." };
+  }
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      error:
+        res.status === 502 || res.status === 504
+          ? "El servidor no contestó a tiempo. Prueba con un texto más corto."
+          : `El servidor respondió ${res.status}.`,
+    };
+  }
+
+  const text = await res.text();
+  const lines = text.split("\n").filter((line) => line.trim());
+  const last = lines[lines.length - 1];
+
+  if (!last) {
+    // Cuerpo de puros latidos: la conexión se cortó a mitad de camino. Decirlo
+    // así es más útil que un "error inesperado", porque el remedio es reintentar.
+    return { ok: false, error: "La conexión se cortó antes de que llegara el plan." };
+  }
+
+  try {
+    return JSON.parse(last) as ProposeResult;
+  } catch {
+    return { ok: false, error: "La respuesta del servidor no se entendió." };
+  }
 }
 
 /* ------------------------------------------------------------- aplicar ----- */

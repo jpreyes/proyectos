@@ -166,30 +166,40 @@ export const MAX_INPUT = 8000;
  * modelo más caro del catálogo y la cuenta paga. El servidor valida contra esta
  * misma lista.
  *
- * El orden y la elección salen de medirlos con el prompt real y un volcado de
- * ocho cosas, contra opencode Go:
+ * Medidos con el prompt real y un volcado de ocho cosas, contra opencode Go:
  *
- *   gpt-5.6-luna       13 s   1143 tokens   plan completo y correcto
- *   minimax-m3         44 s   7046 tokens   plan completo y correcto
- *   deepseek-v4-flash  80 s   9000 tokens   CONTENIDO VACÍO
+ *   modelo             tiempo   tokens de salida   resultado
+ *   deepseek-v4-flash   101 s        13.284        plan completo; el mejor
+ *   minimax-m3           44 s         7.046        plan completo
+ *   gpt-5.6-luna         13 s         1.143        plan completo
  *
- * DeepSeek se queda porque fue el que se pidió y porque esto puede cambiar del
- * lado del proveedor, pero va rotulado con lo que hace hoy: es un modelo de
- * razonamiento cuyo pensamiento cuenta contra el mismo techo que la respuesta, y
- * agota el presupuesto antes de escribir una sola llave. No es cuestión de
- * subirle el techo: arriba está Cloudflare, que corta la petición a los 100
- * segundos. `deepseek-v4-pro` no se ofrece porque razona más, no menos.
+ * DeepSeek es el más lento por lejos y el que entendió mejor: fue el único que
+ * sacó `priority: "high"` de un "eso es urgente". Tarda porque razona antes de
+ * contestar, y esos tokens **cuentan contra el mismo techo que la respuesta** —
+ * de ahí que `MAX_OUTPUT_TOKENS` en `call.ts` sea tan alto. Con un techo bajo el
+ * modelo no parece lento: parece roto, porque devuelve la respuesta cortada y el
+ * JSON truncado no parsea.
+ *
+ * `deepseek-v4-pro` no se ofrece: razona más, no menos, y ya estamos al filo del
+ * tiempo que alguien está dispuesto a esperar. `kimi-k2.7-code` y `qwen3.7-plus`
+ * devolvieron error del proveedor; `glm-5.2` se cortó.
  */
 export const ASSISTANT_MODELS = [
-  { value: "gpt-5.6-luna", label: "GPT 5.6 Luna — rápido y probado (recomendado)" },
-  { value: "minimax-m3", label: "MiniMax M3 — también sirve, tarda tres veces más" },
   {
     value: "deepseek-v4-flash",
-    label: "DeepSeek V4 Flash — razona tanto que hoy no alcanza a contestar",
+    label: "DeepSeek V4 Flash — el que entiende mejor, ~100 s",
+    seconds: 100,
   },
+  { value: "minimax-m3", label: "MiniMax M3 — intermedio, ~45 s", seconds: 45 },
+  { value: "gpt-5.6-luna", label: "GPT 5.6 Luna — el más rápido, ~15 s", seconds: 15 },
 ] as const;
 
-export const DEFAULT_ASSISTANT_MODEL = "gpt-5.6-luna";
+export const DEFAULT_ASSISTANT_MODEL = "deepseek-v4-flash";
+
+/** Cuánto avisar que va a tardar. Sale de la tabla de arriba. */
+export function expectedSeconds(model: string | undefined): number {
+  return ASSISTANT_MODELS.find((m) => m.value === model)?.seconds ?? 100;
+}
 
 /**
  * Lo que devuelve el servidor.

@@ -334,14 +334,21 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   - **No escribe en PocketBase desde el servidor.** Aplicar el plan pasa por las mismas
     escrituras locales que todo lo demás, que es lo que lo deja funcionando sin red, en
     orden en la cola y con dueño.
-  - **El modelo no es un detalle de gusto: se midió.** Con el mismo prompt y el mismo
-    volcado, `gpt-5.6-luna` devolvió un plan correcto en 13 s y `deepseek-v4-flash` devolvió
-    **contenido vacío** a los 80 s, porque los modelos de razonamiento de este catálogo
-    gastan el pensamiento contra el mismo techo que la respuesta. Y el techo no se sube:
-    arriba está Cloudflare, que corta a los 100 s. De ahí salen los tres números del
-    servidor —`TIMEOUT_MS = 85_000`, `MAX_OUTPUT_TOKENS`, y un prompt escrito apretado— y
-    ninguno es arbitrario. Si alguien vuelve a alargar el prompt "para que entienda mejor",
-    lo que va a conseguir es que deje de contestar.
+  - **Responde por streaming, y eso no es lucimiento**
+    (`app/(app)/organizar/stream/route.ts`). Cloudflare corta la conexión con el origen si no
+    ve el **primer** byte en ~100 s, y `deepseek-v4-flash` tarda unos 101 porque razona antes
+    de contestar: justo encima de la raya. La ruta emite un byte al instante y late cada 10 s
+    —ndjson, la última línea es el resultado— porque el límite es al primer byte y no al
+    último. Dos detalles que se pierden fácil: `X-Accel-Buffering: no`, sin lo cual nginx
+    bufferea la respuesta y se traga los latidos dejándonos donde empezamos; y que la ruta
+    cuelga de `/organizar/` y no de `/api/`, que es de PocketBase. No es un server action
+    justamente por esto: uno no puede empezar a responder antes de tener el valor de retorno.
+  - **El techo de tokens incluye el pensamiento, y creerlo a medias sale caro.** Con
+    `MAX_OUTPUT_TOKENS` en 8.000, `deepseek-v4-flash` devolvía `finish_reason: length` y
+    contenido **vacío** — parecía un modelo roto y lo roto era el techo. Necesita ~13.300
+    para un plan de 1.700 caracteres; hoy el techo está en 24.000. El prompt va escrito
+    apretado por lo mismo: alargarlo "para que entienda mejor" le da más de qué razonar y
+    acerca el corte.
   - **Está apagado hasta que la cuenta lo encienda** (`settings.assistant_enabled`). Es la
     única parte de la app que manda algo afuera, y lo que sale es un índice —nombres e ids
     de proyectos y contrapartes— nunca los cuerpos de la bitácora, las notas, los montos ni

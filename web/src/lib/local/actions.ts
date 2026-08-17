@@ -688,7 +688,7 @@ export async function saveSettings(fd: FormData) {
     quote_prefix: str(fd, "quote_prefix"),
 
     assistant_enabled: bool(fd, "assistant_enabled"),
-    assistant_model: str(fd, "assistant_model") || "gpt-5.6-luna",
+    assistant_model: str(fd, "assistant_model") || "deepseek-v4-flash",
   };
 
   await upsert("settings", str(fd, "id"), payload);

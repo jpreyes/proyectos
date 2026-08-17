@@ -128,7 +128,6 @@ function OrganizePage() {
     setDraft(`Ordena esto:\n${openItems.map((i) => `- ${i.text}`).join("\n")}`);
   }, [sp, openItems]);
 
-  const enabled = cfg.settings.assistant_enabled;
   const projectById = useMemo(() => index(projects), [projects]);
   const entityById = useMemo(() => index(entities), [entities]);
 
@@ -255,30 +254,17 @@ function OrganizePage() {
     setError("");
   }
 
-  /* ------------------------------------------------------------ apagado -- */
-
-  if (!enabled) {
-    return (
-      <>
-        <Title>Asistente</Title>
-        <PageHeader
-          title="Asistente"
-          subtitle="Contesta sobre lo que tienes anotado y propone los registros que faltan."
-        />
-        <Card title="Está apagado">
-          <p className="text-[15px] leading-relaxed text-muted">
-            Para usarlo, lo que escribas y un índice de tu cuenta —los nombres de tus proyectos y
-            contrapartes, los títulos de tus pendientes y tres totales del año, no los cuerpos de
-            tu bitácora ni tus notas— salen de este servidor hacia el proveedor del modelo. Es la
-            única parte de esta app que hace eso, así que se enciende a mano.
-          </p>
-          <Link href="/configuracion" className={`${btn("primary")} mt-4`}>
-            Encenderlo en Configuración
-          </Link>
-        </Card>
-      </>
-    );
-  }
+  /*
+   * Acá había un portero: sin `settings.assistant_enabled` esta pantalla era un
+   * cartel que decía "está apagado" y un enlace a Configuración. Se fue porque
+   * el interruptor no estaba protegiendo nada que la cuenta pudiera decidir —el
+   * asistente es parte de la app, con un modelo elegido y una clave puesta en el
+   * servidor— y a cambio dejaba la mitad de los accesos invisibles: la bandeja
+   * ocultaba su botón de «ordenar de una vez» y este destino llevaba a una
+   * pantalla muerta. Lo que el interruptor sí llevaba encima era el aviso de qué
+   * sale de esta máquina, y eso no se perdió: vive en Configuración y en el pie
+   * de esta pantalla, que es donde se lee sin tener que apagar nada.
+   */
 
   return (
     <>
@@ -405,9 +391,15 @@ function OrganizePage() {
 
       <div ref={foot} />
 
+      {/* El aviso de qué sale de esta máquina va acá y no detrás de un
+          interruptor: se lee cuando importa —al escribirle— y no una sola vez, el
+          día que alguien encontró la casilla en Configuración. */}
       <p className="mt-8 px-1 text-[13px] leading-relaxed text-faint">
         Nada se guarda hasta que aprietas «Aplicar». No pone fechas que no hayas dicho, no
-        reescribe tu bitácora, y lo que borra llega apagado y hay que encenderlo.
+        reescribe tu bitácora, y lo que borra llega apagado y hay que encenderlo. Es la única
+        parte de la app que manda algo afuera: lo que escribes acá y un índice de tu cuenta
+        —nombres de proyectos y contrapartes, títulos de pendientes y tres totales del año—
+        nunca los cuerpos de tu bitácora, tus notas ni tus movimientos uno por uno.
       </p>
     </>
   );

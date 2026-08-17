@@ -106,21 +106,26 @@ export interface Settings {
    */
   tour_done: boolean;
 
-  /**
-   * El asistente que ordena. Apagado por defecto y a propósito: encenderlo
-   * significa que el texto que escribes y el índice de tu cuenta salen del
-   * servidor hacia un tercero, y eso no se da por hecho.
+  /*
+   * El asistente **no tiene ajustes**, y las dos columnas que tuvo siguen en la
+   * base sin que nadie las lea (`assistant_enabled`, `assistant_model`, migración
+   * 1770002800). No se borran: una migración que elimina una columna a cambio de
+   * nada es riesgo puro.
    *
-   * La clave de la API **no está acá**: `settings` se replica entera en el
-   * navegador de cada dispositivo, así que guardarla en esta fila sería
-   * publicarla. Vive en el entorno del contenedor (`OPENCODE_API_KEY`).
+   * `assistant_model` se fue porque cuál modelo hay detrás es una decisión de
+   * ingeniería, no una preferencia (`ASSISTANT_MODEL` en `organize/plan.ts`).
+   * `assistant_enabled` se fue porque el interruptor no protegía nada que la
+   * cuenta pudiera decidir —la clave y el modelo los pone el servidor— y a cambio
+   * escondía la mitad de los accesos: apagado, la bandeja ocultaba su botón de
+   * «ordenar de una vez» y el destino del menú llevaba a una pantalla muerta. Lo
+   * único que el interruptor llevaba encima era el aviso de qué sale de esta
+   * máquina, y ese aviso quedó donde se lee cuando importa: en `/organizar` y en
+   * Configuración.
    *
-   * El modelo tampoco: **no es un ajuste**. La columna `assistant_model` sigue
-   * existiendo en la base (migración 1770002800) y ya no la lee nadie — se dejó
-   * en paz porque una migración que borra una columna a cambio de nada es riesgo
-   * puro. Cuál modelo hay detrás está decidido en `organize/plan.ts`.
+   * La clave de la API nunca estuvo acá y no puede estar: `settings` se replica
+   * entera en el navegador de cada dispositivo, así que guardarla en esta fila
+   * sería publicarla. Vive en el entorno del contenedor (`OPENCODE_API_KEY`).
    */
-  assistant_enabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -160,8 +165,6 @@ export const DEFAULT_SETTINGS: Settings = {
 
   demo_seeded: false,
   tour_done: false,
-
-  assistant_enabled: false,
 };
 
 /** Mapas compilados, usados solo si la taxonomía todavía no bajó. */

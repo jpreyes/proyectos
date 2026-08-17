@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { TaxGroup, TaxRow } from "@/lib/config";
 import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
@@ -133,7 +134,17 @@ function Section({
   );
 }
 
-/** Una fila que no se pliega: título, explicación corta y un control. */
+/**
+ * Una fila que no se pliega: título, explicación y un control.
+ *
+ * Los tres van **apilados**, no el control al costado. Al costado el control se
+ * queda con el ancho que necesita y la explicación se aprieta en lo que sobra:
+ * la del tema y la de los datos de ejemplo tienen dos frases, y al lado de un
+ * selector o de un botón quedaban en una columna de tres palabras por línea. Una
+ * explicación que hay que leer necesita el ancho de la fila, y el control no
+ * pierde nada por quedar debajo — sigue a un pulgar de distancia y ahora con el
+ * texto que lo explica justo encima, en vez de al lado.
+ */
 function Plain({
   title,
   hint,
@@ -145,13 +156,9 @@ function Plain({
 }) {
   return (
     <div className="mb-px bg-row px-4 py-4 first:rounded-t-2xl last:rounded-b-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[17px] font-semibold leading-tight">{title}</h3>
-          {hint && <p className="mt-1 text-[13px] leading-relaxed text-faint">{hint}</p>}
-        </div>
-        <div className="shrink-0">{children}</div>
-      </div>
+      <h3 className="text-[17px] font-semibold leading-tight">{title}</h3>
+      {hint && <p className="mt-1 text-[13px] leading-relaxed text-faint">{hint}</p>}
+      <div className="mt-3.5">{children}</div>
     </div>
   );
 }
@@ -208,6 +215,22 @@ export default function SettingsPage() {
           <button type="button" onClick={() => startTour()} className={btn("subtle", "sm")}>
             Ver la guía
           </button>
+        </Plain>
+
+        {/* Acá había una casilla para encender el asistente, y lo que queda es lo
+            único que esa casilla llevaba encima: el aviso de qué sale de esta
+            máquina. El interruptor se fue porque no protegía nada que la cuenta
+            pudiera decidir —el modelo y la clave los pone el servidor— y en cambio
+            escondía los accesos: apagado, la bandeja no ofrecía «ordenar de una
+            vez» y el destino del menú abría una pantalla muerta. El aviso sí tenía
+            que quedarse, y en una fila entera se lee. */}
+        <Plain
+          title="Asistente"
+          hint="Contesta sobre lo que tienes anotado y te propone los registros que faltan, para que los aceptes de un toque; nunca escribe solo. Es la única parte de la app que manda algo afuera: lo que le escribes y un índice de tu cuenta —nombres de proyectos y contrapartes, títulos de pendientes y tres totales del año— nunca los cuerpos de tu bitácora, tus notas ni tus movimientos uno por uno."
+        >
+          <Link href="/organizar" className={btn("subtle", "sm")}>
+            Abrir el asistente
+          </Link>
         </Plain>
 
         <DemoRow />
@@ -404,40 +427,6 @@ export default function SettingsPage() {
                   />
                 </Field>
               </div>
-            </div>
-
-            {/* Mismo formulario, misma razón que el bloque de arriba. */}
-            <div className="col-span-full mt-2 border-t border-line pt-4">
-              <h3 className="mb-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
-                Asistente
-              </h3>
-              <p className="mb-4 text-[13px] leading-relaxed text-faint">
-                Contesta sobre lo que tienes anotado y te propone los registros que faltan, para
-                que los aceptes de un toque; nunca escribe solo. Es la única parte de la app que
-                manda algo afuera: lo que escribas y un índice de tu cuenta (nombres de proyectos
-                y contrapartes, títulos de pendientes, tres totales del año — no los cuerpos de tu
-                bitácora, ni tus notas, ni tus movimientos uno por uno). Por eso viene apagado.
-              </p>
-
-              <label className="flex items-start gap-2.5 text-[15px] leading-snug text-muted">
-                <input
-                  type="checkbox"
-                  name="assistant_enabled"
-                  defaultChecked={s.assistant_enabled}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="font-semibold text-ink">Encender el asistente</span> — necesita
-                  que el servidor tenga configurada la clave de opencode
-                </span>
-              </label>
-
-              {/* Acá había un selector de modelo. Se fue a propósito: cuál modelo
-                  hay detrás es una decisión de ingeniería que se tomó midiendo
-                  —está anotada en `organize/plan.ts`— y ofrecerla como ajuste solo
-                  daba formas de empeorarla. Para quien usa la app hay "el
-                  asistente", igual que no hay una pantalla para elegir el motor de
-                  la base de datos. */}
             </div>
 
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>

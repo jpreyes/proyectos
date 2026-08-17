@@ -687,7 +687,6 @@ export async function saveSettings(fd: FormData) {
     quote_validity_days: num(fd, "quote_validity_days"),
     quote_prefix: str(fd, "quote_prefix"),
 
-    assistant_enabled: bool(fd, "assistant_enabled"),
   };
 
   await upsert("settings", str(fd, "id"), payload);

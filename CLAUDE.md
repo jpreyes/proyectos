@@ -242,6 +242,14 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   por línea. Por eso `Row` pone la segunda línea a ancho completo y manda las
   insignias abajo. Si alguna vez vuelve a meterse todo en una línea, el síntoma
   aparece recién con dos insignias, que es lo que lo hizo pasar desapercibido.
+- **Un texto que hay que leer no va al lado de un control: va sobre él.** Es el mismo
+  problema de la viñeta anterior y aparece en Configuración (`Plain`, en
+  `configuracion/page.tsx`). El control se queda con el ancho que necesita y la explicación
+  se aprieta en lo que sobra, así que las dos que tienen dos frases —el tema y los datos de
+  ejemplo— quedaban en una columna de tres palabras por línea al lado de un botón. Apilado,
+  la explicación usa el ancho de la fila y el control no pierde nada por quedar debajo.
+  Corolario para el `hint` de una fila plegada: si hay que recortarlo con `truncate`, es que
+  no cabe — o se acorta el texto, o deja de ser un `hint`.
 - **El calendario tiene dos vistas y una sola unidad.** La cuadrícula de mes
   existe porque «¿qué pasa el jueves?» no se responde con barras por semana, pero
   **no** introduce bloques con hora: un compromiso se dibuja como una banda a lo
@@ -412,9 +420,18 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
     para un plan de 1.700 caracteres; hoy el techo está en 24.000. El prompt va escrito
     apretado por lo mismo: alargarlo "para que entienda mejor" le da más de qué razonar y
     acerca el corte.
-  - **Está apagado hasta que la cuenta lo encienda** (`settings.assistant_enabled`). Es la
-    única parte de la app que manda algo afuera. Encenderlo tiene que ser un acto, no un
-    descubrimiento.
+  - **No tiene interruptor, y el aviso sí.** Estuvo apagado por omisión detrás de
+    `settings.assistant_enabled`, con el argumento de que es la única parte de la app que
+    manda algo afuera y encenderlo tenía que ser un acto. El argumento era bueno y la
+    casilla era el lugar equivocado para sostenerlo: no protegía ninguna decisión que la
+    cuenta pudiera tomar —el modelo y la clave los pone el servidor, no el usuario— y a
+    cambio escondía los accesos, que es el peor efecto posible. Apagado, la bandeja no
+    ofrecía «ordenar de una vez» y el destino del menú abría una pantalla muerta que decía
+    «está apagado»: así se reportó como «no veo el botón del agente». Lo que la casilla
+    llevaba encima —**qué sale de esta máquina**— es lo que había que conservar, y quedó en
+    dos lugares donde se lee sin apagar nada: el pie de `/organizar`, que es cuando importa,
+    y una fila de Configuración. La columna sigue en la base sin que nadie la lea, igual que
+    `assistant_model`.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
   moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy

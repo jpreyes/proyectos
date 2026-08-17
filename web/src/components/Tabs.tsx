@@ -59,7 +59,7 @@ export function TabBar({ open }: { open: number }) {
                 el número se leería como si fuera de la pestaña vecina. */}
             <span className="relative">
               <span
-                className={cx("text-[16px] leading-none", active ? "text-accent" : "text-muted")}
+                className={cx("text-[21px] leading-none", active ? "text-accent" : "text-muted")}
                 aria-hidden
               >
                 {t.icon}
@@ -72,7 +72,7 @@ export function TabBar({ open }: { open: number }) {
             </span>
             <span
               className={cx(
-                "w-full truncate text-center text-[10px] leading-none",
+                "w-full truncate text-center text-[11px] leading-none",
                 active ? "font-semibold text-ink" : "text-faint"
               )}
             >

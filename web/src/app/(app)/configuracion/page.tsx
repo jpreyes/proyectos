@@ -5,7 +5,6 @@ import type { TaxGroup, TaxRow } from "@/lib/config";
 import { createTaxonomy, deleteTaxonomy, saveSettings, updateTaxonomy } from "@/lib/local/actions";
 import { useConfig } from "@/lib/local/config";
 import { deleteDemoData, useDemoCount } from "@/lib/local/demo";
-import { ASSISTANT_MODELS, DEFAULT_ASSISTANT_MODEL } from "@/lib/organize/plan";
 import { startTour } from "@/lib/tour";
 import { Form } from "@/components/form";
 import { ThemePicker } from "@/components/ThemePicker";
@@ -413,11 +412,11 @@ export default function SettingsPage() {
                 Asistente
               </h3>
               <p className="mb-4 text-[13px] leading-relaxed text-faint">
-                Convierte un texto desordenado en proyectos, pendientes, bitácora y movimientos —
-                y te los propone para que los aceptes de un toque. Es la única parte de la app que
-                manda algo afuera: el texto que escribas y un índice de tu cuenta (los nombres de
-                tus proyectos y contrapartes, no sus contenidos ni los montos). Por eso viene
-                apagado.
+                Contesta sobre lo que tienes anotado y te propone los registros que faltan, para
+                que los aceptes de un toque; nunca escribe solo. Es la única parte de la app que
+                manda algo afuera: lo que escribas y un índice de tu cuenta (nombres de proyectos
+                y contrapartes, títulos de pendientes, tres totales del año — no los cuerpos de tu
+                bitácora, ni tus notas, ni tus movimientos uno por uno). Por eso viene apagado.
               </p>
 
               <label className="flex items-start gap-2.5 text-[15px] leading-snug text-muted">
@@ -433,13 +432,12 @@ export default function SettingsPage() {
                 </span>
               </label>
 
-              <Field label="Modelo" className="mt-3.5 sm:max-w-sm">
-                <Select
-                  name="assistant_model"
-                  options={ASSISTANT_MODELS.map((m) => ({ value: m.value, label: m.label }))}
-                  defaultValue={s.assistant_model || DEFAULT_ASSISTANT_MODEL}
-                />
-              </Field>
+              {/* Acá había un selector de modelo. Se fue a propósito: cuál modelo
+                  hay detrás es una decisión de ingeniería que se tomó midiendo
+                  —está anotada en `organize/plan.ts`— y ofrecerla como ajuste solo
+                  daba formas de empeorarla. Para quien usa la app hay "el
+                  asistente", igual que no hay una pantalla para elegir el motor de
+                  la base de datos. */}
             </div>
 
             <button type="submit" className={`${btn("primary")} sm:col-span-2`}>

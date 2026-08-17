@@ -26,15 +26,14 @@ import "server-only";
 
 import { pbServer } from "../pb.server";
 import {
-  ASSISTANT_MODELS,
-  DEFAULT_ASSISTANT_MODEL,
+  ASSISTANT_MODEL,
   extractJSON,
   MAX_INPUT,
   type OrganizeContext,
   type ProposeResult,
   sanitizePlan,
 } from "./plan";
-import { correctionPrompt, systemPrompt } from "./prompt";
+import { systemPrompt } from "./prompt";
 
 /**
  * El endpoint. Go y Zen son dos productos distintos de opencode y **no
@@ -83,6 +82,17 @@ const MAX_OUTPUT_TOKENS = 24_000;
  * dedo impaciente, se coman la ventana del plan. Para una app de una persona
  * alcanza, y decirlo es más honesto que fingir una cuota real.
  */
+/**
+ * Cuánta conversación se le recuerda: los últimos turnos, y cada uno recortado.
+ *
+ * Son dos topes y no uno porque fallan distinto. `TURNS` protege del historial
+ * largo —una conversación de un mes no cabe y tampoco sirve—, y `HISTORY_CHARS`
+ * del turno gordo: un solo mensaje con un plan de cuarenta pasos pegado adentro
+ * gasta más que los ocho turnos juntos.
+ */
+const TURNS = 8;
+const HISTORY_CHARS = 4000;
+
 const RATE = new Map<string, { last: number; day: string; count: number }>();
 const MIN_GAP_MS = 3000;
 const MAX_PER_DAY = 200;
@@ -108,16 +118,20 @@ function throttle(userId: string): string {
 }
 
 export interface ProposeInput {
-  /** El volcado que escribió la persona. */
+  /** El turno nuevo: lo que la persona acaba de escribir. */
   text: string;
   /** El índice de la cuenta, armado en el cliente. Ver `lib/local/organize.ts`. */
   context: OrganizeContext;
-  /** Modelo elegido en Configuración. Se valida contra la lista blanca. */
-  model?: string;
-  /** El plan anterior, cuando esto es una corrección. */
-  previous?: string;
-  /** La corrección en palabras de la persona. */
-  correction?: string;
+  /**
+   * Los turnos anteriores, del más viejo al más nuevo.
+   *
+   * Es lo que hace que esto sea una conversación y no un formulario: "las clases
+   * son los martes, no los lunes" solo significa algo si el turno anterior está
+   * presente. Se recorta en el cliente antes de enviarlo — el historial completo
+   * de un mes crecería hasta comerse el techo de tokens, que acá es un límite
+   * duro y no una molestia.
+   */
+  history?: { role: "user" | "assistant"; text: string }[];
 }
 
 export async function callProvider(input: ProposeInput): Promise<ProposeResult> {
@@ -148,25 +162,31 @@ export async function callProvider(input: ProposeInput): Promise<ProposeResult> 
 
   /* 2. la petición */
   const text = String(input.text || "").slice(0, MAX_INPUT);
-  const correction = String(input.correction || "").slice(0, 2000);
-  if (!text.trim() && !correction.trim()) {
-    return { ok: false, error: "No hay nada que ordenar." };
-  }
+  if (!text.trim()) return { ok: false, error: "No hay nada que ordenar." };
 
-  const model = ASSISTANT_MODELS.some((m) => m.value === input.model)
-    ? (input.model as string)
-    : DEFAULT_ASSISTANT_MODEL;
+  /*
+   * El historial se recorta **acá también**, no solo en el cliente.
+   *
+   * Llega del navegador, y todo lo que llega del navegador es un tamaño que
+   * alguien puede elegir: sin este tope, un cliente modificado —o un bug de
+   * paginación— mandaría la conversación de un mes y el techo de tokens se
+   * gastaría en recordar en vez de en contestar. El síntoma sería el de siempre,
+   * `finish_reason: length` y contenido vacío, o sea "el agente se rompió".
+   */
+  const history = (Array.isArray(input.history) ? input.history : [])
+    .slice(-TURNS)
+    .filter((turn) => turn && (turn.role === "user" || turn.role === "assistant"))
+    .map((turn) => ({
+      role: turn.role,
+      content: String(turn.text || "").slice(0, HISTORY_CHARS),
+    }))
+    .filter((turn) => turn.content.trim());
 
   const messages: { role: string; content: string }[] = [
     { role: "system", content: systemPrompt(input.context) },
+    ...history,
     { role: "user", content: text },
   ];
-
-  if (correction && input.previous) {
-    const previous = String(input.previous).slice(0, 20_000);
-    messages.push({ role: "assistant", content: previous });
-    messages.push({ role: "user", content: correctionPrompt(previous, correction) });
-  }
 
   /* 3. la llamada */
   const controller = new AbortController();
@@ -182,7 +202,7 @@ export async function callProvider(input: ProposeInput): Promise<ProposeResult> 
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model,
+        model: ASSISTANT_MODEL,
         messages,
         temperature: 0.2,
         max_tokens: MAX_OUTPUT_TOKENS,
@@ -214,7 +234,7 @@ export async function callProvider(input: ProposeInput): Promise<ProposeResult> 
     return {
       ok: false,
       error: aborted
-        ? "El modelo se demoró más de tres minutos. Prueba con un texto más corto, o cambia de modelo en Configuración."
+        ? "El modelo se demoró más de tres minutos. Prueba con un texto más corto."
         : "No se pudo hablar con el modelo. Puede ser la red.",
     };
   } finally {
@@ -227,8 +247,7 @@ export async function callProvider(input: ProposeInput): Promise<ProposeResult> 
     return { ok: false, error: "El modelo no devolvió un plan legible. Prueba de nuevo." };
   }
 
-  const plan = sanitizePlan(parsed, input.context);
-  return { ok: true, plan, raw: JSON.stringify(parsed) };
+  return { ok: true, plan: sanitizePlan(parsed, input.context) };
 }
 
 /** El error del proveedor, traducido a algo que se pueda leer bajo un botón. */
@@ -238,7 +257,9 @@ function providerError(status: number, detail: string): string {
   }
   if (status === 402) return "La cuenta de opencode se quedó sin créditos.";
   if (status === 404) {
-    return "Ese modelo no está en el catálogo de tu plan de opencode. Cámbialo en Configuración.";
+    // El modelo ya no lo elige la cuenta, así que esto no es un ajuste mal puesto:
+    // es que el catálogo del plan cambió y hay que mirar `ASSISTANT_MODEL`.
+    return "El modelo del asistente no está en el catálogo de tu plan de opencode.";
   }
   // En Go el 429 casi nunca es "muy rápido": es el tope del plan, que se mide
   // por ventanas ($12 cada 5 horas, $30 semanales). Decir solo "espera un

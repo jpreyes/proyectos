@@ -37,6 +37,7 @@ const SOFT_DELETE = new Set([
   "tasks",
   "entries",
   "entry_series",
+  "chat",
   "entities",
   "inbox",
   "routines",

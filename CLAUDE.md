@@ -98,7 +98,7 @@ Decisiones de esta capa que **no hay que deshacer**:
   cierra la app.
 - **Leer los .ics es lo único que quedó en el servidor** (`lib/actions.server.ts`):
   es otro origen, no manda CORS, y da igual intentarlo sin red. Desde el asistente son
-  dos: `lib/organize.server.ts` vive allá por otra razón —la clave de la API no puede
+  dos: `lib/organize/call.ts` vive allá por otra razón —la clave de la API no puede
   tocar el navegador— y tampoco escribe nada.
 
 ## Comandos
@@ -133,6 +133,7 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
 | `quotes`, `quote_items`, `deliverables` | Presupuestos. Cuelgan del cliente, no del proyecto. |
 | `commitments` | **Horas por semana entre dos fechas.** La unidad del calendario. |
 | `calendar_feeds`, `calendar_events` | Espejo de solo lectura de los calendarios iCal conectados. |
+| `chat` | La conversación con el asistente. El plan propuesto cuelga del mensaje que lo propuso. |
 
 ### Decisiones que no hay que deshacer
 
@@ -308,20 +309,61 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   para las cuentas donde la siembra ya ocurrió): con nombres verosímiles, en una cuenta que
   ya tiene encargos reales no había cómo saber mirando la lista cuáles se pueden borrar. Va
   delante y no detrás porque las filas truncan, y un sufijo se pierde justo en el teléfono.
-- **El asistente propone; nunca escribe solo** (`/organizar`, `lib/organize.server.ts`,
-  `lib/organize/plan.ts`, `lib/local/organize.ts`). Le tiras un volcado de texto y devuelve
-  un plan —proyectos, pendientes, bitácora, movimientos, recurrentes, horas— que aceptas de
-  un toque o al que le apagas las filas que no. La tentación de que escriba solo hay que
-  resistirla, y la razón está tres viñetas más arriba, en `parse.ts`: **una fecha inventada
-  no se descubre revisándola, se descubre el día que no llegaste**. En una app que es tu
-  índice y tu punto de reentrada, un bot que escribe a tus espaldas no ahorra trabajo:
-  traslada el trabajo a auditar algo que ya está escrito, que es más caro y se hace peor.
-  Cinco cosas que lo sostienen:
+- **El asistente propone; nunca escribe solo** (`/organizar`, `lib/organize/*`,
+  `lib/local/organize.ts`). Le cuentas lo que pasó y devuelve un plan —proyectos,
+  pendientes, bitácora, movimientos, recurrentes, horas, presupuestos, cambios de estado—
+  que aceptas de un toque o al que le apagas las filas que no. La tentación de que escriba
+  solo hay que resistirla, y la razón está tres viñetas más arriba, en `parse.ts`: **una
+  fecha inventada no se descubre revisándola, se descubre el día que no llegaste**. En una
+  app que es tu índice y tu punto de reentrada, un bot que escribe a tus espaldas no ahorra
+  trabajo: traslada el trabajo a auditar algo que ya está escrito, que es más caro y se hace
+  peor. Lo que lo sostiene:
+  - **Es una conversación, y vive en la base** (`chat`, migración 1770002900). Fue un cuadro
+    de un solo tiro con una "ronda de corrección" aparte, y esa ronda especial dejó de tener
+    sentido en cuanto el agente además **contesta**: corregir es el turno siguiente. Un
+    cuadro que se vacía al enviar convierte cada consulta en la primera, así que «¿y en
+    marzo?» no significaba nada. Y el hilo va en `chat` y no en el estado de la pantalla
+    porque una conversación que se pierde al recargar deja de usarse para pensar: vuelve a
+    ser un buscador. El plan se guarda **junto al mensaje que lo propuso** —una lista de tres
+    tareas sin la frase que las explica no se entiende— y `applied` es lo que distingue, al
+    abrirla mañana, lo que se hizo de lo que quedó sobre la mesa. Los interruptores de cada
+    fila **no** se guardan: son una revisión a medio tomar, y sincronizarla entre
+    dispositivos no ayuda a nadie.
+  - **También lee, y por eso el contexto creció** (`buildContext`): pendientes abiertos,
+    títulos recientes de bitácora, horas comprometidas, cobros y pagos sin cerrar,
+    presupuestos con su estado, lo que se repite y **tres** totales del año. Sigue siendo
+    títulos y totales —lo que se lee en una lista— nunca cuerpos de bitácora, notas, ni el
+    ledger movimiento por movimiento. Cada campo que se agregue acá es algo más que sale de
+    esta máquina: es la lista que hay que mirar con desconfianza.
+  - **Lo que puede modificar cabe en una tabla** (`EDITABLE` en `organize/plan.ts`), y ahí
+    está la política completa a propósito: repartida por el validador, «¿qué puede tocar?»
+    no se contesta sin leer el archivo entero. La regla que la ordena: **puede cambiar el
+    estado y la planificación; no puede reescribir el texto que escribiste tú.** Cerrar una
+    tarea, mover un plazo o marcar un cobro pagado se arregla en dos segundos si se
+    equivoca; la bitácora es append-only por diseño y un agente que la reescribe destruye
+    justo aquello para lo que existe. Los presupuestos se editan **solo mientras son
+    borrador**. Los pasos que borran llegan **apagados**: aceptar todo de un toque es el
+    modo normal de esta app y en un plan que borra es el modo equivocado.
+  - **`null` no es `""`, y confundirlos borra plazos** (`fieldValue`). Vaciar una fecha es
+    una orden legítima; una fecha que no parsea no lo es. Si el «el viernes» que el modelo
+    no supo convertir cayera a cadena vacía, el pendiente **perdería su plazo** en silencio
+    — el error de siempre de esta app, pero al revés y peor, porque un plazo que desaparece
+    no deja nada que revisar.
   - **La clave de la API vive en el entorno del contenedor** (`OPENCODE_API_KEY`), nunca en
     `settings`: esa fila se replica entera en cada navegador, así que guardarla ahí sería
-    publicarla. Por lo mismo el modelo sí es un ajuste —cambiarlo no debería pedir un
-    redespliegue— pero el servidor lo valida contra una lista blanca, porque llega del
-    cliente y un id libre son créditos ajenos.
+    publicarla. **El modelo tampoco es un ajuste**, y esto se deshizo a conciencia: estuvo
+    en Configuración con lista blanca y no debía estar. Cuál modelo hay detrás se eligió
+    midiendo (`ASSISTANT_MODEL`), es una decisión de ingeniería, y ofrecerla como preferencia
+    solo daba formas de empeorarla — no hay una pantalla para elegir el motor de la base de
+    datos. La columna `assistant_model` quedó en la base sin que nadie la lea: una migración
+    que borra una columna a cambio de nada es riesgo puro.
+  - **El historial se recorta en los dos lados** (`historyFor` en el cliente, `TURNS` en
+    `call.ts`). Llega del navegador, así que el tope del servidor no es prolijidad: sin él,
+    un cliente modificado manda la conversación de un mes y el techo de tokens se gasta en
+    recordar en vez de en contestar — con el síntoma de siempre, `finish_reason: length` y
+    contenido vacío. El plan en JSON viaja **solo con el último turno del agente y solo si
+    quedó sin aplicar**, que es justo el caso en que se lo está corrigiendo; lo ya escrito
+    se ve en la app.
   - **La sesión se verifica contra PocketBase, no leyendo la cookie.** `pb_auth` no es
     httpOnly y `authStore.isValid` solo mira la expiración del JWT, no su firma: sin el
     `authRefresh()`, cualquiera que sepa la URL gasta los créditos con una cookie escrita a
@@ -350,9 +392,8 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
     apretado por lo mismo: alargarlo "para que entienda mejor" le da más de qué razonar y
     acerca el corte.
   - **Está apagado hasta que la cuenta lo encienda** (`settings.assistant_enabled`). Es la
-    única parte de la app que manda algo afuera, y lo que sale es un índice —nombres e ids
-    de proyectos y contrapartes— nunca los cuerpos de la bitácora, las notas, los montos ni
-    las rutas de tus carpetas. Encenderlo tiene que ser un acto, no un descubrimiento.
+    única parte de la app que manda algo afuera. Encenderlo tiene que ser un acto, no un
+    descubrimiento.
 - **Sin barras de "% completado"**: invitan al perfeccionismo y casi siempre son ficción.
 - `amount_clp` se **congela** al guardar el movimiento. Los reportes históricos no deben
   moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy

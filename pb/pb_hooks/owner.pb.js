@@ -31,6 +31,8 @@ onRecordCreateRequest(
   "entries",
   // La regla de la que salen los movimientos que se repiten (1770002600).
   "entry_series",
+  // La conversación con el agente (1770002900).
+  "chat",
   "entities",
   "inbox",
   "routines",

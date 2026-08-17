@@ -143,6 +143,25 @@ export interface Entry extends Base {
   };
 }
 
+/**
+ * Un turno de la conversación con el agente.
+ *
+ * Vive en la base y no en el estado de React porque una conversación que se
+ * pierde al recargar deja de usarse para pensar: se vuelve un cuadro de
+ * búsqueda. `plan` cuelga del mensaje que lo propuso porque un plan sin su
+ * turno no se entiende — lo que explica por qué propuso tres tareas es lo que
+ * escribiste arriba.
+ */
+export interface ChatMessage extends Base {
+  role: "user" | "assistant";
+  text: string;
+  /** El plan propuesto, ya pasado por la aduana. Sin tipar acá: lo tipa `organize/plan`. */
+  plan?: unknown;
+  applied?: boolean;
+  /** El acuse de lo que se escribió al aplicar. */
+  result?: string;
+}
+
 /** Cada cuánto se repite una serie. Son las siete formas que aparecen en un contrato. */
 export type Cadence =
   | "weekly"

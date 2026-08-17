@@ -56,7 +56,10 @@ export const YO_GROUPS: readonly (readonly NavItem[])[] = [
   // Va primero y solo porque es lo único de acá que *hace* algo en vez de
   // mostrar algo. Y va en Yo y no en la barra por la misma regla de siempre:
   // no se abre un día cualquiera sin saber qué se le va a pedir.
-  [{ href: "/organizar", label: "Ordenar", icon: "✳" }],
+  // Se llamó "Ordenar" mientras fue una pantalla de un solo tiro. Ahora es una
+  // conversación que además contesta, y "Ordenar" prometía la mitad. La ruta no
+  // cambia: un enlace guardado tiene que seguir llegando.
+  [{ href: "/organizar", label: "Asistente", icon: "✳" }],
   [
     { href: "/calendario", label: "Calendario", icon: "▦" },
     { href: "/presupuestos", label: "Presupuestos", icon: "▧" },

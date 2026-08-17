@@ -114,9 +114,13 @@ export interface Settings {
    * La clave de la API **no está acá**: `settings` se replica entera en el
    * navegador de cada dispositivo, así que guardarla en esta fila sería
    * publicarla. Vive en el entorno del contenedor (`OPENCODE_API_KEY`).
+   *
+   * El modelo tampoco: **no es un ajuste**. La columna `assistant_model` sigue
+   * existiendo en la base (migración 1770002800) y ya no la lee nadie — se dejó
+   * en paz porque una migración que borra una columna a cambio de nada es riesgo
+   * puro. Cuál modelo hay detrás está decidido en `organize/plan.ts`.
    */
   assistant_enabled: boolean;
-  assistant_model: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -158,7 +162,6 @@ export const DEFAULT_SETTINGS: Settings = {
   tour_done: false,
 
   assistant_enabled: false,
-  assistant_model: "deepseek-v4-flash",
 };
 
 /** Mapas compilados, usados solo si la taxonomía todavía no bajó. */

@@ -24,6 +24,7 @@ export const COLLECTIONS = [
   "tasks",
   "entries",
   "entry_series",
+  "chat",
   "entities",
   "accounts",
   "categories",

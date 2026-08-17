@@ -107,8 +107,29 @@ Decisiones de esta capa que **no hay que deshacer**:
 cd web && pnpm dev          # localhost:3000 (requiere PocketBase en :8090)
 cd web && pnpm typecheck    # tsc --noEmit
 cd web && pnpm build        # build de producción
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build   # en el VPS
 ```
+
+**En el VPS no hay node ni `node_modules`, así que los tres primeros no corren ahí.** Todo
+el build vive en Docker y eso es a propósito: la máquina que sirve la app no necesita una
+cadena de herramientas. Para revisar tipos sin desplegar, la etapa `deps` del Dockerfile ya
+es un contenedor con las dependencias instaladas —se construye una vez y se reusa—, y el
+código entra montado de solo lectura para no dejar nada escrito en el repo:
+
+```bash
+cd web
+docker build --target deps -t proy-deps .          # una vez; ~20 s
+docker run --rm -v "$PWD:/src:ro" proy-deps sh -c '
+  cp -r /src/src /src/public /src/tsconfig.json /src/next.config.ts \
+        /src/next-env.d.ts /src/package.json /app/ && cd /app &&
+  ./node_modules/.bin/tsc --noEmit'                # silencio = pasa
+docker build --target build -t proy-build .        # el build completo, ~100 s
+```
+
+`--target build` es el que hay que correr antes de desplegar: `tsc` no ve lo que solo falla
+al compilar la app (un `"use client"` que importa algo de servidor, por ejemplo). Y ojo con
+que `up -d --build` va **siempre con los dos archivos**: sin el overlay no hay puerto
+publicado y el túnel no llega a nada.
 
 ## Modelo de datos
 

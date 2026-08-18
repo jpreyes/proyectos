@@ -21,18 +21,28 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import type { CalendarEvent, Commitment } from "@/lib/types";
+import type { CalendarEvent, Commitment, LogEntry, Task } from "@/lib/types";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { buildDayPlan, fmtMin } from "@/lib/dayplan";
 import { fmtHours } from "@/lib/capacity";
 import { todayISO } from "@/lib/dates";
+import { markBlockDone } from "@/lib/local/actions";
+import { Form } from "./form";
 import { Card, cx, Empty } from "./ui";
+
+/** `fl-<compromiso>-3` / `fx-<compromiso>-0` -> el id del compromiso. */
+function commitmentOf(key: string): string {
+  const m = /^(?:fl|fx)-(.+)-\d+$/.exec(key);
+  return m ? m[1] : "";
+}
 
 export function TodayPlan() {
   const cfg = useConfig();
   const commitments = useCollection<Commitment>("commitments");
   const events = useCollection<CalendarEvent>("calendar_events");
+  const tasks = useCollection<Task>("tasks");
+  const logs = useCollection<LogEntry>("log");
   const day = todayISO();
 
   const plan = useMemo(
@@ -40,7 +50,9 @@ export function TodayPlan() {
       buildDayPlan({
         day,
         commitments,
+        tasks,
         events,
+        logs,
         workStart: cfg.settings.work_start,
         workEnd: cfg.settings.work_end,
         lunchStart: cfg.settings.lunch_start,
@@ -49,7 +61,9 @@ export function TodayPlan() {
     [
       day,
       commitments,
+      tasks,
       events,
+      logs,
       cfg.settings.work_start,
       cfg.settings.work_end,
       cfg.settings.lunch_start,
@@ -92,13 +106,15 @@ export function TodayPlan() {
                 >
                   {fmtMin(b.from)}–{fmtMin(b.to)}
                 </span>
-                <span
-                  className={cx(
-                    "min-w-0 flex-1 truncate text-[15px]",
-                    isLunch && "text-faint"
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cx("block truncate text-[15px]", isLunch && "text-faint")}
+                  >
+                    {b.label}
+                  </span>
+                  {b.context && (
+                    <span className="block truncate text-[13px] text-faint">{b.context}</span>
                   )}
-                >
-                  {b.label}
                 </span>
                 {b.kind === "fixed" && (
                   <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-accent">
@@ -109,15 +125,40 @@ export function TodayPlan() {
             );
             const cls =
               "flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 touch-manipulation";
-            return b.project ? (
-              <li key={b.key}>
-                <Link href={`/w/${b.project}`} className={cx(cls, "active:bg-pill")}>
-                  {row}
-                </Link>
-              </li>
-            ) : (
-              <li key={b.key} className={cls}>
-                {row}
+            const hours = (b.to - b.from) / 60;
+            return (
+              <li key={b.key} className="flex items-center gap-2">
+                {/* Un toque: "esto ya lo hice". Escribe la bitácora con sus
+                    horas, y lo que quede sin marcar se reparte solo entre los
+                    días que quedan de la semana. Los eventos ajenos y el
+                    almuerzo no se marcan: no son trabajo tuyo que atrasar. */}
+                {b.kind !== "lunch" && b.kind !== "event" ? (
+                  <Form action={markBlockDone} className="flex shrink-0">
+                    <input type="hidden" name="date" value={day} />
+                    <input type="hidden" name="project" value={b.project || ""} />
+                    <input type="hidden" name="commitment" value={commitmentOf(b.key)} />
+                    <input type="hidden" name="title" value={b.label} />
+                    <input type="hidden" name="hours" value={hours} />
+                    <input type="hidden" name="task" value={b.task || ""} />
+                    <input type="hidden" name="close_task" value={b.task ? "1" : ""} />
+                    <button
+                      type="submit"
+                      aria-label={`Ya lo hice: ${b.label}`}
+                      className="grid h-6 w-6 place-items-center rounded-md border-2 border-line2 text-[13px] text-transparent transition-colors hover:border-accent/60 hover:text-accent active:bg-accent/15"
+                    >
+                      ✓
+                    </button>
+                  </Form>
+                ) : (
+                  <span className="h-6 w-6 shrink-0" />
+                )}
+                {b.project ? (
+                  <Link href={`/w/${b.project}`} className={cx(cls, "min-w-0 flex-1 active:bg-pill")}>
+                    {row}
+                  </Link>
+                ) : (
+                  <span className={cx(cls, "min-w-0 flex-1")}>{row}</span>
+                )}
               </li>
             );
           })}

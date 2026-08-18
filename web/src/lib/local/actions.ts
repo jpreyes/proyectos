@@ -493,6 +493,37 @@ export async function deleteSeries(fd: FormData) {
   return str(fd, "return_to") || "/recurrentes";
 }
 
+/**
+ * "Esto ya lo hice", desde un bloque del día.
+ *
+ * Escribe una nota de bitácora en vez de marcar una casilla en alguna parte, y
+ * eso es lo que lo hace barato: la bitácora ya es qué pasó, cuándo y cuántas
+ * horas, así que de paso queda el registro de en qué se fue la semana. El
+ * repartidor la lee para descontar lo trabajado, y lo que no se marcó se
+ * reparte solo entre los días que quedan — que es lo que "todo se atrasa"
+ * significa, sin preguntar nada y sin nada que mantener al día.
+ */
+export async function markBlockDone(fd: FormData) {
+  await create("log", {
+    date: str(fd, "date") || today(),
+    project: str(fd, "project"),
+    commitment: str(fd, "commitment"),
+    kind: "progress",
+    title: str(fd, "title"),
+    body: "",
+    hours: num(fd, "hours"),
+    files: [],
+  });
+
+  // Si el bloque era el último trozo de su tarea, se cierra. Al usuario se le
+  // dijo "lo hice": obligarlo a cerrarla otra vez en otra pantalla convierte un
+  // toque en dos y deja la lista mintiendo mientras tanto.
+  const task = str(fd, "task");
+  if (task && bool(fd, "close_task")) {
+    await update("tasks", task, { status: "done", done_date: today() });
+  }
+}
+
 /* --------------------------------------------------------------- inbox ---- */
 
 /** Captura. Un campo y un toque, o deja de ocurrir. */

@@ -386,6 +386,17 @@ export interface CalendarEvent extends Base {
 export interface LogEntry extends Base {
   date: string;
   project: string;
+  /**
+   * Contra qué horas reservadas se hizo esto (migración 1770003100).
+   *
+   * Opcional: una nota escrita a mano no cuelga de ninguna reserva. Lo llena
+   * marcar un bloque del día como hecho, y es lo que permite que el repartidor
+   * descuente lo trabajado en vez de volver a pedirlo. Va a `commitments` y no
+   * basta `project` porque un proyecto puede tener varios compromisos —Docencia
+   * tiene sus clases y aparte las revisiones de tesis— y las horas de uno se le
+   * imputarían al otro.
+   */
+  commitment?: string;
   kind: LogKind;
   title: string;
   body: string;

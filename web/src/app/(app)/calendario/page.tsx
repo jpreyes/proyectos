@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { CalendarEvent, CalendarFeed, Commitment, Entity, Project } from "@/lib/types";
+import type { CalendarEvent, CalendarFeed, Commitment, Entity, Project, Task } from "@/lib/types";
 import type { Tone } from "@/lib/labels";
 import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
@@ -84,6 +84,7 @@ function CalendarPage() {
   const dayView = vista === "dia";
   const month = sp.get("mes") || new Date().toISOString().slice(0, 7);
   const dayParam = sp.get("dia") || "";
+  const allTasks = useCollection<Task>("tasks");
   const theDay = dayParam || new Date().toISOString().slice(0, 10);
   const [pickedDay, setPickedDay] = useState("");
   const [pickedWeek, setPickedWeek] = useState("");
@@ -170,6 +171,7 @@ function CalendarPage() {
       buildDayPlan({
         day: theDay,
         commitments: allCommitments,
+        tasks: allTasks,
         events,
         workStart: cfg.settings.work_start,
         workEnd: cfg.settings.work_end,
@@ -179,6 +181,7 @@ function CalendarPage() {
     [
       theDay,
       allCommitments,
+      allTasks,
       events,
       cfg.settings.work_start,
       cfg.settings.work_end,

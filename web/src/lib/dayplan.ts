@@ -32,7 +32,7 @@
  * noche, que es exactamente lo que esta pantalla existe para evitar.
  */
 
-import type { CalendarEvent, Commitment, DaySlot } from "./types";
+import type { CalendarEvent, Commitment, DaySlot, LogEntry, Task } from "./types";
 import { eventDayKey } from "./dates";
 
 /**
@@ -70,7 +70,19 @@ export type BlockKind = "event" | "fixed" | "flex" | "lunch";
 
 export interface Block {
   key: string;
+  /** Lo que hay que hacer. Es el título de la tarea cuando la hay. */
   label: string;
+  /**
+   * De dónde sale, cuando `label` es una tarea.
+   *
+   * Un bloque que dice "Cabañas Rodman" dice dónde trabajar, no en qué: si el
+   * proyecto tiene dos tareas, a las ocho de la mañana sigues sin saber cuál
+   * abrir. Se reportó así. Ahora el bloque nombra la tarea y el proyecto pasa a
+   * segunda línea, que es el orden en que uno los necesita.
+   */
+  context?: string;
+  /** La tarea que le tocó, para poder cerrarla desde el bloque. */
+  task?: string;
   /** Minutos desde medianoche. */
   from: number;
   to: number;
@@ -152,7 +164,21 @@ function carve(gaps: Gap[], from: number, to: number): Gap[] {
 export interface DayPlanOptions {
   day: string;
   commitments: Commitment[];
+  /**
+   * Las tareas abiertas. De acá sale **en qué** se trabaja en cada bloque: las
+   * del proyecto del compromiso, en orden de plazo, gastando el `effort_h` de
+   * cada una antes de pasar a la siguiente.
+   */
+  tasks?: Task[];
   events?: CalendarEvent[];
+  /**
+   * La bitácora. De acá sale lo que **ya se hizo** esta semana, por compromiso.
+   *
+   * Sin esto, marcar un bloque como hecho no cambiaría nada: los días que
+   * quedan seguirían recibiendo las horas completas de la semana y el plan
+   * pediría trabajar de nuevo lo ya trabajado.
+   */
+  logs?: LogEntry[];
   workStart: string;
   workEnd: string;
   lunchStart: string;
@@ -184,6 +210,45 @@ function addDays(day: string, n: number): string {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Reparte las tareas de un proyecto entre los bloques que le vayan tocando.
+ *
+ * Cada compromiso lleva un puntero a la tarea en curso y lo que le queda de
+ * esfuerzo. Un bloque consume de la tarea con el plazo más cercano; cuando esa
+ * se agota, el siguiente bloque pasa a la que sigue. Es lo que convierte
+ * "Cabañas Rodman, 8:00-10:00" en "Memoria de cálculo — Cabañas Rodman".
+ *
+ * Una tarea sin `effort_h` no bloquea la fila: se le da un bloque completo y se
+ * pasa a la siguiente, porque quedarse pegado en una tarea sin estimación haría
+ * que las demás no aparecieran nunca.
+ */
+function taskPicker(tasks: Task[]) {
+  const byProject = new Map<string, { id: string; title: string; left: number }[]>();
+  for (const t of tasks) {
+    if (t.deleted || t.status === "done" || !t.project) continue;
+    const list = byProject.get(t.project) || [];
+    list.push({ id: t.id, title: t.title, left: (t.effort_h || 0) * 60 || MAX_BLOCK });
+    byProject.set(t.project, list);
+  }
+  for (const list of byProject.values()) {
+    list.sort((a, b) => a.title.localeCompare(b.title));
+  }
+  // El orden que manda es el del plazo; el alfabético de arriba solo desempata.
+  const dueOf = new Map(tasks.map((t) => [t.id, t.due_date || "9999-12-31"]));
+  for (const list of byProject.values()) {
+    list.sort((a, b) => (dueOf.get(a.id) || "").localeCompare(dueOf.get(b.id) || ""));
+  }
+
+  return function pick(project: string, minutes: number) {
+    const list = byProject.get(project);
+    if (!list || !list.length) return null;
+    const head = list[0];
+    head.left -= minutes;
+    if (head.left <= 0) list.shift();
+    return { id: head.id, title: head.title };
+  };
 }
 
 /**
@@ -285,6 +350,19 @@ export function buildWeekPlan(opts: DayPlanOptions): WeekPlan {
     for (const c of opts.commitments.filter((x) => activeOn(x, day))) seen.set(c.id, c);
   }
 
+  const pick = taskPicker(opts.tasks || []);
+
+  // Lo ya trabajado esta semana, por compromiso. Es un hecho del pasado, así que
+  // guardarlo no contradice que el plan no se guarde: lo que se pudre es lo que
+  // va a pasar, no lo que pasó.
+  const doneWeek = new Map<string, number>();
+  for (const l of opts.logs || []) {
+    if (l.deleted || !l.commitment || !l.hours) continue;
+    const d = (l.date || "").slice(0, 10);
+    if (d < monday || d > days[6]) continue;
+    doneWeek.set(l.commitment, (doneWeek.get(l.commitment) || 0) + l.hours * 60);
+  }
+
   // Lo que cierra antes va primero: entre dos cosas que caben, la que tiene el
   // plazo encima es la que no puede esperar a la semana que viene.
   const demands = [...seen.values()]
@@ -296,7 +374,7 @@ export function buildWeekPlan(opts: DayPlanOptions): WeekPlan {
       // Una semana que el compromiso solo cubre a medias pide su parte, igual
       // que en la grilla de semanas.
       const weekMinutes = (c.hours_per_week || 0) * 60 * (daysActive / WORK_DAYS);
-      return { c, minutes: Math.max(0, snapDown(weekMinutes - fixedWeek)) };
+      return { c, minutes: Math.max(0, snapDown(weekMinutes - fixedWeek - (doneWeek.get(c.id) || 0))) };
     })
     .filter((d) => d.minutes >= MIN_BLOCK)
     .sort((a, b) => {
@@ -312,9 +390,24 @@ export function buildWeekPlan(opts: DayPlanOptions): WeekPlan {
   const left = new Map<string, number>(demands.map((d) => [d.c.id, d.minutes]));
   const parts = new Map<string, number>();
 
+  /*
+   * Los días ya pasados de esta semana no reciben nada.
+   *
+   * Antes el repartidor planificaba el lunes aunque hoy fuera miércoles, así que
+   * lo que no hiciste el lunes no se atrasaba: **desaparecía en silencio**, y la
+   * pantalla seguía mostrando una semana perfecta que ya no era cierta. Ahora
+   * las horas que quedan se reparten entre los días que quedan, que es lo que
+   * "todo se atrasa" significa — y ocurre solo, sin preguntar nada.
+   *
+   * Al mirar una semana futura no recorta nada; al mirar una pasada, tampoco
+   * repone: lo que ocurrió, ocurrió.
+   */
+  const open = weekdays.filter((d) => d >= opts.day);
+  const targets = open.length ? open : weekdays;
+
   for (let round = 0; round < 12; round++) {
     let placedAny = false;
-    for (const day of weekdays) {
+    for (const day of targets) {
       for (const d of demands) {
         let rest = left.get(d.c.id) || 0;
         if (rest < MIN_BLOCK) continue;
@@ -331,9 +424,13 @@ export function buildWeekPlan(opts: DayPlanOptions): WeekPlan {
         if (take < MIN_BLOCK) continue;
         const n = (parts.get(d.c.id) || 0) + 1;
         parts.set(d.c.id, n);
+        const t = d.c.project ? pick(d.c.project, take) : null;
         blocksByDay.get(day)!.push({
           key: `fl-${d.c.id}-${n}`,
-          label: d.c.title,
+          // La tarea manda sobre el compromiso: es lo que hay que abrir.
+          label: t ? t.title : d.c.title,
+          context: t ? d.c.title : undefined,
+          task: t ? t.id : undefined,
           from: start,
           to: start + take,
           kind: "flex",

@@ -75,6 +75,7 @@ export function DayGrid({ plan }: { plan: DayPlan }) {
                 </span>
                 {!short && (
                   <span className="block text-[11px] tabular-nums opacity-70">
+                    {b.context ? `${b.context} · ` : ""}
                     {fmtMin(b.from)}–{fmtMin(b.to)}
                   </span>
                 )}

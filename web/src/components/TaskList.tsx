@@ -8,7 +8,7 @@ import { index } from "@/lib/local/query";
 import { addTask, deleteTask, setTaskStatus } from "@/lib/local/actions";
 import { daysUntil, fmtRelative } from "@/lib/dates";
 import { Form } from "./form";
-import { btn, cx, Empty, inputClass, Select } from "./ui";
+import { btn, cx, Empty, Field, inputClass, Select } from "./ui";
 
 function urgencyClass(due: string) {
   const n = daysUntil(due);
@@ -79,8 +79,20 @@ export function TaskList({
                   )}
                 </div>
 
+                {/* "en 2 días" a secas se lee igual de bien como "esto empieza en dos
+                    días", que es justo lo contrario: acá el comienzo lo codifican
+                    `next_cue` + `next_step`, no esta fecha. La palabra "Plazo" es la
+                    que ya usa la ficha del proyecto para `due_date`, y el color se
+                    queda en la parte que cuenta los días para que la urgencia siga
+                    leyéndose de un vistazo. */}
                 {t.due_date && !done && (
-                  <span className={cx("shrink-0 text-[13px]", urgencyClass(t.due_date))}>
+                  <span
+                    className={cx(
+                      "shrink-0 whitespace-nowrap text-[13px]",
+                      urgencyClass(t.due_date)
+                    )}
+                  >
+                    <span className="text-faint">Plazo · </span>
                     {fmtRelative(t.due_date)}
                   </span>
                 )}
@@ -112,8 +124,12 @@ export function TaskList({
             placeholder="Nueva tarea"
             className={`${inputClass} sm:col-span-2`}
           />
-          <Select name="priority" options={cfg.options("priority")} defaultValue="normal" />
-          <input type="date" name="due_date" className={inputClass} />
+          <Field label="Prioridad">
+            <Select name="priority" options={cfg.options("priority")} defaultValue="normal" />
+          </Field>
+          <Field label="Plazo" hint="cuándo tiene que estar lista">
+            <input type="date" name="due_date" className={inputClass} />
+          </Field>
           <button type="submit" className={`${btn("subtle")} sm:col-span-2`}>
             Agregar
           </button>

@@ -8,6 +8,7 @@ import { Rail, TabBar } from "@/components/Tabs";
 import { BackLink } from "@/components/BackLink";
 import { CaptureBar } from "@/components/CaptureBar";
 import { OfflineBadge } from "@/components/OfflineBadge";
+import { SideRail } from "@/components/SideRail";
 import { Tour } from "@/components/Tour";
 
 /**
@@ -29,10 +30,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Rail open={open} />
         </aside>
 
-        {/* Una sola columna en ambos anchos. El layout viejo llegaba a 72rem,
-            que en un notebook producía grillas de cuatro columnas que nadie
-            lee de lado a lado; el punto de esta app es una lista corta y
-            escaneable, y eso tiene un ancho natural. */}
+        {/* `max-w-3xl` y no más, en cualquier ancho de pantalla. El layout viejo
+            llegaba a 72rem y en un notebook producía grillas de cuatro columnas
+            que nadie lee de lado a lado; el punto de esta app es una lista
+            corta y escaneable, y eso tiene un ancho natural.
+            El panel de la derecha no deshace esa decisión, la respeta: la
+            columna de lectura no crece ni un píxel, y lo que se agrega al lado
+            es contenido de otra naturaleza —lo que se consulta, no lo que se
+            lee. Ver `SideRail`. */}
         <main className="pb-tabbar mx-auto w-full min-w-0 max-w-3xl px-4 pt-5 md:px-8 md:pt-8">
           <CaptureBar open={open} />
           {/* Encima del título de la pantalla, en el layout: es lo que garantiza
@@ -40,6 +45,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <BackLink />
           {children}
         </main>
+
+        {/* Desde 1280 px. Por debajo no aparece: a ese ancho las tres columnas
+            ya no caben sin comerse la de lectura, y esta es la prescindible. */}
+        <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto px-4 py-8 xl:block">
+          <SideRail />
+        </aside>
 
         <TabBar open={open} />
         <OfflineBadge />

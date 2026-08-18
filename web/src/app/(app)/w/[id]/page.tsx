@@ -21,7 +21,7 @@ import { TaskList } from "@/components/TaskList";
 import { Due } from "@/components/Due";
 import { Title } from "@/components/Title";
 
-export default function WorkspacePage() {
+export default function ProyectoPage() {
   const id = useRouteId();
   const cfg = useConfig();
 
@@ -97,10 +97,10 @@ export default function WorkspacePage() {
   if (!project || project.deleted) {
     return (
       <>
-        <Title>Workspace</Title>
-        <PageHeader title="No está" subtitle="Este workspace no existe en esta cuenta." />
+        <Title>Proyecto</Title>
+        <PageHeader title="No está" subtitle="Este proyecto no existe en esta cuenta." />
         <Link href="/w" className={btn("subtle")}>
-          Volver a Trabajo
+          Volver a Proyectos
         </Link>
       </>
     );
@@ -137,7 +137,7 @@ export default function WorkspacePage() {
         }
         action={
           <Link href={`/w/${project.id}/editar`} className={btn("subtle", "sm")}>
-            Editar ficha
+            Editar proyecto
           </Link>
         }
       />
@@ -177,7 +177,7 @@ export default function WorkspacePage() {
         </Card>
       )}
 
-      <Card className="mb-6" title="Pendientes">
+      <Card className="mb-6" title="Tareas">
         <TaskList tasks={view.open} projectId={project.id} />
       </Card>
 
@@ -320,7 +320,7 @@ export default function WorkspacePage() {
       )}
 
       {(project.start_date || project.due_date || project.budget > 0) && (
-        <Card className="mb-6" title="Ficha">
+        <Card className="mb-6" title="Datos">
           <dl className="space-y-3 text-[15px]">
             {project.start_date && (
               <div className="flex justify-between gap-3">
@@ -338,7 +338,7 @@ export default function WorkspacePage() {
             )}
             {project.budget > 0 && (
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Presupuesto</dt>
+                <dt className="text-muted">Monto acordado</dt>
                 <dd className="tabular-nums">
                   {project.budget_currency && project.budget_currency !== "CLP"
                     ? `${project.budget_currency} ${project.budget}`
@@ -358,7 +358,7 @@ export default function WorkspacePage() {
       )}
 
       {view.children.length > 0 && (
-        <Group title="Sub-workspaces">
+        <Group title="Subproyectos">
           {view.children.map((c) => (
             <Row
               key={c.id}

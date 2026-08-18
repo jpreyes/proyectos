@@ -23,7 +23,7 @@ const TONES = [
 const GROUPS: { group: TaxGroup; title: string; hint: string }[] = [
   {
     group: "project_kind",
-    title: "Tipos de workspace",
+    title: "Tipos de proyecto",
     hint: "Estructural, docencia, investigación…",
   },
   { group: "resource_kind", title: "Tipos de ubicación", hint: "Carpeta, repo, paper…" },
@@ -32,11 +32,11 @@ const GROUPS: { group: TaxGroup; title: string; hint: string }[] = [
   { group: "doc_type", title: "Tipos de documento", hint: "Factura, boleta, honorarios…" },
   { group: "currency", title: "Monedas", hint: "CLP, UF, USD…" },
   { group: "priority", title: "Prioridades", hint: "" },
-  { group: "health", title: "Salud del workspace", hint: "" },
+  { group: "health", title: "Salud del proyecto", hint: "" },
 ];
 
 const LOCKED_GROUPS: { group: TaxGroup; title: string }[] = [
-  { group: "project_status", title: "Estados de workspace" },
+  { group: "project_status", title: "Estados de proyecto" },
   { group: "entry_status", title: "Estados de cobro" },
   { group: "task_status", title: "Estados de tarea" },
   { group: "resource_state", title: "Estados de ubicación" },
@@ -182,7 +182,7 @@ function DemoRow() {
   return (
     <Plain
       title="Datos de ejemplo"
-      hint={`${count} filas sembradas para que la app no abriera en blanco: dos encargos con su bitácora, sus cobros y sus presupuestos. Se borran de una vez y no vuelven.`}
+      hint={`${count} filas sembradas para que la app no abriera en blanco: dos proyectos con su bitácora, sus cobros y sus presupuestos. Se borran de una vez y no vuelven.`}
     >
       <button type="button" onClick={wipe} disabled={busy} className={btn("danger", "sm")}>
         {busy ? "Borrando…" : "Borrar ejemplos"}
@@ -226,7 +226,7 @@ export default function SettingsPage() {
             que quedarse, y en una fila entera se lee. */}
         <Plain
           title="Asistente"
-          hint="Contesta sobre lo que tienes anotado y te propone los registros que faltan, para que los aceptes de un toque; nunca escribe solo. Es la única parte de la app que manda algo afuera: lo que le escribes y un índice de tu cuenta —nombres de proyectos y contrapartes, títulos de pendientes y tres totales del año— nunca los cuerpos de tu bitácora, tus notas ni tus movimientos uno por uno."
+          hint="Contesta sobre lo que tienes anotado y te propone los registros que faltan, para que los aceptes de un toque; nunca escribe solo. Es la única parte de la app que manda algo afuera: lo que le escribes y un índice de tu cuenta —nombres de proyectos y contactos, títulos de tareas y tres totales del año— nunca los cuerpos de tu bitácora, tus notas ni tus movimientos uno por uno."
         >
           <Link href="/organizar" className={btn("subtle", "sm")}>
             Abrir el asistente

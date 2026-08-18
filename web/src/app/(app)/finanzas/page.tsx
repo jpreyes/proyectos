@@ -173,7 +173,7 @@ function FinancePage() {
       <details open={filtering} className="group mb-6">
         <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">
           {year}
-          {project ? " · un workspace" : ""}
+          {project ? " · un proyecto" : ""}
           {direction ? ` · solo ${cfg.label("direction", direction).toLowerCase()}s` : ""}
           <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
         </summary>
@@ -186,7 +186,7 @@ function FinancePage() {
             ))}
           </select>
           <select name="project" defaultValue={project} className={inputClass}>
-            <option value="">Todos los workspaces</option>
+            <option value="">Todos los proyectos</option>
             {sortBy(allProjects, "name").map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -229,7 +229,7 @@ function FinancePage() {
           label="Margen"
           value={formatMoneyShort(view.income - view.expense)}
           tone={view.income - view.expense >= 0 ? "ok" : "bad"}
-          hint="por workspace"
+          hint="por proyecto"
           onPress={() => scrollTo("margen")}
         />
         <Stat
@@ -253,9 +253,9 @@ function FinancePage() {
         <Bars months={months} income={view.incomeByMonth} expense={view.expenseByMonth} />
       </Card>
 
-      <Group id="margen" title={`Margen por workspace · ${year}`}>
+      <Group id="margen" title={`Margen por proyecto · ${year}`}>
         {view.projectRows.length === 0 ? (
-          <Empty>Sin movimientos asociados a un workspace.</Empty>
+          <Empty>Sin movimientos asociados a un proyecto.</Empty>
         ) : (
           view.projectRows.map((r) => (
             <Row
@@ -349,7 +349,7 @@ function FinancePage() {
             icon="+"
             iconTone="accent"
             label="Programar un ingreso o un egreso"
-            hint="Un sueldo, un arriendo, una cuota, un encargo que se cobra por mes"
+            hint="Un sueldo, un arriendo, una cuota, un proyecto que se cobra por mes"
           />
         ) : (
           <>

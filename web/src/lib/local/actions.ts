@@ -317,7 +317,7 @@ export async function deleteEntry(fd: FormData) {
 /* --------------------------------------------------------- recurrencias ---- */
 
 /**
- * Las series: sueldos, arriendos, cuotas, encargos largos que se cobran por
+ * Las series: sueldos, arriendos, cuotas, proyectos largos que se cobran por
  * mes. Guardan la regla; los movimientos los fabrica `lib/local/recurring.ts`
  * y son filas normales del ledger.
  *
@@ -471,7 +471,7 @@ export async function triage(fd: FormData) {
 /**
  * Los destinos de un toque.
  *
- * El triaje pedía seis controles y exigía un workspace, así que una nota como
+ * El triaje pedía seis controles y exigía un proyecto, así que una nota como
  * "responder correos" —que no pertenece a ningún proyecto— no tenía forma de
  * salir de la bandeja. Estas funciones son el camino corto: una decisión, un
  * toque, nada obligatorio. El proyecto es opcional en todas; la base siempre lo
@@ -533,12 +533,12 @@ export async function inboxToProject(fd: FormData) {
   await update("inbox", str(fd, "id"), {
     status: "planned",
     project: id,
-    outcome: "Workspace nuevo",
+    outcome: "Proyecto nuevo",
   });
   return `/w/${id}`;
 }
 
-/** Era un encargo que hay que cotizar. */
+/** Era un proyecto que hay que cotizar. */
 export async function inboxToQuote(fd: FormData) {
   const s = settings();
   const validity = s.quote_validity_days || 30;

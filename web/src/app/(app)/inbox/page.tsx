@@ -115,7 +115,7 @@ export default function InboxPage() {
 /**
  * Una cosa escrita y lo que puede llegar a ser.
  *
- * Antes esto era un formulario de seis campos con el workspace obligatorio, así
+ * Antes esto era un formulario de seis campos con el proyecto obligatorio, así
  * que algo tan común como "responder correos" no tenía salida: no pertenece a
  * ningún proyecto. Ahora el camino corto es un botón, el proyecto es opcional y
  * lo demás vive plegado para cuando de verdad haga falta.
@@ -143,7 +143,7 @@ function InboxCard({ item, projects }: { item: InboxItem; projects: Project[] })
           plan: triage,
           descartar: dropInboxItem,
           borrar: deleteInboxItem,
-          workspace: inboxToProject,
+          proyecto: inboxToProject,
           presupuesto: inboxToQuote,
         }}
       >
@@ -205,8 +205,8 @@ function InboxCard({ item, projects }: { item: InboxItem; projects: Project[] })
 
           <div className="mt-2.5 space-y-2.5">
             <div className="flex flex-wrap gap-2">
-              <button type="submit" data-action="workspace" className={btn("subtle", "sm")}>
-                Crear workspace con esto
+              <button type="submit" data-action="proyecto" className={btn("subtle", "sm")}>
+                Crear proyecto con esto
               </button>
               <button type="submit" data-action="presupuesto" className={btn("subtle", "sm")}>
                 Empezar un presupuesto

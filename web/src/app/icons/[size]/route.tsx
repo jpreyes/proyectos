@@ -56,7 +56,7 @@ export async function GET(
             padding: inner * 0.18,
           }}
         >
-          {/* three stacked bars: the workspace list, at a glance */}
+          {/* three stacked bars: the proyecto list, at a glance */}
           <div style={{ height: inner * 0.1, borderRadius: 99, background: "#79e99d" }} />
           <div style={{ height: inner * 0.1, borderRadius: 99, background: "#a8adb8", width: "78%" }} />
           <div style={{ height: inner * 0.1, borderRadius: 99, background: "#7a8194", width: "52%" }} />

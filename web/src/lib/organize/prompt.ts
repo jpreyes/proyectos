@@ -52,7 +52,7 @@ Pasos (campos omitidos = ""):
   Plata, una vez. status: planned | committed | invoiced. Nunca "pagado".
   due_date: si dicen un plazo relativo ("vence a 30 días"), súmalo a "date".
 - {"kind":"series","direction","description","amount","cadence","start_date","end_date","occurrences","project","entity"}
-  Plata que SE REPITE: sueldo, arriendo, cuota, encargo cobrado por mes.
+  Plata que SE REPITE: sueldo, arriendo, cuota, proyecto cobrado por mes.
   cadence: weekly | biweekly | monthly | bimonthly | quarterly | semiannual | annual.
   start_date obligatorio. Si dan el día del mes y no la fecha ("me pagan el 30"),
   calcula la próxima vez que cae ese día contando desde hoy: es aritmética, no

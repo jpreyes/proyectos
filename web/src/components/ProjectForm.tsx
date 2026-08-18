@@ -119,7 +119,7 @@ export function ProjectForm({
 
         <Card title="Contexto">
           <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Contraparte" className="sm:col-span-2">
+            <Field label="Contacto" className="sm:col-span-2">
               <Select
                 name="client"
                 placeholder="—"
@@ -153,7 +153,7 @@ export function ProjectForm({
                 className={inputClass}
               />
             </Field>
-            <Field label="Presupuesto">
+            <Field label="Monto acordado">
               <input
                 name="budget"
                 inputMode="decimal"
@@ -173,7 +173,7 @@ export function ProjectForm({
 
         <div className="flex gap-2">
           <button type="submit" className={`${btn("primary")} flex-1`}>
-            {p ? "Guardar cambios" : "Crear workspace"}
+            {p ? "Guardar cambios" : "Crear proyecto"}
           </button>
           <Link href={p ? `/w/${p.id}` : "/w"} className={btn("ghost")}>
             Cancelar

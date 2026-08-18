@@ -27,7 +27,7 @@ export default function EntitiesPage() {
       <Title>Contactos</Title>
       <PageHeader
         title="Contactos"
-        subtitle="Mandantes, universidades, revistas, agencias. Se reutilizan en workspaces y movimientos."
+        subtitle="Mandantes, universidades, revistas, agencias. Se reutilizan en proyectos y movimientos."
       />
 
       {total === 0 && <Empty>Todavía no hay contactos.</Empty>}

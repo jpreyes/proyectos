@@ -579,6 +579,47 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   sincroniza, el build falla con `EBUSY` al borrar carpetas. Next recrea `.next`, así que
   el atributo se pierde: si vuelve a fallar, borra `.next` y recompila.
 
+## Glosario
+
+**Un concepto, un sustantivo.** Si necesitas un sinónimo es que descubriste un
+concepto nuevo y le falta fila — no que este de acá quedó corto. Los
+identificadores siguen en inglés (`projects`, `tasks`, `entities`, `budget`,
+`committed`); esta tabla es la UI y los comentarios.
+
+| Concepto | Sustantivo | Verbo | Retirado |
+|---|---|---|---|
+| `projects` | **Proyecto** | crear / editar un proyecto | ~~workspace~~, ~~encargo~~, ~~trabajo~~ (como cosa) |
+| `projects.parent` | **Subproyecto** | — | ~~sub-workspace~~ |
+| `tasks` | **Tarea** | — | ~~pendiente~~ como sustantivo |
+| `entities` | **Contacto** | — | ~~contraparte~~, ~~entidad~~ |
+| `entries` | **Movimiento** | anotar | — |
+| `quotes` | **Presupuesto** | emitir / aprobar | ~~cotización~~ |
+| `projects.budget` | **Monto acordado** | — | ~~presupuesto~~ |
+| `commitments` | **Horas comprometidas** | comprometer horas | — |
+| `log` | **Bitácora** | anotar | — |
+| `inbox` | **Bandeja** | capturar / triar | — |
+
+Tres reglas que la sostienen:
+
+- **«Pendiente» y «comprometido» sobreviven solo como adjetivos.** «Cobros
+  pendientes», «nada comprometido todavía» se quedan; «Pendientes» como título
+  de una lista de `tasks`, no.
+- **«Trabajo» solo como sustantivo de esfuerzo.** «Horas de trabajo» se queda;
+  como nombre del contenedor, desapareció — la pestaña se llama **Proyectos**.
+- **La plata tiene tres capas y no son sinónimos**: `entries` es el
+  **Movimiento** (el registro), **Ingreso/Egreso** es la dirección, y
+  *cobro / pago* es la palabra corriente para uno sin cerrar. No unificarlas.
+
+**«Ficha» está retirada**: nombraba tres cosas a la vez —la tarjeta de datos de
+un proyecto, el registro completo y las tarjetas de estadística— y en la misma
+pantalla había un botón «Editar ficha» que no editaba la tarjeta «Ficha».
+
+Cómo comprobar que sigue limpio, junto al `tsc` de más arriba:
+
+```bash
+grep -rniE '(workspace|encargo|contraparte)' web/src --include=*.tsx --include=*.ts   # silencio = pasa
+```
+
 ## Convenciones de código
 
 - **Escrituras**: `web/src/lib/local/actions.ts`, con la firma de siempre `(fd: FormData)`.

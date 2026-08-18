@@ -5,7 +5,7 @@
  *
  * Una serie no es un movimiento: es la regla que los fabrica —cada cuánto,
  * desde cuándo, hasta cuándo, por cuánto. Un sueldo, un arriendo, la cuota de
- * un crédito, un encargo largo que se cobra por mes.
+ * un crédito, un proyecto largo que se cobra por mes.
  *
  * **La regla no reemplaza al movimiento: lo materializa.** Cada repetición se
  * escribe como una fila normal de `entries`, y desde ahí todo lo que ya lee el

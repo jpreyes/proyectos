@@ -10,7 +10,7 @@
 //
 //   * `commitments` — horas por semana entre dos fechas. Las semanas parciales
 //     del principio y del final se prorratean por días cubiertos, así que un
-//     encargo que arranca un jueves no cobra la semana entera.
+//     proyecto que arranca un jueves no cobra la semana entera.
 //   * `calendar_events` — eventos con fecha y hora que llegan de los .ics
 //     conectados. Ya traen sus horas calculadas; se cargan a la semana en que
 //     caen.
@@ -191,7 +191,7 @@ function daysCovered(key: string, start: string, end: string): number {
  * Carga de cada semana de `weeks`.
  *
  * Los compromisos anulados no cuentan: siguen existiendo como registro de que
- * el encargo se cayó, pero ya no ocupan tu tiempo.
+ * el proyecto se cayó, pero ya no ocupan tu tiempo.
  */
 export function buildWeekLoad(
   weeks: string[],
@@ -260,7 +260,7 @@ export interface Slot {
 
 export interface PlanOptions {
   totalHours: number;
-  /** Ritmo máximo que estás dispuesto a dedicarle a ESTE encargo. */
+  /** Ritmo máximo que estás dispuesto a dedicarle a ESTE proyecto. */
   maxPerWeek: number;
   /** Techo semanal total, de settings. */
   capacity: number;
@@ -292,7 +292,7 @@ export interface PlanOptions {
  * Devuelve `fits: false` cuando no hubo tramo posible en todo el horizonte. En
  * ese caso ubica el trabajo lo antes posible al ritmo máximo, y quien llame
  * decide qué hacer — la app lo reserva igual pero marcado como tentativo, que
- * es más honesto que negarse a agendar un encargo que ya aceptaste.
+ * es más honesto que negarse a agendar un proyecto que ya aceptaste.
  */
 export function planWork(opts: PlanOptions): Slot | null {
   const { totalHours, capacity, load, weeks, earliest } = opts;

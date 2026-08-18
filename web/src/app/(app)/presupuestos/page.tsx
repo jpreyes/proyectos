@@ -84,7 +84,7 @@ function QuotesPage() {
             una filtra por él. La tasa de cierre resume los respondidos y lleva
             al listado completo. */}
         <Stat
-          label="Pendiente de respuesta"
+          label="Enviados"
           value={formatMoneyShort(view.pendingTotal)}
           hint={`${view.pending.length} esperando`}
           tone={view.pending.length ? "warn" : "neutral"}

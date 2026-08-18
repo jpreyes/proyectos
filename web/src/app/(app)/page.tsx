@@ -74,7 +74,7 @@ export default function TodayPage() {
         key: `t-${t.id}`,
         date: t.due_date,
         label: t.title,
-        context: projectById.get(t.project)?.name || "Sin workspace",
+        context: projectById.get(t.project)?.name || "Sin proyecto",
         href: t.project ? `/w/${t.project}` : "/w",
         tag: "tarea",
       });
@@ -97,7 +97,7 @@ export default function TodayPage() {
         date: e.due_date,
         label: `Cobrar ${formatMoneyShort(homeOf(e))} — ${e.description}`,
         context:
-          entityById.get(e.entity)?.name || projectById.get(e.project)?.name || "Sin contraparte",
+          entityById.get(e.entity)?.name || projectById.get(e.project)?.name || "Sin contacto",
         href: "/finanzas",
         tag: "cobro",
       });
@@ -131,7 +131,7 @@ export default function TodayPage() {
       cooling,
       // Sin esto, una tarea sin fecha no aparece en ninguna parte: el horizonte
       // solo muestra lo que tiene plazo, y una tarea sin proyecto tampoco vive
-      // en la ficha de ningún workspace. Sería anotar algo para perderlo.
+      // en la ficha de ningún proyecto. Sería anotar algo para perderlo.
       loose: tasks.filter((t) => !t.due_date),
       overdueCount: near.filter((h) => (daysUntil(h.date) ?? 0) < 0).length,
       weekCount: near.filter((h) => {
@@ -158,7 +158,7 @@ export default function TodayPage() {
         })}
         action={
           <Link href="/w/nuevo" className={btn("subtle", "sm")}>
-            + Workspace
+            + Proyecto
           </Link>
         }
       />
@@ -186,7 +186,7 @@ export default function TodayPage() {
           tone={view.receivableTotal > 0 ? "warn" : "neutral"}
           hint={`${view.receivables.length} documento${view.receivables.length === 1 ? "" : "s"}`}
         />
-        <Stat label="Workspaces abiertos" href="/w" value={view.projects.length} />
+        <Stat label="Proyectos abiertos" href="/w" value={view.projects.length} />
       </div>
 
       <Group id="horizonte" title={`Horizonte · vencido y próximos ${HORIZON_DAYS} días`}>
@@ -204,7 +204,7 @@ export default function TodayPage() {
       </Group>
 
       {view.loose.length > 0 && (
-        <Card className="mb-6" title="Pendientes sin fecha">
+        <Card className="mb-6" title="Tareas sin fecha">
           <TaskList tasks={view.loose} showProject showForm={false} />
         </Card>
       )}

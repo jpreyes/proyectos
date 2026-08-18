@@ -33,8 +33,8 @@ export const TOUR: readonly TourStep[] = [
     title: "Esto no es donde trabajas",
     body:
       "El trabajo sigue viviendo en tus carpetas, repos y planillas. Esta app es el índice: " +
-      "el lugar donde recuperas el contexto de cualquier encargo en treinta segundos. " +
-      "Para que se entienda, ya viene con un encargo de ejemplo cargado — y se borra entero " +
+      "el lugar donde recuperas el contexto de cualquier proyecto en treinta segundos. " +
+      "Para que se entienda, ya viene con un proyecto de ejemplo cargado — y se borra entero " +
       "cuando quieras.",
   },
   {
@@ -43,7 +43,7 @@ export const TOUR: readonly TourStep[] = [
     title: "Cinco destinos, no diez",
     body:
       "Hoy es qué hacer ahora. Bandeja es lo que anotaste y no has decidido. Asistente ordena " +
-      "lo que le cuentes y contesta sobre lo que tienes anotado. Trabajo son tus encargos. Yo " +
+      "lo que le cuentes y contesta sobre lo que tienes anotado. Proyectos es todo tu trabajo. Yo " +
       "es todo lo demás: calendario, presupuestos, finanzas y ajustes. No hay más mapa que " +
       "memorizar.",
   },
@@ -52,7 +52,7 @@ export const TOUR: readonly TourStep[] = [
     anchor: "today-stats",
     title: "Hoy junta todo lo que tiene plazo",
     body:
-      "Tareas, plazos de encargos y plata por cobrar se funden en una sola lista con fecha y " +
+      "Tareas, plazos de proyectos y plata por cobrar se funden en una sola lista con fecha y " +
       "distancia. Lo vencido no se esconde, y lo que no tiene fecha aparece igual más abajo: " +
       "nada de lo que anotes queda invisible.",
   },
@@ -76,10 +76,10 @@ export const TOUR: readonly TourStep[] = [
   {
     route: "/w",
     anchor: "work-list",
-    title: "Cada encargo guarda su reentrada",
+    title: "Cada proyecto guarda su reentrada",
     body:
       "Adentro está el mapa de dónde vive cada cosa, la bitácora de lo que pasó, sus " +
-      "pendientes, sus horas comprometidas y sus presupuestos. Arriba del todo, siempre, " +
+      "tareas, sus horas comprometidas y sus presupuestos. Arriba del todo, siempre, " +
       "el plan para retomarlo: «cuando pase X, entonces Y».",
   },
   {
@@ -89,7 +89,7 @@ export const TOUR: readonly TourStep[] = [
     body:
       "Calendario mide horas por semana entre dos fechas, no bloques con hora: la pregunta " +
       "que responde es si algo cabe. Presupuestos emite el documento y, al aprobarlo, crea " +
-      "el encargo, reserva las horas y deja el ingreso proyectado.",
+      "el proyecto, reserva las horas y deja el ingreso proyectado.",
   },
   {
     route: "/configuracion",

@@ -297,7 +297,7 @@ function OrganizePage() {
             </p>
             <p>
               Es la única parte de la app que manda algo afuera: lo que le escribes y un índice
-              de tu cuenta —nombres de proyectos y contrapartes, títulos de pendientes y tres
+              de tu cuenta —nombres de proyectos y contactos, títulos de tareas y tres
               totales del año— nunca los cuerpos de tu bitácora, tus notas ni tus movimientos
               uno por uno.
             </p>
@@ -521,7 +521,7 @@ function Answer({
 
 const KIND_LABEL: Record<Step["kind"], string> = {
   project: "Proyecto",
-  task: "Pendiente",
+  task: "Tarea",
   log: "Bitácora",
   entry: "Movimiento",
   series: "Recurrente",

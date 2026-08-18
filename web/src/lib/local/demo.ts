@@ -23,7 +23,7 @@ import { useAll } from "./store";
  * Orden de borrado: primero lo que cuelga, después de lo que cuelga.
  *
  * Con relaciones sin cascada da igual para la integridad, pero no para lo que
- * se ve mientras la cola sube: borrar el encargo antes que sus tareas deja unos
+ * se ve mientras la cola sube: borrar el proyecto antes que sus tareas deja unos
  * segundos de tareas huérfanas en pantalla.
  */
 export const DEMO_COLLECTIONS = [

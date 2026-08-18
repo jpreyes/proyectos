@@ -24,8 +24,8 @@ export default function EditProjectPage() {
   if (!project || project.deleted) {
     return (
       <>
-        <Title>Editar workspace</Title>
-        <PageHeader title="No está" subtitle="Este workspace no existe en esta cuenta." />
+        <Title>Editar proyecto</Title>
+        <PageHeader title="No está" subtitle="Este proyecto no existe en esta cuenta." />
         <Link href="/w" className={btn("subtle")}>
           Volver a Trabajo
         </Link>
@@ -35,8 +35,8 @@ export default function EditProjectPage() {
 
   return (
     <>
-      <Title>Editar workspace</Title>
-      <PageHeader title="Editar ficha" subtitle={project.name} />
+      <Title>Editar proyecto</Title>
+      <PageHeader title="Editar proyecto" subtitle={project.name} />
       <ProjectForm
         action={updateProject}
         project={project}
@@ -55,7 +55,7 @@ export default function EditProjectPage() {
           financieros quedan, pero sin proyecto asociado.
         </p>
         <button type="submit" className={btn("danger")}>
-          Eliminar workspace
+          Eliminar proyecto
         </button>
       </Form>
     </>

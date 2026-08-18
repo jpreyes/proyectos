@@ -207,7 +207,7 @@ function Week({
                 hueco es lo que mantiene alineada la banda del que sí lo cubre.
                 El margen negativo saca las bandas del acolchado de la celda —si
                 no, cada día pinta su trocito y la banda se lee como siete
-                pastillas sueltas en vez de un encargo que dura una semana. */}
+                pastillas sueltas en vez de un proyecto que dura una semana. */}
             <span className="-mx-1 block space-y-0.5">
               {lanes.map((c) => {
                 const covers = dayOf(c.start_date) <= d && dayOf(c.end_date) >= d;

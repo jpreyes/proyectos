@@ -21,7 +21,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "Bandeja", short_name: "Bandeja", url: "/inbox" },
-      { name: "Workspaces", short_name: "Workspaces", url: "/w" },
+      { name: "Proyectos", short_name: "Proyectos", url: "/w" },
     ],
   };
 }

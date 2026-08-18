@@ -120,7 +120,7 @@ export function Row({
    * La segunda línea —el plan «cuando… entonces…», la barra de urgencia— vivía
    * dentro de la columna del título, o sea compartiendo el ancho con la fecha,
    * las insignias y el chevrón. En un teléfono de 390 px eso no era estrecho:
-   * era roto. Un workspace con dos insignias dejaba la columna en unos 60 px, y
+   * era roto. Un proyecto con dos insignias dejaba la columna en unos 60 px, y
    * ahí "Ensayos de laboratorio" se leía "En…" y el plan bajaba a una palabra
    * por línea.
    *

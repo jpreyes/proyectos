@@ -418,7 +418,7 @@ function CalendarPage() {
         )}
 
         {/* Cuatro campos a la vista, no ocho: son los únicos que la semana
-            necesita para ocuparse. Tipo, workspace, contraparte y notas se
+            necesita para ocuparse. Tipo, proyecto, contacto y notas se
             agregan después, si es que hacen falta. */}
         <details
           ref={formRef}
@@ -475,10 +475,10 @@ function CalendarPage() {
                 <Field label="Tipo">
                   <Select name="kind" placeholder="—" options={cfg.options("project_kind")} />
                 </Field>
-                <Field label="Workspace">
+                <Field label="Proyecto">
                   <Select name="project" placeholder="—" options={view.projectOptions} />
                 </Field>
-                <Field label="Contraparte">
+                <Field label="Contacto">
                   <Select name="entity" placeholder="—" options={view.entityOptions} />
                 </Field>
                 <Field label="Notas">
@@ -889,10 +889,10 @@ function CommitmentRow({
               className={inputClass}
             />
           </Field>
-          <Field label="Workspace">
+          <Field label="Proyecto">
             <Select name="project" defaultValue={c.project} placeholder="—" options={projects} />
           </Field>
-          <Field label="Contraparte">
+          <Field label="Contacto">
             <Select name="entity" defaultValue={c.entity} placeholder="—" options={entities} />
           </Field>
           <Field label="Notas" className="col-span-full">

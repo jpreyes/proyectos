@@ -12,7 +12,7 @@
  * forma exacta se descarta, un tipo que no esté en tu vocabulario cae al valor
  * por defecto, un monto que no sea un número se descarta. Descartar un campo no
  * bota el paso entero: una tarea sin proyecto es perfectamente legal —Hoy las
- * muestra en "Pendientes sin fecha"— y es mucho mejor que una tarea colgada de
+ * muestra en "Tareas sin fecha"— y es mucho mejor que una tarea colgada de
  * un proyecto inventado.
  *
  * El caso que esto evita no es teórico. Una fecha alucinada no se descubre al
@@ -24,7 +24,7 @@
 /**
  * Lo que el asistente alcanza a ver de tu cuenta.
  *
- * Es un **índice, no el contenido**: nombres e ids de proyectos, contrapartes y
+ * Es un **índice, no el contenido**: nombres e ids de proyectos, contactos y
  * catálogo. No van los cuerpos de la bitácora, ni las notas, ni los montos, ni
  * las rutas de los recursos. Alcanza de sobra para que enganche una tarea al
  * proyecto correcto, y es lo mínimo que hay que mandarle a un tercero.
@@ -59,7 +59,7 @@ export interface OrganizeContext {
    * movimiento.
    */
   /**
-   * Pendientes abiertos. Llevan `id` porque el agente puede cerrarlos y mover
+   * Tareas abiertas. Llevan `id` porque el agente puede cerrarlos y mover
    * sus plazos: sin el id no hay a qué apuntar.
    */
   tasks?: { id: string; title: string; project: string; due_date: string; priority: string }[];

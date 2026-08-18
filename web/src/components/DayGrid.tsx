@@ -5,7 +5,7 @@
  *
  * La cuadrícula de mes contesta "¿cabe?" y esta contesta "¿qué hago ahora?".
  * Conviven porque son dos preguntas y ninguna reemplaza a la otra: la de mes se
- * mira cuando llega un encargo nuevo, esta se mira un martes a las diez.
+ * mira cuando llega un proyecto nuevo, esta se mira un martes a las diez.
  *
  * Nada de lo que se dibuja acá está guardado — lo deriva `lib/dayplan.ts` de los
  * compromisos cada vez. Por eso no hay arrastrar ni soltar: mover un bloque no

@@ -3,7 +3,7 @@
  *
  * `capacity.ts` contesta "¿cabe?" — horas por semana entre dos fechas, que es
  * la unidad en la que se contrata lo que llena un año y la única con la que
- * decidir si un encargo de 30 meses revienta alguna semana es una suma. Eso no
+ * decidir si un proyecto de 30 meses revienta alguna semana es una suma. Eso no
  * se toca.
  *
  * Esto contesta la otra, la que uno se hace un martes a las diez: **¿qué hago
@@ -308,7 +308,7 @@ export function buildWeekPlan(opts: DayPlanOptions): WeekPlan {
 
   // Se reparte por rondas y no vaciando un compromiso antes de pasar al
   // siguiente: en cada pasada, cada uno toma **un** bloque por día. Es lo que
-  // produce una jornada variada en vez de un turno por encargo.
+  // produce una jornada variada en vez de un turno por proyecto.
   const left = new Map<string, number>(demands.map((d) => [d.c.id, d.minutes]));
   const parts = new Map<string, number>();
 

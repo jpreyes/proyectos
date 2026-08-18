@@ -4,7 +4,7 @@
  * yo.
  *
  * Eran seis, después cuatro, y ahora cinco. Calendario y Presupuestos salieron
- * porque ninguna se abre "por sí misma": se abren *por un encargo*, así que sus
+ * porque ninguna se abre "por sí misma": se abren *por un proyecto*, así que sus
  * cosas viven dentro del proyecto y las vistas completas quedan a un toque desde
  * "Yo". La regla que salió de ahí sigue siendo la buena: **en la barra va lo que
  * se abre un día cualquiera sin tener que saber de antemano qué contiene.**
@@ -36,7 +36,7 @@ export const TABS: readonly NavItem[] = [
   // con algo que quiere sacarse de la cabeza. Al lado de Bandeja, además, porque
   // son los dos que reciben en vez de mostrar.
   { href: "/organizar", label: "Asistente", icon: "✳" },
-  { href: "/w", label: "Trabajo", icon: "▤" },
+  { href: "/w", label: "Proyectos", icon: "▤" },
   {
     href: "/yo",
     label: "Yo",

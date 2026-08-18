@@ -231,7 +231,7 @@ export function SeriesForm({
 
       <Card title="Vínculos">
         <div className="grid gap-3.5 sm:grid-cols-2">
-          <Field label="Workspace">
+          <Field label="Proyecto">
             <Select
               name="project"
               placeholder="—"
@@ -239,7 +239,7 @@ export function SeriesForm({
               options={projects.map((p) => ({ value: p.id, label: p.name }))}
             />
           </Field>
-          <Field label="Contraparte">
+          <Field label="Contacto">
             <Select
               name="entity"
               placeholder="—"

@@ -54,7 +54,7 @@ export function LogFeed({
           />
 
           {/* Solo el cuerpo es obligatorio. Los ocho campos secundarios estaban
-              abiertos en cada workspace, lo que hacía que una nota de dos
+              abiertos en cada proyecto, lo que hacía que una nota de dos
               segundos pareciera un formulario que rellenar. */}
           <details className="group mt-2.5">
             <summary className="cursor-pointer list-none px-1 text-[13px] font-semibold text-faint">

@@ -98,7 +98,7 @@ export const DIRECTION: Record<Direction, string> = {
 
 export const ENTRY_STATUS: Record<EntryStatus, string> = {
   planned: "Proyectado",
-  committed: "Comprometido",
+  committed: "En firme",
   invoiced: "Facturado",
   paid: "Pagado",
   cancelled: "Anulado",
@@ -157,7 +157,7 @@ export const LOG_KIND_ICON: Record<LogKind, string> = {
 
 export const QUOTE_STATUS: Record<QuoteStatus, string> = {
   draft: "Borrador",
-  pending: "Pendiente",
+  pending: "Enviado",
   approved: "Aprobado",
   rejected: "Rechazado",
 };

@@ -36,7 +36,7 @@ export interface CalendarWindow {
 /**
  * La ventana de semanas que arranca en `from`.
  *
- * `excludeCommitment` existe para replantear un encargo ya reservado: sin sacar
+ * `excludeCommitment` existe para replantear un proyecto ya reservado: sin sacar
  * su propia reserva de la carga, el buscador compite contra sí mismo y nunca
  * encuentra dónde ponerse.
  */

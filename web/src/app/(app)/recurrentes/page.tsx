@@ -89,7 +89,7 @@ export default function SeriesListPage() {
       <Title>Recurrentes</Title>
       <PageHeader
         title="Recurrentes"
-        subtitle="Sueldos, arriendos, cuotas y encargos que se cobran por mes. La app los anota sola."
+        subtitle="Sueldos, arriendos, cuotas y proyectos que se cobran por mes. La app los anota sola."
         action={
           <Link href="/recurrentes/nuevo" className={btn("primary", "sm")}>
             + Recurrente
@@ -109,7 +109,7 @@ export default function SeriesListPage() {
       <Group title="Ingresos">
         {view.income.length === 0 ? (
           <Empty>
-            Nada programado. Un sueldo, una asignación, un encargo largo que se cobra por mes.
+            Nada programado. Un sueldo, una asignación, un proyecto largo que se cobra por mes.
           </Empty>
         ) : (
           view.income.map(row)

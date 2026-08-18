@@ -18,9 +18,9 @@ export default function NewProjectPage() {
 
   return (
     <>
-      <Title>Nuevo workspace</Title>
+      <Title>Nuevo proyecto</Title>
       <PageHeader
-        title="Nuevo workspace"
+        title="Nuevo proyecto"
         subtitle="Un proyecto, un ramo, una empresa, una investigación — todos viven igual."
       />
       <ProjectForm action={createProject} entities={sortedEntities} parents={sortedProjects} />

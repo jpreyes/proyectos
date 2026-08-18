@@ -19,15 +19,15 @@ const ACTIVE = ["idea", "active", "paused", "waiting"];
  * prerenderizar la cáscara, y la cáscara es justo lo que hace que esta pantalla
  * abra sin red.
  */
-export default function WorkspacesRoute() {
+export default function ProyectosRoute() {
   return (
     <Suspense fallback={null}>
-      <WorkspacesPage />
+      <ProyectosPage />
     </Suspense>
   );
 }
 
-function WorkspacesPage() {
+function ProyectosPage() {
   const cfg = useConfig();
   const router = useRouter();
   const sp = useSearchParams();
@@ -80,7 +80,7 @@ function WorkspacesPage() {
     <>
       <Title>Trabajo</Title>
       <PageHeader
-        title="Trabajo"
+        title="Proyectos"
         subtitle={`${projects.length} ${todos ? "en total" : "abiertos"}`}
         action={
           <Link href="/w/nuevo" className={btn("primary", "sm")}>
@@ -131,7 +131,7 @@ function WorkspacesPage() {
         </details>
       </form>
 
-      {projects.length === 0 && <Empty>No hay workspaces que coincidan.</Empty>}
+      {projects.length === 0 && <Empty>No hay proyectos que coincidan.</Empty>}
 
       <div data-tour="work-list">
         {[...byKind.entries()].map(([kindKey, list]) => (

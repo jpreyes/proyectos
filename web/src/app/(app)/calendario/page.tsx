@@ -45,6 +45,8 @@ import {
 } from "@/components/ui";
 import { WeekGrid } from "@/components/WeekGrid";
 import { MonthGrid, MonthLegend } from "@/components/MonthGrid";
+import { DayGrid } from "@/components/DayGrid";
+import { buildDayPlan } from "@/lib/dayplan";
 import { Title } from "@/components/Title";
 
 const VIEWS = [
@@ -52,6 +54,13 @@ const VIEWS = [
   { weeks: 26, label: "6 meses" },
   { weeks: 52, label: "1 año" },
 ];
+
+/** Un día antes o después, en UTC como todas las fechas de la app. */
+function shiftDay(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 export default function CalendarRoute() {
   return (
@@ -69,8 +78,13 @@ function CalendarPage() {
   // Dos maneras de mirar lo mismo. La de semanas responde "¿cuánto me queda
   // libre?"; la de mes, "¿qué pasa el jueves?". Ninguna reemplaza a la otra, y
   // cuál estabas mirando va en la URL para que volver no te devuelva a la otra.
-  const monthView = sp.get("vista") === "mes";
+  const vista = sp.get("vista") || "";
+  const monthView = vista === "mes";
+  // La vista de horas. Es la que contesta "¿qué hago ahora?" — ver `dayplan.ts`.
+  const dayView = vista === "dia";
   const month = sp.get("mes") || new Date().toISOString().slice(0, 7);
+  const dayParam = sp.get("dia") || "";
+  const theDay = dayParam || new Date().toISOString().slice(0, 10);
   const [pickedDay, setPickedDay] = useState("");
   const [pickedWeek, setPickedWeek] = useState("");
   /** Fechas con las que se abre el formulario de comprometer horas. */
@@ -146,6 +160,33 @@ function CalendarPage() {
     [month, allCommitments, events]
   );
 
+  /**
+   * El día, derivado. No se guarda nada: se rearma en cada render desde los
+   * mismos compromisos que alimentan la grilla de semanas, así que las dos
+   * vistas no pueden contradecirse.
+   */
+  const dayPlan = useMemo(
+    () =>
+      buildDayPlan({
+        day: theDay,
+        commitments: allCommitments,
+        events,
+        workStart: cfg.settings.work_start,
+        workEnd: cfg.settings.work_end,
+        lunchStart: cfg.settings.lunch_start,
+        lunchEnd: cfg.settings.lunch_end,
+      }),
+    [
+      theDay,
+      allCommitments,
+      events,
+      cfg.settings.work_start,
+      cfg.settings.work_end,
+      cfg.settings.lunch_start,
+      cfg.settings.lunch_end,
+    ]
+  );
+
   const { window } = view;
   const nowLoad = window.load.get(view.thisWeek)?.total || 0;
   const overloaded = window.weeks.filter(
@@ -197,10 +238,22 @@ function CalendarPage() {
       <Card
         id="grilla"
         className="mb-5"
-        title={monthView ? "Mes" : "Carga semanal"}
+        title={dayView ? "Día" : monthView ? "Mes" : "Carga semanal"}
         action={
           <span className="flex gap-1.5">
-            <Link href="/calendario" className={btn(monthView ? "ghost" : "subtle", "sm")}>
+            {/* Tres preguntas distintas y por eso tres vistas, no una que
+                pretenda servir para todo: el día contesta "¿qué hago ahora?",
+                las semanas "¿cómo viene la carga?" y el mes "¿cabe?". */}
+            <Link
+              href={`/calendario?vista=dia${dayParam ? `&dia=${dayParam}` : ""}`}
+              className={btn(dayView ? "subtle" : "ghost", "sm")}
+            >
+              Día
+            </Link>
+            <Link
+              href="/calendario"
+              className={btn(!dayView && !monthView ? "subtle" : "ghost", "sm")}
+            >
               Semanas
             </Link>
             <Link
@@ -212,7 +265,43 @@ function CalendarPage() {
           </span>
         }
       >
-        {monthView ? (
+        {dayView ? (
+          <>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className="text-[17px] font-semibold first-letter:uppercase">
+                {fmtDayLong(theDay)}
+              </span>
+              <span className="flex gap-1">
+                <Link
+                  href={`/calendario?vista=dia&dia=${shiftDay(theDay, -1)}`}
+                  aria-label="Día anterior"
+                  className={btn("ghost", "sm")}
+                >
+                  ‹
+                </Link>
+                <Link href="/calendario?vista=dia" className={btn("ghost", "sm")}>
+                  Hoy
+                </Link>
+                <Link
+                  href={`/calendario?vista=dia&dia=${shiftDay(theDay, 1)}`}
+                  aria-label="Día siguiente"
+                  className={btn("ghost", "sm")}
+                >
+                  ›
+                </Link>
+              </span>
+            </div>
+
+            <DayGrid plan={dayPlan} />
+
+            <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-faint">
+              Este día no está guardado: se arma solo con tus compromisos cada vez que lo abres, así
+              que no puede quedar desactualizado. Para cambiarlo, cambia las horas del compromiso o
+              dale una franja fija. Lo que tiene hora propia —clases y eventos de tus calendarios—
+              manda; el resto se acomoda en lo que queda, siempre en bloques de media hora.
+            </p>
+          </>
+        ) : monthView ? (
           <>
             <div className="mb-3 flex items-center justify-between gap-2">
               {/* `capitalize` pondría "Agosto De 2026": solo la primera letra. */}

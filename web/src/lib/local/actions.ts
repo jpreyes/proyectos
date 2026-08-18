@@ -682,6 +682,13 @@ export async function saveSettings(fd: FormData) {
     capacity_hours_week: num(fd, "capacity_hours_week"),
     capacity_horizon_weeks: num(fd, "capacity_horizon_weeks"),
 
+    // La jornada. Van como texto "HH:MM" y no como número de minutos porque es
+    // lo que el formulario escribe y lo que un humano lee al mirar la fila.
+    work_start: str(fd, "work_start"),
+    work_end: str(fd, "work_end"),
+    lunch_start: str(fd, "lunch_start"),
+    lunch_end: str(fd, "lunch_end"),
+
     quote_overhead_pct: num(fd, "quote_overhead_pct"),
     quote_profit_pct: num(fd, "quote_profit_pct"),
     quote_validity_days: num(fd, "quote_validity_days"),

@@ -339,6 +339,24 @@ export default function SettingsPage() {
               />
             </Field>
 
+            {/* La jornada. Era un supuesto de quien puso la capacidad —"son 45
+                porque trabajo de 8 a 18"— y ahora es un límite de verdad: la
+                vista de Día no coloca nada fuera de esta ventana ni encima del
+                almuerzo, y lo que no cabe se informa en vez de derramarse a la
+                noche. Es lo que impide que el trabajo se coma la tarde. */}
+            <Field label="Empiezo a las" hint="HH:MM">
+              <input name="work_start" defaultValue={s.work_start} className={inputClass} />
+            </Field>
+            <Field label="Termino a las" hint="nada se agenda después">
+              <input name="work_end" defaultValue={s.work_end} className={inputClass} />
+            </Field>
+            <Field label="Almuerzo desde" hint="hora protegida">
+              <input name="lunch_start" defaultValue={s.lunch_start} className={inputClass} />
+            </Field>
+            <Field label="Almuerzo hasta">
+              <input name="lunch_end" defaultValue={s.lunch_end} className={inputClass} />
+            </Field>
+
             <Field label="Capacidad semanal" hint="horas de trabajo, el techo del calendario">
               <input
                 name="capacity_hours_week"

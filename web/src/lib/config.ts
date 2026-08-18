@@ -90,6 +90,18 @@ export interface Settings {
   /** Hasta dónde mira el buscador de huecos antes de rendirse. */
   capacity_horizon_weeks: number;
 
+  /*
+   * La jornada, "HH:MM". Era un supuesto de quien configuró la capacidad —"son
+   * 45 porque trabajo de 8 a 18"— y ahora es un límite: el repartidor del día
+   * no pone nada fuera de esta ventana, así que lo que no cabe se ve como que
+   * no cabe en vez de derramarse a la noche. Esa es la razón de que exista.
+   */
+  work_start: string;
+  work_end: string;
+  /** La única hora protegida del día. No se reparte nada encima. */
+  lunch_start: string;
+  lunch_end: string;
+
   quote_overhead_pct: number;
   quote_profit_pct: number;
   quote_validity_days: number;
@@ -157,6 +169,11 @@ export const DEFAULT_SETTINGS: Settings = {
 
   capacity_hours_week: 40,
   capacity_horizon_weeks: 78,
+
+  work_start: "08:00",
+  work_end: "18:00",
+  lunch_start: "13:00",
+  lunch_end: "14:00",
 
   quote_overhead_pct: 0.15,
   quote_profit_pct: 0.1,

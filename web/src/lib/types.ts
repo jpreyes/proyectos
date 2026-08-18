@@ -323,6 +323,15 @@ export interface Deliverable extends Base {
 
 /* ---------------------------------------------------------- calendario ---- */
 
+/** Una franja fija dentro de la semana. Ver `Commitment.slots`. */
+export interface DaySlot {
+  /** 1 = lunes … 7 = domingo. */
+  day: number;
+  /** "HH:MM" */
+  start: string;
+  end: string;
+}
+
 export interface Commitment extends Base {
   title: string;
   kind: ProjectKind | "";
@@ -332,6 +341,15 @@ export interface Commitment extends Base {
   start_date: string;
   end_date: string;
   hours_per_week: number;
+  /**
+   * Las franjas semanales de lo que de verdad ocurre a una hora: una clase es
+   * los lunes de 14:00 a 15:30, no "1,5 h sueltas en la semana".
+   *
+   * Vacío es el caso normal y significa flexible: el repartidor del día
+   * (`lib/dayplan.ts`) acomoda esas horas donde quepan. `day` va 1..7, lunes a
+   * domingo, como ISO.
+   */
+  slots?: DaySlot[] | null;
   status: CommitmentStatus;
   source: "manual" | "quote" | "";
   notes: string;

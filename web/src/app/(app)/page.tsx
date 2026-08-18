@@ -13,6 +13,7 @@ import { Form } from "@/components/form";
 import { Badge, btn, Card, Empty, Group, PageHeader, Row, Stat } from "@/components/ui";
 import { Due } from "@/components/Due";
 import { NextStepLine } from "@/components/NextStep";
+import { TodayPlan } from "@/components/TodayPlan";
 import { TaskList } from "@/components/TaskList";
 import { Title } from "@/components/Title";
 
@@ -134,9 +135,13 @@ export default function TodayPage() {
       // en la ficha de ningún proyecto. Sería anotar algo para perderlo.
       loose: tasks.filter((t) => !t.due_date),
       overdueCount: near.filter((h) => (daysUntil(h.date) ?? 0) < 0).length,
-      weekCount: near.filter((h) => {
+      // La misma ventana que el Horizonte, y no siete días fijos: esta ficha
+      // **lleva** a esa lista, así que contar una cosa y mostrar otra hace que
+      // los números no cuadren con lo que aparece al tocarla. Se reportó como
+      // "apreto próximos 7 días y me lleva a una tarjeta de próximos 14".
+      upcomingCount: near.filter((h) => {
         const n = daysUntil(h.date) ?? 99;
-        return n >= 0 && n <= 7;
+        return n >= 0 && n <= HORIZON_DAYS;
       }).length,
       receivableTotal: receivables.reduce((s, e) => s + homeOf(e), 0),
     };
@@ -163,6 +168,13 @@ export default function TodayPage() {
         }
       />
 
+      {/* Primero de todo, y antes que los números: la pregunta que da nombre a
+          la pantalla es "¿qué hago hoy?", y hasta acá lo único que había eran
+          plazos. Un plazo contesta "¿voy tarde?"; esto contesta "¿por dónde
+          parto?", que es lo que uno viene a buscar al abrir la app en la
+          mañana. Ver `TodayPlan`. */}
+      <TodayPlan />
+
       <div data-tour="today-stats" className="mb-6 grid grid-cols-2 gap-3">
         {/* Estas dos cuentan lo que hay en el horizonte, así que llevan ahí. Un
             número que se puede tocar y no hace nada se lee como app colgada. */}
@@ -174,9 +186,9 @@ export default function TodayPage() {
           onPress={goToHorizon}
         />
         <Stat
-          label="Próximos 7 días"
-          value={view.weekCount}
-          tone={view.weekCount > 0 ? "warn" : "neutral"}
+          label={`Próximos ${HORIZON_DAYS} días`}
+          value={view.upcomingCount}
+          tone={view.upcomingCount > 0 ? "warn" : "neutral"}
           onPress={goToHorizon}
         />
         <Stat

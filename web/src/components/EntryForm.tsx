@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Account, Category, Entity, Entry, Project } from "@/lib/types";
 import { useConfig } from "@/lib/local/config";
+import { CADENCE, options } from "@/lib/labels";
 import { inputDate, todayISO } from "@/lib/dates";
 import { Form, type Action } from "./form";
 import { btn, Card, Field, inputClass, Select } from "./ui";
@@ -28,6 +30,16 @@ export function EntryForm({
 }) {
   const cfg = useConfig();
   const e = entry;
+  /**
+   * Si el bloque de repetición está abierto.
+   *
+   * Es estado de React y no un `<details>` suelto —al revés que los demás
+   * formularios plegados— porque acá abrir el bloque **es** marcar la casilla:
+   * el mismo gesto declara la intención y muestra los dos campos que hacen
+   * falta. Un `<details>` con una casilla adentro se puede abrir sin marcar y
+   * marcar sin abrir, y las dos combinaciones mienten.
+   */
+  const [repeatOpen, setRepeatOpen] = useState(false);
   // Ni "IVA" ni "CLP" están escritos en la pantalla: los pone la cuenta. Es lo
   // que permite que este mismo formulario sirva con VAT, GST o IGV.
   const taxLabel = cfg.settings.tax_label || "IVA";
@@ -180,10 +192,58 @@ export function EntryForm({
                 interés por atraso, algo repuesto o comprado dos veces, suscripción olvidada
               </span>
             </label>
-            <label className="flex items-center gap-2.5 text-[15px] text-muted">
-              <input type="checkbox" name="recurring" defaultChecked={e?.recurring} />
-              <span>Es recurrente (suscripción, cuota)</span>
-            </label>
+            {/* Antes acá había una casilla "Es recurrente" que **no hacía nada**:
+                escribía `entry.recurring` y ese campo no lo leía nadie en toda
+                la app. Lo que sí repetía movimientos vivía en otra sección, con
+                un formulario que duplicaba catorce de estos mismos campos. Un
+                sueldo o una hipoteca son un movimiento que se repite, así que
+                se anotan acá.
+
+                Sigue siendo una regla la que fabrica las cuotas —eso no
+                cambia y no debe cambiar— pero declararla es marcar una casilla
+                en el movimiento que ya estabas escribiendo. */}
+            {e?.series ? (
+              <p className="text-[13px] text-faint">
+                Este movimiento lo fabrica una recurrencia. Editarlo acá cambia solo esta vez.
+              </p>
+            ) : (
+              <details className="group" open={repeatOpen}>
+                <summary className="flex cursor-pointer list-none items-center gap-2.5 text-[15px] text-muted">
+                  <input
+                    type="checkbox"
+                    name="repeat"
+                    checked={repeatOpen}
+                    onChange={(ev) => setRepeatOpen(ev.target.checked)}
+                    className="shrink-0"
+                  />
+                  <span>
+                    <span className="font-semibold text-ink">Se repite</span> — sueldo, arriendo,
+                    cuota, suscripción
+                  </span>
+                </summary>
+
+                {repeatOpen && (
+                  <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
+                    <Field label="Cada cuánto">
+                      <Select name="cadence" options={options(CADENCE)} defaultValue="monthly" />
+                    </Field>
+                    <Field label="Hasta" hint="en blanco: sin término">
+                      <input type="date" name="repeat_until" className={inputClass} />
+                    </Field>
+                    <label className="flex items-start gap-2.5 text-[13px] leading-snug text-muted sm:col-span-2">
+                      <input type="checkbox" name="auto_paid" className="mt-0.5" />
+                      <span>Dar por pagadas las repeticiones cuya fecha ya pasó</span>
+                    </label>
+                    <p className="text-[12px] leading-relaxed text-faint sm:col-span-2">
+                      La fecha de arriba es la primera vez: de ahí salen el día del mes y el ritmo.
+                      {e
+                        ? " Este movimiento pasa a formar parte de la serie."
+                        : " No se guarda un movimiento suelto además de la regla — las repeticiones las fabrica ella, incluida esta."}
+                    </p>
+                  </div>
+                )}
+              </details>
+            )}
           </div>
         </Card>
       </div>

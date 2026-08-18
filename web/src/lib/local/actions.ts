@@ -290,17 +290,88 @@ function entryPayload(fd: FormData) {
     doc_number: str(fd, "doc_number"),
     notes: str(fd, "notes"),
     friction_cost: bool(fd, "friction_cost"),
-    recurring: bool(fd, "recurring"),
+    // `recurring` ya no lo escribe el formulario. Lo pone `recurring.ts` en las
+    // cuotas que fabrica, y mandarlo desde acá en `false` —que es lo que daría
+    // un campo que ya no existe— le borraría la marca a cada cuota que alguien
+    // corrija a mano.
   };
 }
 
+/**
+ * La regla que hay detrás de un movimiento que se repite.
+ *
+ * Un sueldo o una hipoteca no son "un movimiento con una casilla marcada": son
+ * una regla que fabrica movimientos. Pero **anotarlos sí es anotar un
+ * movimiento**, y por eso esto se arma desde el mismo formulario en vez de
+ * mandar a la persona a una pantalla aparte con catorce campos repetidos.
+ *
+ * La fecha del movimiento es la primera repetición: de ahí salen el día del mes
+ * y el ritmo, igual que en el formulario de la serie.
+ */
+function seriesFromEntry(fd: FormData) {
+  const p = entryPayload(fd);
+  // Una serie nunca nace pagada ni anulada: para lo pasado está `auto_paid`.
+  const status = p.status === "paid" || p.status === "cancelled" ? "invoiced" : p.status;
+  return {
+    direction: p.direction,
+    description: p.description,
+    amount: p.amount,
+    currency: p.currency,
+    fx_rate: p.fx_rate,
+    net: p.net,
+    tax: p.tax,
+    withholding: p.withholding,
+    cadence: str(fd, "cadence") || "monthly",
+    start_date: p.date,
+    end_date: str(fd, "repeat_until"),
+    occurrences: 0,
+    due_days: 0,
+    status,
+    auto_paid: bool(fd, "auto_paid"),
+    paused: false,
+    project: p.project,
+    entity: p.entity,
+    account: p.account,
+    category: p.category,
+    doc_type: p.doc_type,
+    notes: p.notes,
+  };
+}
+
+/** Crea la serie y deja que ella fabrique las cuotas, incluida la de hoy. */
+async function spawnSeries(fd: FormData): Promise<string> {
+  const id = await create("entry_series", seriesFromEntry(fd));
+  const row = series(id);
+  if (row) await materializeSeries(row);
+  return id;
+}
+
 export async function createEntry(fd: FormData) {
+  // Marcar "se repite" al anotar **no** guarda un movimiento suelto y además una
+  // regla: guarda la regla, y la primera cuota la fabrica ella. Guardar los dos
+  // dejaría el mes duplicado, que es el error clásico de esta pantalla.
+  if (bool(fd, "repeat")) {
+    await spawnSeries(fd);
+    return str(fd, "return_to") || "/finanzas";
+  }
   await create("entries", entryPayload(fd));
   return str(fd, "return_to") || "/finanzas";
 }
 
 export async function updateEntry(fd: FormData) {
-  await update("entries", str(fd, "id"), entryPayload(fd));
+  const id = str(fd, "id");
+  const row = store.get<Entry & { id: string }>("entries", id);
+
+  // Convertir uno suelto en recurrente: nace la serie desde su misma fecha y
+  // este movimiento se va, porque la serie lo va a rehacer con el id derivado
+  // de (serie, fecha). Dejarlo sería tener el mismo mes dos veces.
+  if (bool(fd, "repeat") && row && !row.series) {
+    await spawnSeries(fd);
+    await remove("entries", id);
+    return str(fd, "return_to") || "/finanzas";
+  }
+
+  await update("entries", id, entryPayload(fd));
   return str(fd, "return_to") || "/finanzas";
 }
 

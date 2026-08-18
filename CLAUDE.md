@@ -470,8 +470,22 @@ cliente, porque existe antes que el proyecto— y `commitments`, que mide tiempo
   moverse cuando cambia la UF de hoy. El nombre quedó de cuando todo era en pesos: hoy
   significa **«monto en la moneda base de la cuenta»**, y renombrar la columna a cambio de
   nada no paga el riesgo.
+- **Una recurrencia se anota como un movimiento, pero se guarda como una regla.**
+  Las dos mitades importan y son distintas. La de **arriba** es de interfaz: un sueldo o
+  una hipoteca *son* movimientos que se repiten, así que se escriben en el formulario de
+  movimiento con una casilla «Se repite», no en una sección aparte. Hubo un tiempo en que
+  esa casilla existía y **no hacía nada** —escribía `entry.recurring`, campo que no leía
+  nadie— mientras el mecanismo de verdad vivía en `/recurrentes` con un formulario que
+  duplicaba catorce de los mismos campos; se reportó como «se está llenando de movimientos
+  que se pueden simplificar». Dos reglas que lo sostienen: marcar la casilla al crear
+  **no** guarda un movimiento suelto además de la regla —guarda la regla, y la cuota de esa
+  fecha la fabrica ella, o el mes quedaría duplicado—; y convertir uno ya existente crea la
+  serie desde su fecha y **retira** el original, porque la serie lo rehace con el id
+  derivado. `/recurrentes` sigue existiendo para revisar y pausar reglas, pero dejó de ser
+  una sección al final de Finanzas: ahí quedó una fila con el saldo mensual, que es lo
+  único que la lista de movimientos no puede decir porque no es un movimiento.
 - **Una recurrencia no reemplaza al movimiento: lo fabrica** (`lib/local/recurring.ts`,
-  `/recurrentes`). `entry_series` guarda la regla —cada cuánto, desde cuándo, hasta cuándo,
+  `/recurrentes`). Esta es la mitad de **abajo**, y no cambió. `entry_series` guarda la regla —cada cuánto, desde cuándo, hasta cuándo,
   por cuánto— y la app materializa cada repetición como una fila normal de `entries`. La
   alternativa, expandir la serie al leer, habría obligado a que el flujo mensual, el margen
   por proyecto, «por cobrar», el cierre de impuestos y el buscador supieran de recurrencias,

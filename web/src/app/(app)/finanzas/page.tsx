@@ -9,7 +9,6 @@ import { useConfig } from "@/lib/local/config";
 import { useCollection } from "@/lib/local/store";
 import { day, index, sortBy } from "@/lib/local/query";
 import { perMonth } from "@/lib/local/recurring";
-import { CADENCE } from "@/lib/labels";
 import { homeOf, formatMoney, formatMoneyShort } from "@/lib/money";
 import { fmtDate, fmtRelative, monthKey, recentMonths } from "@/lib/dates";
 import { Form } from "@/components/form";
@@ -333,47 +332,29 @@ function FinancePage() {
         )}
       </Group>
 
-      {/* Lo que se repite ya no es una lista de movimientos marcados a mano: es
-          una regla que los fabrica. Acá va el resumen y el paso a la pantalla
-          que las administra. */}
-      <Group
-        title={
-          view.seriesNet >= 0
-            ? `Recurrentes · +${formatMoneyShort(view.seriesNet)}/mes`
-            : `Recurrentes · −${formatMoneyShort(-view.seriesNet)}/mes`
-        }
-      >
-        {view.series.length === 0 ? (
-          <Row
-            href="/recurrentes/nuevo"
-            icon="+"
-            iconTone="accent"
-            label="Programar un ingreso o un egreso"
-            hint="Un sueldo, un arriendo, una cuota, un proyecto que se cobra por mes"
-          />
-        ) : (
-          <>
-            {view.series.slice(0, 6).map((s) => (
-              <Row
-                key={s.id}
-                href={`/recurrentes/${s.id}`}
-                label={s.description}
-                hint={[CADENCE[s.cadence] || s.cadence, s.paused ? "en pausa" : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-                value={
-                  <span className={s.direction === "income" ? "text-ok" : "text-ink"}>
-                    {s.direction === "expense" ? "−" : ""}
-                    {formatMoneyShort(perMonth(s))}
-                    <span className="text-faint">/mes</span>
-                  </span>
-                }
-              />
-            ))}
-            <Row href="/recurrentes" icon="∿" label="Ver todas las recurrentes" />
-          </>
-        )}
-      </Group>
+      {/* Lo que se repite dejó de ser una sección aparte al final de la página.
+          Un sueldo o una hipoteca **son** movimientos —se anotan en el mismo
+          formulario, con la casilla "Se repite"— y sus cuotas están arriba, en
+          la lista, como cualquier otra fila: para eso se materializan. Lo que
+          queda acá es lo único que la lista no puede decir, porque no es un
+          movimiento sino un saldo: cuánto de tu mes ya está comprometido antes
+          de que empiece. */}
+      {view.series.length > 0 && (
+        <Row
+          className="mb-6"
+          href="/recurrentes"
+          icon="∿"
+          label={`${view.series.length} movimiento${view.series.length === 1 ? "" : "s"} que se repite${view.series.length === 1 ? "" : "n"}`}
+          hint="revisar, pausar o cambiar sus reglas"
+          value={
+            <span className={view.seriesNet >= 0 ? "text-ok" : "text-ink"}>
+              {view.seriesNet >= 0 ? "+" : "−"}
+              {formatMoneyShort(Math.abs(view.seriesNet))}
+              <span className="text-faint">/mes</span>
+            </span>
+          }
+        />
+      )}
 
       {/* Fuera de las filas de arriba: un enlace que además escribe volvería
           ambigua la fila entera al tocarla. */}
